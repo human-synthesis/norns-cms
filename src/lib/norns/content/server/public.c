@@ -8,7 +8,8 @@ export type { ContentType, Entry }
 svc := (c: Container) => c.resolve('content.service') as ContentService
 
 // The content facade: routes and other features call this, never the
-// service or the repo directly.
+// service or the repo directly. Everything that touches the database is
+// async — await it.
 export cms := (c: Container) => {
 	types: () => svc(c).types()
 	getType: (id: string) => svc(c).getType(id)

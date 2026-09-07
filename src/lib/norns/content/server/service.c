@@ -14,10 +14,14 @@ export slugify := (s: string) =>
 
 export type SaveResult = { ok: true, id: number } | { ok: false, issues: any[] }
 
+// Compiled schemas, keyed by type id. Module-level because the service is a
+// transient binding (one per resolve) while type definitions never change
+// after boot.
+compiledTypes := new Map<string, any>()
+
 export class ContentService
 	registry: TypeRegistry
 	repo: EntriesRepo
-	cache: Map<string, any> = new Map()
 	constructor(@registry: TypeRegistry, @repo: EntriesRepo)
 
 	types(): ContentType[]
@@ -33,29 +37,29 @@ export class ContentService
 		ct
 
 	compiled(ct: ContentType)
-		hit := @cache.get ct.id
+		hit := compiledTypes.get ct.id
 		return hit if hit
 		built := compileType ct
-		@cache.set ct.id, built
+		compiledTypes.set ct.id, built
 		built
 
 	form(typeId: string)
 		ct := @mustType typeId
 		{ fields: ct.fields }
 
-	list(typeId: string, opts: ListOpts = {}): Entry[]
+	list(typeId: string, opts: ListOpts = {}): Promise<Entry[]>
 		@repo.list @mustType(typeId).id, opts
 
-	count(typeId: string, status?: string): number
+	count(typeId: string, status?: string): Promise<number>
 		@repo.count @mustType(typeId).id, status
 
-	get(typeId: string, id: number): Entry | undefined
+	get(typeId: string, id: number): Promise<Entry | undefined>
 		@repo.get @mustType(typeId).id, id
 
-	recent(limit = 10): Entry[]
+	recent(limit = 10): Promise<Entry[]>
 		@repo.recent limit
 
-	save(typeId: string, id: number | null, raw: Record<string, any>, userId: number | null): SaveResult
+	async save(typeId: string, id: number | null, raw: Record<string, any>, userId: number | null): Promise<SaveResult>
 		ct := @mustType typeId
 		{ schema, titleField } := @compiled ct
 		result := v.safeParse schema, raw
@@ -64,30 +68,32 @@ export class ContentService
 		data := result.output as Record<string, any>
 		title := String(data[titleField] ?? '')
 		requested := String(raw.slug ?? '').trim()
-		slug := @uniqueSlug ct.id, slugify(requested || title) || 'untitled', id
+		slug := await @uniqueSlug ct.id, slugify(requested || title) || 'untitled', id
 		if id
-			@repo.update id, { title, slug, data }
-			@repo.addRevision id, data, userId
+			await @repo.update id, { title, slug, data }
+			await @repo.addRevision id, data, userId
 			return { ok: true, id }
-		newId := @repo.insert { type: ct.id, title, slug, data, authorId: userId }
-		@repo.addRevision newId, data, userId
+		newId := await @repo.insert { type: ct.id, title, slug, data, authorId: userId }
+		await @repo.addRevision newId, data, userId
 		{ ok: true, id: newId }
 
-	uniqueSlug(typeId: string, base: string, excludeId: number | null): string
+	async uniqueSlug(typeId: string, base: string, excludeId: number | null): Promise<string>
 		candidate .= base
 		n .= 2
-		while @repo.slugTaken(typeId, candidate, excludeId)
+		while await @repo.slugTaken(typeId, candidate, excludeId)
 			candidate = `${base}-${n}`
 			n++
 		candidate
 
-	setStatus(typeId: string, id: number, status: string): void
+	async setStatus(typeId: string, id: number, status: string): Promise<void>
 		@mustType typeId
-		@repo.setStatus id, status === 'published' ? 'published' : 'draft'
+		await @repo.setStatus id, status === 'published' ? 'published' : 'draft'
+		return
 
-	remove(typeId: string, id: number): void
+	async remove(typeId: string, id: number): Promise<void>
 		@mustType typeId
-		@repo.remove id
+		await @repo.remove id
+		return
 
 	revisions(entryId: number)
 		@repo.revisions entryId
@@ -105,7 +111,7 @@ export class ContentService
 
 	// Public routing. `/posts` → list (when the type is listable),
 	// `/posts/<slug>` → post, `/<slug>` → page. Drafts resolve only in preview.
-	resolve(path: string, preview = false)
+	async resolve(path: string, preview = false)
 		segments := path.split('/').filter(Boolean)
 		for ct of @registry.all()
 			base := String(ct.basePath || '').replace(/^\//, '')
@@ -113,28 +119,30 @@ export class ContentService
 				continue unless segments[0] === base
 				if segments.length === 1
 					if ct.listable
-						return { kind: 'list', ct, entries: @repo.list(ct.id, { status: 'published', limit: 100 }) }
+						entries := await @repo.list ct.id, { status: 'published', limit: 100 }
+						return { kind: 'list', ct, entries }
 					continue
-				entry := @repo.bySlug ct.id, segments.slice(1).join('/'), !preview
+				entry := await @repo.bySlug ct.id, segments.slice(1).join('/'), !preview
 				if entry
 					return { kind: 'entry', ct, entry, html: @render(ct, entry) }
 			else
 				continue if segments.length === 0
-				entry := @repo.bySlug ct.id, segments.join('/'), !preview
+				entry := await @repo.bySlug ct.id, segments.join('/'), !preview
 				if entry
 					return { kind: 'entry', ct, entry, html: @render(ct, entry) }
 		null
 
 	// Public navigation: listable types by base path, plus pages flagged
 	// showInNav.
-	nav(): { label: string, href: string }[]
+	async nav(): Promise<{ label: string, href: string }[]>
 		out := [] as { label: string, href: string }[]
 		for ct of @registry.all()
 			if ct.basePath
 				if ct.listable
 					out.push { label: ct.labelPlural, href: ct.basePath }
 			else
-				for e of @repo.list(ct.id, { status: 'published', limit: 20 })
+				entries := await @repo.list ct.id, { status: 'published', limit: 20 }
+				for e of entries
 					if e.data.showInNav
 						out.push { label: e.title, href: `/${e.slug}` }
 		out
@@ -145,5 +153,10 @@ export class ContentService
 			items.push { label: ct.labelPlural, href: `/admin/content/${ct.id}`, icon: ct.icon ?? 'lucide:file-text' }
 		items
 
-	counts()
-		@registry.all().map((ct) => ({ ct, total: @repo.count(ct.id), published: @repo.count(ct.id, 'published') }))
+	async counts()
+		out := [] as { ct: ContentType, total: number, published: number }[]
+		for ct of @registry.all()
+			total := await @repo.count ct.id
+			published := await @repo.count ct.id, 'published'
+			out.push { ct, total, published }
+		out

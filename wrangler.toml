@@ -1,23 +1,41 @@
-# Cloudflare Workers / Pages stub for Norns apps. UNCOMMENT to deploy on Cloudflare.
+# Cloudflare Workers config for norns-cms — served at norns-cms.humansynthesis.ai.
 #
-# Two compat flags are required for the runtime:
-#   - nodejs_als     → AsyncLocalStorage support (used by event.locals.container scoping)
-#   - nodejs_compat  → general Node compat layer; Drizzle drivers + many libs need this
+# Compat flags required by the norns runtime:
+#   nodejs_als     → AsyncLocalStorage (per-request DI scope, event.locals.container)
+#   nodejs_compat  → general Node compat layer (node:crypto scrypt, node:module)
 #
-# Bind D1 as `DB` (or any name) and switch your $lib/<feature>/server/module.c
-# to `d1(env.DB)` instead of `betterSqlite('data/...')`.
-#
-# name = "norns-app"
-# main = ".svelte-kit/cloudflare/_worker.js"
-# compatibility_date = "2026-04-01"
-# compatibility_flags = ["nodejs_als", "nodejs_compat"]
-#
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "norns-app-db"
-# database_id = "00000000-0000-0000-0000-000000000000"
-#
-# Apply migrations to D1 (does NOT use `norns migrate`):
-#   wrangler d1 migrations apply norns-app-db
-# Convention: keep the SQL files under src/lib/<feature>/server/migrations/ and
-# point wrangler at them via `migrations_dir` (consult wrangler docs).
+# D1 is bound as `DB`; auth/server/module.c reads it from
+# `event.platform.env.DB` and every repo runs on it. Migrations for wrangler
+# live in migrations/d1/ (a flat mirror of migrations/<feature>/, kept in
+# sync by `bun run d1:sync`) and are applied with `bun run db:migrate`
+# (local) / `bun run db:migrate:remote` (production). Under `bun run dev`,
+# adapter-cloudflare's platform proxy reads this file and serves a local D1
+# from .wrangler/state/.
+
+name = "norns-cms"
+main = ".svelte-kit/cloudflare/_worker.js"
+compatibility_date = "2026-04-01"
+compatibility_flags = ["nodejs_als", "nodejs_compat"]
+
+routes = [
+	{ pattern = "norns-cms.humansynthesis.ai", custom_domain = true }
+]
+
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"
+
+[observability]
+enabled = true
+
+[vars]
+CMS_SITE_TITLE = "Norns CMS"
+CMS_SITE_TAGLINE = "A content management system that is an ordinary Norns app."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "norns-cms"
+# Replace with the id printed by `wrangler d1 create norns-cms` before the
+# first production deploy. Any value works for --local.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations/d1"

@@ -20,9 +20,11 @@ src/
     server/public.c                  the ONLY file routes / other features import
     shared/schema.c, types.c         valibot schemas, content type definitions
     ui/*.n                           feature-local components (imported explicitly)
-migrations/<feature>/*.sql           applied with `bun run migrate up`
+migrations/<feature>/*.sql           source of truth; `bun run migrate up` (SQLite file) reads these
+migrations/d1/*.sql                  flat mirror for wrangler (`bun run d1:sync`); `bun run db:migrate[:remote]`
 tests/                               bun tests; tests/civet-loader.js lets bun import .c files
-tools/seed.js                        first admin user
+tools/seed.js                        first admin user (SQLite file, or --d1 [--remote])
+wrangler.toml                        Workers config: D1 `DB` binding, custom domain, [vars]
 ```
 
 Features: `auth` (owns `db`, users, sessions, `sessionHandle`), `content` (type registry, field types, entries, revisions, markdown rendering, routing), `pages` and `posts` (each registers one content type).
@@ -45,7 +47,16 @@ bunx norns diag <file>            # JS that Civet emits for a .c / .n script
 bunx norns diag --template <f.n>  # Svelte source the compiler sees after Pug / Civet / auto-import
 ```
 
-Runtime is Bun (`bun:sqlite`). Under Node, install `better-sqlite3`.
+```sh
+bun run db:migrate     # local D1 (.wrangler/state), read by `bun run dev` via the adapter's platform proxy
+bun run db:seed        # first admin on the local D1; db:migrate:remote / db:seed:remote for production
+bun run preview        # wrangler dev (workerd) over the production build — the closest thing to production
+bun run deploy         # build + remote migrations + wrangler deploy; needs a logged-in wrangler
+```
+
+**Storage.** `auth/server/db.js` exposes one async surface (`all`, `get`, `run`, `exec`) over two backends: D1 when the request carries `event.platform.env.DB` (production, and `bun run dev` through adapter-cloudflare's platform proxy), otherwise the SQLite file at `DATABASE_URL` (`bun test`, a Bun/Node server without D1; under Node install `better-sqlite3`). Because `db` is resolved per request, `db`, repos and services are **transient** bindings (`app.bind`), never `single`. Every repo/service/facade call that touches the database returns a promise: always `await`.
+
+Deploys and pushes are user-gated: never push or run `wrangler deploy` without an explicit go-ahead in the current conversation.
 
 ## Working with norns (Civet + Pug + Svelte 5)
 
@@ -97,5 +108,7 @@ Template syntax that works: `+if('cond')` / `+elseif('cond')` / `+else`, `+each(
 - **Don't introduce ORMs.** Hand-written SQL in `repo.c`, through the `db` token.
 - **Don't add `bcrypt`/`argon2`.** Passwords via `node:crypto.scrypt` (`auth/server/password.js`).
 - **Don't open the database anywhere but `auth/server/module.c`.** Everyone else calls `c.resolve('db')`; `tests/architecture.test.js` enforces it.
+- **Don't use `single` for anything that resolves `db`.** On Workers the D1 binding is per request; a root singleton would capture the first request's binding.
+- **After adding a migration, run `bun run d1:sync`** and commit `migrations/d1/` too, or production will not get it.
 - **In `vite.config.js`, keep `server.allowedHosts: true`** when behind any reverse proxy in dev.
 - **Container env vars are read at create time.** `podman-compose restart` does NOT pick up `.env` changes — use `up -d --force-recreate <service>`.

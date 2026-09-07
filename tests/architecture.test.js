@@ -74,7 +74,7 @@ describe('architecture', () => {
 
 	test('exactly one module owns the db binding', () => {
 		const owners = walk(join(SRC, 'lib', 'norns')).filter(
-			(f) => f.endsWith('module.c') && /single\s+'db'/.test(readFileSync(f, 'utf8'))
+			(f) => f.endsWith('module.c') && /(single|bind)\s+'db'/.test(readFileSync(f, 'utf8'))
 		);
 		expect(owners.map((f) => relative(SRC, f))).toEqual(['lib/norns/auth/server/module.c']);
 	});

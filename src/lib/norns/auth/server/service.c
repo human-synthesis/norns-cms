@@ -8,25 +8,26 @@ export class AuthService
 	repo: UsersRepo
 	constructor(@repo: UsersRepo)
 
-	login(email: string, password: string): { id: string, user: User } | null
-		row := @repo.byEmail email.trim().toLowerCase()
+	async login(email: string, password: string): Promise<{ id: string, user: User } | null>
+		row := await @repo.byEmail email.trim().toLowerCase()
 		return null unless row
 		return null unless verifyPassword(password, row.password_hash)
 		id := randomBytes(32).toString('hex')
-		@repo.createSession id, row.id, Date.now() + SESSION_MS
+		await @repo.createSession id, row.id, Date.now() + SESSION_MS
 		{ id, user: { id: row.id, email: row.email, name: row.name, role: row.role } }
 
-	logout(sessionId: string): void
-		@repo.deleteSession sessionId
+	async logout(sessionId: string): Promise<void>
+		await @repo.deleteSession sessionId
+		return
 
-	userForSession(sessionId: string): User | undefined
-		@repo.userForSession sessionId
+	async userForSession(sessionId: string): Promise<User | undefined>
+		await @repo.userForSession sessionId
 
-	createUser(email: string, name: string, password: string, role = 'editor'): number
-		@repo.create email.trim().toLowerCase(), name.trim(), hashPassword(password), role
+	async createUser(email: string, name: string, password: string, role = 'editor'): Promise<number>
+		await @repo.create email.trim().toLowerCase(), name.trim(), hashPassword(password), role
 
-	hasUsers(): boolean
-		@repo.count() > 0
+	async hasUsers(): Promise<boolean>
+		(await @repo.count()) > 0
 
 	// Coarse permissions for now: admins can do everything, everyone else can
 	// do everything except manage users.

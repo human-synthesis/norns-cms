@@ -12,8 +12,8 @@ export load := page.load
 export actions := page.actions
 	login:
 		input: loginSchema
-		run: ({ input, container, event }) =>
-			session := auth(container).login input.email, input.password
+		run: async ({ input, container, event }) =>
+			session := await auth(container).login input.email, input.password
 			unless session
 				return fail 400, {
 					errors: [{ path: [{ key: 'password' }], message: 'Invalid email or password' }],

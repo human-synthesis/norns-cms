@@ -30,7 +30,7 @@ export sessionHandle := (opts: { protect?: string[] } = {}) =>
 	protect := opts.protect ?? []
 	async ({ event, resolve }: any) =>
 		sid := event.cookies.get COOKIE
-		user := sid ? auth(event.locals.container).userForSession(sid) : undefined
+		user := sid ? await auth(event.locals.container).userForSession(sid) : undefined
 		event.locals.user = user ?? null
 		path := event.url.pathname
 		if !user && protect.some((p) => path === p || path.startsWith(p + '/'))

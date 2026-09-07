@@ -3,7 +3,7 @@ import { env } from '$env/dynamic/private'
 import { cms } from '$lib/norns/content/server/public'
 
 export load := page.load
-	handler: ({ container, user }) =>
+	handler: async ({ container, user }) =>
 		site: { title: env.CMS_SITE_TITLE || 'Norns CMS', tagline: env.CMS_SITE_TAGLINE || '' }
-		nav: cms(container).nav()
+		nav: await cms(container).nav()
 		user: user ? { email: user.email } : null

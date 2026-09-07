@@ -9,10 +9,10 @@ typeOr404 := (container, id) =>
 	ct
 
 export load := page.load
-	handler: ({ container, params, url }) =>
+	handler: async ({ container, params, url }) =>
 		ct := typeOr404 container, params.type
 		isNew := params.id === 'new'
-		entry := isNew ? null : cms(container).get(ct.id, Number(params.id))
+		entry := isNew ? null : await cms(container).get(ct.id, Number(params.id))
 		if !isNew && !entry
 			throw error 404, 'Entry not found'
 		values := entry ? { ...entry.data, slug: entry.slug } : {}
@@ -34,23 +34,23 @@ export actions := page.actions
 			ct := typeOr404 container, params.type
 			raw := Object.fromEntries(await event.request.formData()) as Record<string, any>
 			id := params.id === 'new' ? null : Number(params.id)
-			result := cms(container).save ct.id, id, raw, user?.id ?? null
+			result := await cms(container).save ct.id, id, raw, user?.id ?? null
 			unless result.ok
 				return fail 400, { errors: result.issues, values: raw }
 			throw redirect 303, `/admin/content/${ct.id}/${result.id}?saved=1`
 	publish:
-		run: ({ container, event }) =>
+		run: async ({ container, event }) =>
 			{ params } := event
 			ct := typeOr404 container, params.type
 			id := Number(params.id)
-			entry := cms(container).get ct.id, id
+			entry := await cms(container).get ct.id, id
 			unless entry
 				throw error 404, 'Entry not found'
-			cms(container).setStatus ct.id, id, entry.status === 'published' ? 'draft' : 'published'
+			await cms(container).setStatus ct.id, id, entry.status === 'published' ? 'draft' : 'published'
 			throw redirect 303, `/admin/content/${ct.id}/${id}?saved=1`
 	remove:
-		run: ({ container, event }) =>
+		run: async ({ container, event }) =>
 			{ params } := event
 			ct := typeOr404 container, params.type
-			cms(container).remove ct.id, Number(params.id)
+			await cms(container).remove ct.id, Number(params.id)
 			throw redirect 303, `/admin/content/${ct.id}`
