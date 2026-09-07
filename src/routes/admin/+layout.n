@@ -1,0 +1,34 @@
+.admin
+	aside.admin-sidebar
+		a.admin-brand(href="/admin")
+			.logo-mark N
+			span.font-extrabold.tracking-tight Norns CMS
+		nav.flex.flex-col.gap-1
+			+each('data.nav as item (item.href)')
+				a.admin-nav-link(href!="{item.href}" class!="{isActive(item.href) ? 'admin-nav-active' : ''}")
+					Icon(name!="{item.icon}" size="size-4")
+					span {item.label}
+		.mt-auto.flex.flex-col.gap-2
+			a.admin-nav-link(href="/" target="_blank" rel="noopener")
+				Icon(name="lucide:external-link" size="size-4")
+				span View site
+			.text-xs.px-3.truncate(class="text-fg-subtle") {data.user.email}
+			.flex.items-center.gap-2.px-1
+				ThemeToggler(variant="ghost" size="sm")
+				form(method="POST" action="/admin?/logout")
+					Btn(type="submit" variant="ghost" size="sm" icon="lucide:log-out") Sign out
+	main.admin-main
+		slot
+	ToastProvider
+
+<script>
+	import { page } from '$app/state'
+	{ data } := $props()
+
+	isActive := (href) =>
+		path := page.url.pathname
+		if href === '/admin'
+			path === '/admin'
+		else
+			path === href || path.startsWith(href + '/')
+</script>

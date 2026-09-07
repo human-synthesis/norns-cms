@@ -1,0 +1,29 @@
+.space-y-8
+	div
+		h1.text-2xl.font-bold.tracking-tight Dashboard
+		p.text-sm(class="text-fg-muted") Welcome back, {data.user.name || data.user.email}.
+	.grid.gap-4(class="sm:grid-cols-2 lg:grid-cols-3")
+		+each('data.counts as c (c.ct.id)')
+			Card
+				.flex.items-center.justify-between.gap-4
+					div
+						.text-sm(class="text-fg-muted") {c.ct.labelPlural}
+						.text-3xl.font-bold.tracking-tight {c.total}
+						.text-xs(class="text-fg-subtle") {c.published} published
+					Btn(href="/admin/content/{c.ct.id}/new" variant="secondary" size="sm" icon="lucide:plus") New
+	section.space-y-3
+		h2.text-lg.font-semibold Recently updated
+		+if('data.recent.length === 0')
+			Banner(variant="info" icon="lucide:info") Nothing yet. Create your first page or post from the sidebar.
+		+else
+			ul.list-none.p-0.m-0.divide-y(class="divide-border")
+				+each('data.recent as e (e.id)')
+					li.py-2.flex.items-center.justify-between.gap-4
+						a.no-underline.truncate(href="/admin/content/{e.type}/{e.id}" class="text-fg hover:underline") {e.title || '(untitled)'}
+						.flex.items-center.gap-3.text-xs.shrink-0(class="text-fg-subtle")
+							Badge(variant!="{e.status === 'published' ? 'success' : 'default'}" size="sm") {e.status}
+							span {new Date(e.updated_at).toLocaleString()}
+
+<script>
+	{ data } := $props()
+</script>

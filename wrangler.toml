@@ -1,0 +1,23 @@
+# Cloudflare Workers / Pages stub for Norns apps. UNCOMMENT to deploy on Cloudflare.
+#
+# Two compat flags are required for the runtime:
+#   - nodejs_als     → AsyncLocalStorage support (used by event.locals.container scoping)
+#   - nodejs_compat  → general Node compat layer; Drizzle drivers + many libs need this
+#
+# Bind D1 as `DB` (or any name) and switch your $lib/<feature>/server/module.c
+# to `d1(env.DB)` instead of `betterSqlite('data/...')`.
+#
+# name = "norns-app"
+# main = ".svelte-kit/cloudflare/_worker.js"
+# compatibility_date = "2026-04-01"
+# compatibility_flags = ["nodejs_als", "nodejs_compat"]
+#
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "norns-app-db"
+# database_id = "00000000-0000-0000-0000-000000000000"
+#
+# Apply migrations to D1 (does NOT use `norns migrate`):
+#   wrangler d1 migrations apply norns-app-db
+# Convention: keep the SQL files under src/lib/<feature>/server/migrations/ and
+# point wrangler at them via `migrations_dir` (consult wrangler docs).

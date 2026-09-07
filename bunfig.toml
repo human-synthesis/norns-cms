@@ -1,0 +1,4 @@
+# bun test needs to import .c (Civet) modules; the preload registers a
+# loader that compiles them on the fly. See tests/civet-loader.js.
+[test]
+preload = ["./tests/civet-loader.js"]

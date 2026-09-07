@@ -1,0 +1,41 @@
+.space-y-6
+	.flex.items-start.justify-between.gap-4
+		div
+			a.text-sm.no-underline(href="/admin/content/{data.ct.id}" class="text-fg-muted hover:text-fg") ← {data.ct.labelPlural}
+			h1.text-2xl.font-bold.tracking-tight {heading}
+		+if('data.entry')
+			.flex.items-center.gap-2
+				Badge(variant!="{data.entry.status === 'published' ? 'success' : 'default'}") {data.entry.status}
+				+if('data.publicUrl')
+					Btn(href!="{data.publicUrl}" target="_blank" rel="noopener" variant="ghost" size="sm" icon="lucide:external-link") View
+	+if('data.saved')
+		Banner(variant="success" icon="lucide:check") Saved.
+	+if('form?.errors')
+		Banner(variant="danger" icon="lucide:alert-triangle") Please fix the highlighted fields.
+	Form(action="?/save" form!="{form}")
+		.space-y-5
+			+each('data.form.fields as field (field.name)')
+				Field(label!="{field.label}" name!="{field.name}" required!="{field.required}" help!="{field.type === 'boolean' ? undefined : field.help}")
+					FieldEditor(field!="{field}" value!="{values[field.name]}")
+			Field(label="Slug" name="slug" help="Leave empty to derive it from the title")
+				Input(name="slug" value!="{values.slug ?? ''}" placeholder="my-page")
+			.flex.items-center.gap-2.pt-2
+				Btn(type="submit" variant="primary" icon="lucide:save") Save
+	+if('data.entry')
+		.flex.items-center.gap-2.border-t.pt-4(class="border-border")
+			form(method="POST" action="?/publish")
+				Btn(type="submit" variant="secondary" icon!="{data.entry.status === 'published' ? 'lucide:eye-off' : 'lucide:globe'}") {data.entry.status === 'published' ? 'Unpublish' : 'Publish'}
+			form(method="POST" action="?/remove" onsubmit!="{confirmRemove}")
+				Btn(type="submit" variant="danger" icon="lucide:trash-2") Delete
+
+<script>
+	import FieldEditor from '$lib/norns/content/ui/FieldEditor.n'
+	{ data, form } := $props()
+
+	values := $derived form?.values ?? data.values
+	heading := $derived data.entry ? (data.entry.title || '(untitled)') : ('New ' + data.ct.label)
+
+	confirmRemove := (e) =>
+		unless confirm('Delete this entry? This cannot be undone.')
+			e.preventDefault()
+</script>

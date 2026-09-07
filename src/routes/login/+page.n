@@ -1,0 +1,20 @@
+.min-h-screen.flex.items-center.justify-center.p-6(class="bg-bg-subtle")
+	Card(class="w-full max-w-sm")
+		.space-y-6
+			.flex.items-center.gap-3
+				.logo-mark N
+				div
+					.font-bold.tracking-tight Norns CMS
+					.text-xs(class="text-fg-muted") Sign in to the admin
+			Form(action="?/login" form!="{form}")
+				.space-y-4
+					input(type="hidden" name="next" value!="{data.next}")
+					Field(label="Email" name="email" required)
+						Input(type="email" name="email" value!="{form?.values?.email ?? ''}" autocomplete="username" required)
+					Field(label="Password" name="password" required)
+						Input(type="password" name="password" autocomplete="current-password" required)
+					Btn(type="submit" variant="primary" class="w-full") Sign in
+
+<script>
+	{ data, form } := $props()
+</script>

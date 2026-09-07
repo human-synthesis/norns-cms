@@ -1,0 +1,14 @@
+node_modules
+.DS_Store
+.svelte-kit
+build
+dist
+.env
+.env.*
+!.env.example
+bun.lockb
+*.tokens
+scripts
+data/
+# Note: pugTailwindExtract's generated sidecar lives in
+# node_modules/.cache/norns/ — already covered by `node_modules` above.

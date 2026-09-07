@@ -1,0 +1,159 @@
+@import 'tailwindcss';
+
+/* Auto-generated sidecar that lists every Pug-shorthand class found in
+ * `.n` files. Tailwind v4's scanner can't read Pug chains directly — the
+ * `pugTailwindExtract()` plugin in vite.config.js writes the file under
+ * node_modules/.cache and keeps it up to date on HMR. */
+@source "../node_modules/.cache/norns/tailwind-pug-classes.html";
+
+@import '@human-synthesis/norns-ui/styles';
+
+/*
+ * App-wide styles. Everything references the norns-ui role tokens
+ * (bg-bg, text-fg, border-border, …) so dark mode follows automatically.
+ *
+ *  - @layer base       — element defaults
+ *  - @layer components — .site-*, .admin-*, .nav-link, .logo-mark, .prose
+ *  - @layer utilities  — entrance animations
+ */
+
+@layer base {
+	html {
+		text-size-adjust: 100%;
+	}
+
+	body {
+		@apply bg-bg text-fg antialiased min-h-screen;
+	}
+
+	:not(pre) > code {
+		@apply px-1.5 py-0.5 rounded-md text-[0.9em] font-mono bg-bg-muted;
+	}
+
+	pre code {
+		@apply font-mono;
+	}
+
+	::selection {
+		@apply bg-primary-200 text-primary-950;
+	}
+}
+
+@layer components {
+	/* --- shared --- */
+	.logo-mark {
+		@apply w-7 h-7 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-sm shrink-0;
+		background: linear-gradient(135deg, oklch(0.55 0.2 285), oklch(0.4 0.18 270));
+	}
+
+	.nav-link {
+		@apply inline-flex items-center px-3 py-1.5 rounded-full no-underline text-sm font-medium text-fg-muted;
+		@apply transition-colors duration-200 hover:text-fg hover:bg-bg-muted;
+	}
+
+	/* --- public site --- */
+	.site-header {
+		@apply sticky top-0 z-20 border-b border-border backdrop-blur-xl;
+		background: color-mix(in oklch, var(--color-bg) 75%, transparent);
+	}
+
+	.site-container {
+		@apply w-full max-w-3xl mx-auto px-6 sm:px-8;
+	}
+
+	/* --- admin --- */
+	.admin {
+		@apply min-h-screen flex bg-bg-subtle text-fg;
+	}
+
+	.admin-sidebar {
+		@apply w-60 shrink-0 flex flex-col gap-6 p-4 border-r border-border bg-bg sticky top-0 h-screen;
+	}
+
+	.admin-brand {
+		@apply flex items-center gap-3 px-2 no-underline text-fg;
+	}
+
+	.admin-nav-link {
+		@apply flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium no-underline text-fg-muted;
+		@apply transition-colors hover:bg-bg-muted hover:text-fg;
+	}
+
+	.admin-nav-active {
+		@apply bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-200;
+	}
+
+	.admin-main {
+		@apply flex-1 min-w-0 p-8 max-w-5xl;
+	}
+
+	/* --- rendered markdown --- */
+	.prose {
+		@apply text-fg leading-relaxed;
+	}
+	.prose > * + * {
+		@apply mt-4;
+	}
+	.prose h1 {
+		@apply text-3xl font-bold tracking-tight mt-8;
+	}
+	.prose h2 {
+		@apply text-2xl font-bold tracking-tight mt-8;
+	}
+	.prose h3 {
+		@apply text-xl font-semibold mt-6;
+	}
+	.prose a {
+		@apply text-primary-600 underline underline-offset-2 hover:text-primary-800;
+	}
+	.prose ul {
+		@apply list-disc pl-6;
+	}
+	.prose ol {
+		@apply list-decimal pl-6;
+	}
+	.prose li + li {
+		@apply mt-1;
+	}
+	.prose blockquote {
+		@apply border-l-4 border-border pl-4 text-fg-muted italic;
+	}
+	.prose pre {
+		@apply p-4 rounded-lg overflow-x-auto text-sm bg-bg-muted;
+	}
+	.prose img {
+		@apply rounded-lg max-w-full;
+	}
+	.prose hr {
+		@apply border-border my-8;
+	}
+	.prose table {
+		@apply w-full text-sm;
+	}
+	.prose th,
+	.prose td {
+		@apply border border-border px-3 py-1.5 text-left;
+	}
+}
+
+@layer utilities {
+	.animate-in {
+		animation: norns-fade-in-up 0.5s cubic-bezier(0.21, 1.02, 0.73, 1) both;
+	}
+
+	.animate-in-delayed {
+		animation: norns-fade-in-up 0.5s cubic-bezier(0.21, 1.02, 0.73, 1) both;
+		animation-delay: 0.1s;
+	}
+}
+
+@keyframes norns-fade-in-up {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}

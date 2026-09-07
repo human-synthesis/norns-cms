@@ -1,0 +1,28 @@
++if('field.type === "markdown"')
+	Textarea(name!="{field.name}" value!="{value ?? ''}" rows="14" placeholder!="{field.placeholder ?? 'Write in Markdown…'}" class="font-mono text-sm")
++elseif('field.type === "textarea"')
+	Textarea(name!="{field.name}" value!="{value ?? ''}" rows="4" placeholder!="{field.placeholder}")
++elseif('field.type === "boolean"')
+	.flex.items-center.gap-2
+		Switch(name!="{field.name}" checked!="{!!value}")
+		span.text-sm(class="text-fg-muted") {field.help ?? ''}
++elseif('field.type === "select"')
+	Select(name!="{field.name}" value!="{value ?? ''}")
+		+if('!field.required')
+			option(value="") —
+		+each('field.options ?? [] as opt (opt.value)')
+			option(value!="{opt.value}") {opt.label}
++elseif('field.type === "number"')
+	Input(type="number" name!="{field.name}" value!="{value ?? ''}" placeholder!="{field.placeholder}")
++elseif('field.type === "datetime"')
+	Input(type="datetime-local" name!="{field.name}" value!="{value ?? ''}")
++elseif('field.type === "tags"')
+	Input(name!="{field.name}" value!="{Array.isArray(value) ? value.join(', ') : (value ?? '')}" placeholder="comma, separated, tags")
++else
+	Input(name!="{field.name}" value!="{value ?? ''}" placeholder!="{field.placeholder}" required!="{field.required}")
+
+<script>
+	// One editor per field type. Field-level label/error/help come from the
+	// surrounding <Field>; this only renders the control.
+	{ field, value } := $props()
+</script>

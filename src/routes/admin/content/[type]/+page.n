@@ -1,0 +1,37 @@
+.space-y-6
+	.flex.items-center.justify-between.gap-4
+		div
+			h1.text-2xl.font-bold.tracking-tight {data.ct.labelPlural}
+			p.text-sm(class="text-fg-muted") {data.total} total · {data.published} published
+		Btn(href="/admin/content/{data.ct.id}/new" variant="primary" icon="lucide:plus") New {data.ct.label}
+	form.flex.flex-wrap.items-end.gap-2(method="GET")
+		Input(name="q" value!="{data.q}" placeholder="Search titles…" class="w-64")
+		Select(name="status" value!="{data.status}" class="w-40")
+			option(value="") All statuses
+			option(value="draft") Draft
+			option(value="published") Published
+		Btn(type="submit" variant="secondary" icon="lucide:filter") Filter
+	DataTable(columns!="{columns}" rows!="{rows}" onrowclick!="{open}" emptyMessage="Nothing here yet — create the first one.")
+
+<script>
+	import { goto } from '$app/navigation'
+	{ data } := $props()
+
+	columns := [
+		{ key: 'title', label: 'Title' },
+		{ key: 'slug', label: 'Slug', class: 'text-fg-muted' },
+		{ key: 'status', label: 'Status' },
+		{ key: 'updated', label: 'Updated' },
+	]
+
+	rows := $derived.by =>
+		data.entries.map (e) => ({
+			id: e.id,
+			title: e.title || '(untitled)',
+			slug: e.slug,
+			status: e.status,
+			updated: new Date(e.updated_at).toLocaleString(),
+		})
+
+	open := (row) => goto('/admin/content/' + data.ct.id + '/' + row.id)
+</script>

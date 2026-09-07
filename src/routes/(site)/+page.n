@@ -1,0 +1,24 @@
+section.space-y-4.animate-in
+	h1.text-5xl.font-bold.tracking-tight.leading-none {data.site.title}
+	+if('data.site.tagline')
+		p.text-lg.max-w-prose(class="text-fg-muted") {data.site.tagline}
+
+section.pt-10.space-y-6.animate-in-delayed
+	h2.text-xl.font-semibold Latest posts
+	+if('data.posts.length === 0')
+		Banner(variant="info" icon="lucide:info")
+			| No posts yet. Sign in at
+			a(href="/login") /admin
+			| to write the first one.
+	+else
+		.space-y-4
+			+each('data.posts as e (e.id)')
+				Card(href="/posts/{e.slug}")
+					.font-semibold.text-lg {e.title}
+					+if('e.data.excerpt')
+						p.text-sm.mt-1(class="text-fg-muted") {e.data.excerpt}
+					.text-xs.mt-2(class="text-fg-subtle") {new Date(e.published_at ?? e.updated_at).toLocaleDateString()}
+
+<script>
+	{ data } := $props()
+</script>

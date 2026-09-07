@@ -1,0 +1,38 @@
+{
+  "name": "norns-cms",
+  "version": "0.0.1",
+  "description": "Content management system built on Norns (SvelteKit + Pug + Civet + norns-ui)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "NODE_OPTIONS='--preserve-symlinks' norns dev",
+    "build": "NODE_OPTIONS='--preserve-symlinks' norns build",
+    "preview": "norns preview",
+    "prepare": "svelte-kit sync || echo ''",
+    "check": "norns check",
+    "check:svelte": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
+    "lint": "norns lint",
+    "test": "bun test",
+    "migrate": "norns migrate",
+    "cms:seed": "bun tools/seed.js"
+  },
+  "devDependencies": {
+    "@human-synthesis/norns": "^0.0.18",
+    "@human-synthesis/norns-core": "^0.0.11",
+    "@human-synthesis/norns-ui": "^0.0.13",
+    "@sveltejs/adapter-auto": "^3.3.1",
+    "@sveltejs/kit": "^2.70.3",
+    "@sveltejs/vite-plugin-svelte": "^4",
+    "@tailwindcss/vite": "^4",
+    "svelte": "^5.57.0",
+    "svelte-check": "^4.0.0",
+    "tailwindcss": "^4",
+    "vite": "^5.4.0"
+  },
+  "packageManager": "bun@1.3.14",
+  "dependencies": {
+    "@human-synthesis/norns-tron": "^0.0.1",
+    "marked": "^15.0.0",
+    "valibot": "^1.4.0"
+  }
+}
