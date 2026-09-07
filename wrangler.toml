@@ -35,7 +35,5 @@ CMS_SITE_TAGLINE = "A content management system that is an ordinary Norns app."
 [[d1_databases]]
 binding = "DB"
 database_name = "norns-cms"
-# Replace with the id printed by `wrangler d1 create norns-cms` before the
-# first production deploy. Any value works for --local.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "1c69b792-cc7c-4126-a1c3-51e38fb375a0"
 migrations_dir = "migrations/d1"

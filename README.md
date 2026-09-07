@@ -21,13 +21,9 @@ The app runs on Cloudflare D1 whenever a `DB` binding is present (production thr
 
 ## Deploy
 
-Cloudflare Workers + D1 at `norns-cms.humansynthesis.ai` (see `wrangler.toml`). One-time setup:
+Live at <https://norns-cms.humansynthesis.ai> on Cloudflare Workers + D1 (see `wrangler.toml`; the D1 database `norns-cms` already exists and its id is committed there). For a fresh account, create it once with `bunx wrangler d1 create norns-cms` and paste the printed `database_id` into `wrangler.toml`.
 
-```sh
-bunx wrangler d1 create norns-cms      # paste the printed database_id into wrangler.toml
-```
-
-Then either `bun run deploy` (build, apply migrations remotely, `wrangler deploy`) with a logged-in wrangler, or push to `main`: `.github/workflows/deploy.yml` runs lint, check, tests, build, `wrangler d1 migrations apply norns-cms --remote` and `wrangler deploy`. It needs the `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, D1: Edit) and `CLOUDFLARE_ACCOUNT_ID` repository secrets. Create the first admin on the production database with `bun run db:seed:remote`.
+To ship a change, either `bun run deploy` (build, apply migrations remotely, `wrangler deploy`) with a logged-in wrangler, or push to `main`: `.github/workflows/deploy.yml` runs lint, check, tests, build, `wrangler d1 migrations apply norns-cms --remote` and `wrangler deploy`. It needs the `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, D1: Edit) and `CLOUDFLARE_ACCOUNT_ID` repository secrets. Create the first admin on the production database with `bun run db:seed:remote`.
 
 Migrations live in `migrations/<feature>/`; `bun run d1:sync` mirrors them into the flat `migrations/d1/` folder wrangler reads. Run it after adding a migration and commit both.
 
