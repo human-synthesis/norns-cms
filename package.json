@@ -26,7 +26,7 @@
     "@cloudflare/workers-types": "^5",
     "@human-synthesis/norns": "^0.0.19",
     "@human-synthesis/norns-core": "^0.0.11",
-    "@human-synthesis/norns-ui": "^0.0.17",
+    "@human-synthesis/norns-ui": "^0.0.18",
     "@sveltejs/adapter-cloudflare": "^7",
     "@sveltejs/kit": "^2.70.3",
     "@sveltejs/vite-plugin-svelte": "^5.1.1",
