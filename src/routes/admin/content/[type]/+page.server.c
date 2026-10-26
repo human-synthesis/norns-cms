@@ -1,6 +1,6 @@
 import { page } from '@human-synthesis/norns/server'
 import { error } from '@sveltejs/kit'
-import { cms } from '$lib/norns/content/server/public'
+import { cms, typeOrRedirect } from '$lib/norns/content/server/public'
 import { requireCap, can } from '$lib/norns/auth/server/public'
 
 PER_PAGE := 50
@@ -8,9 +8,7 @@ PER_PAGE := 50
 export load := page.load
 	handler: async ({ container, params, url, user }) =>
 		requireCap user, 'content.view'
-		ct := cms(container).getType params.type
-		unless ct
-			throw error 404, `Unknown content type "${params.type}"`
+		ct := typeOrRedirect container, params.type, url
 		status := url.searchParams.get('status') ?? ''
 		q := url.searchParams.get('q') ?? ''
 		mine := url.searchParams.get('mine') === '1'

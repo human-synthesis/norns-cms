@@ -1,4 +1,5 @@
 import type { Container } from '@human-synthesis/norns/server'
+import { error, redirect } from '@sveltejs/kit'
 import type { ContentService, Viewer } from './service'
 import type { ContentType, BlockDef } from '../shared/types'
 import type { Entry, ListOpts } from './repo'
@@ -18,6 +19,7 @@ svc := (c: Container) => c.resolve('content.service') as ContentService
 export cms := (c: Container) => {
 	types: () => svc(c).types()
 	getType: (id: string) => svc(c).getType(id)
+	typeByAlias: (id: string) => (c.resolve('content.registry') as any).byAlias(id)
 	fields: (ct: ContentType) => svc(c).fields(ct)
 	compile: (fields: any[]) => svc(c).compile(fields)
 	form: (typeId: string) => svc(c).form(typeId)
@@ -84,3 +86,13 @@ export registerOptions := (app: Container, key: string, fn: (c: Container) => Pr
 // Admin navigation: { id, label, icon, href, section, order?, capability? }.
 export registerAdminNav := (app: Container, item: any) =>
 	app.single `cms.nav:${item.id}`, => item
+
+// For routes taking a type id: the type, a redirect when the id is an old
+// alias (renamed types keep working URLs), or a 404.
+export typeOrRedirect := (c: Container, id: string, url: URL) =>
+	ct := cms(c).getType id
+	return ct if ct
+	renamed := cms(c).typeByAlias id
+	if renamed
+		throw redirect 301, url.pathname.replace(`/${id}`, `/${renamed.id}`) + url.search
+	throw error 404, `Unknown content type "${id}"`

@@ -242,3 +242,11 @@ describe('settings', () => {
 		expect((await settings(c).get('site')).registration).toBe('open');
 	});
 });
+
+describe('renamed types', () => {
+	test('the old post id resolves to articles by alias', async () => {
+		const c = await bootApp();
+		expect(cms(c).getType('post')).toBeUndefined();
+		expect(cms(c).typeByAlias('post').id).toBe('article');
+	});
+});

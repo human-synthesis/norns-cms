@@ -37,6 +37,10 @@ export class TypeRegistry
 		return undefined unless @root.bindings.has('cms.type:' + id)
 		@root.resolve 'cms.type:' + id
 
+	// A type that was renamed keeps its old ids in `aliases`.
+	byAlias(id: string): ContentType | undefined
+		@all().find((ct) => (ct.aliases ?? []).includes(id))
+
 	fieldGroups(): any[]
 		@prefixed 'cms.fieldgroup:'
 

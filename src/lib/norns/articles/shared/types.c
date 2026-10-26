@@ -4,6 +4,8 @@ import type { ContentType } from '../../content/shared/types'
 // first), with archives per category, tag and author.
 export articleType := {
 	id: 'article'
+	// The MVP called these posts; old admin and API URLs redirect here.
+	aliases: ['post']
 	label: 'Article'
 	labelPlural: 'Articles'
 	icon: 'lucide:newspaper'

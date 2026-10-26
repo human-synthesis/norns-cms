@@ -1,6 +1,6 @@
 import { page } from '@human-synthesis/norns/server'
 import { error, fail, redirect } from '@sveltejs/kit'
-import { cms, canEditEntry, formToObject } from '$lib/norns/content/server/public'
+import { cms, canEditEntry, formToObject, typeOrRedirect } from '$lib/norns/content/server/public'
 import { requireCap, can, auth, audit } from '$lib/norns/auth/server/public'
 import { settings } from '$lib/norns/settings/server/public'
 
@@ -31,7 +31,7 @@ canRemove := (user: any, entry: any) =>
 export load := page.load
 	handler: async ({ container, params, url, user }) =>
 		requireCap user, 'content.view'
-		ct := typeOr404 container, params.type
+		ct := typeOrRedirect container, params.type, url
 		entry := await entryOr404 container, ct, params.id
 		form := await cms(container).form ct.id
 		values := entry ? { ...entry.data, slug: entry.slug, visibility: entry.visibility } : {}
