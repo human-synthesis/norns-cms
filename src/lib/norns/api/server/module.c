@@ -11,7 +11,9 @@ export default (app: Container) =>
 	registerCapabilities app, [
 		{ id: 'api.manage', label: 'Create and revoke API keys', group: 'API' }
 	]
-	registerAdminNav app, { id: 'api', label: 'API', icon: 'lucide:braces', href: '/admin/developer', section: 'Site', order: 94, capability: 'admin.access' }
+	registerAdminNav app, { id: 'api', label: 'API', icon: 'lucide:braces', section: 'System', order: 93, capability: 'admin.access' }
+	registerAdminNav app, { id: 'api-keys', parent: 'api', label: 'API keys', href: '/admin/developer', order: 1 }
+	registerAdminNav app, { id: 'api-docs', parent: 'api', label: 'Documentation', href: '/admin/developer/docs', order: 2 }
 
 	registerEndpoint app, {
 		method: 'GET', path: '/me', capability: null, tag: 'Account'

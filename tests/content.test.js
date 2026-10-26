@@ -25,16 +25,23 @@ describe('content types', () => {
 		expect(form.blocks.find((b) => b.id === 'articleList').resolve).toBeUndefined();
 	});
 
-	test('admin nav is filtered by capability', async () => {
+	test('admin nav is a tree filtered by capability', async () => {
 		const c = await bootApp();
-		const all = cms(c).adminNav({ status: 'active', capabilities: ['*'] }).map((n) => n.href);
-		expect(all).toContain('/admin/users');
-		expect(all).toContain('/admin/consent');
-		const author = cms(c).adminNav({ status: 'active', capabilities: ['admin.access', 'content.view', 'media.view'] }).map((n) => n.href);
-		expect(author).toContain('/admin/content/article');
-		expect(author).toContain('/admin/media');
-		expect(author).not.toContain('/admin/users');
-		expect(author).not.toContain('/admin/settings');
+		const hrefs = (nav) => nav.flatMap((g) => g.items.flatMap((i) => [i.href, ...i.children.map((ch) => ch.href)])).filter(Boolean);
+		const full = cms(c).adminNav({ status: 'active', capabilities: ['*'] });
+		expect(full.map((g) => g.section)).toEqual(['Content', 'People', 'Marketing', 'System']);
+		const articles = full[0].items.find((i) => i.id === 'type-article');
+		expect(articles.children.map((ch) => ch.label)).toEqual(['All articles', 'Waiting for review', 'New article', 'Categories', 'Tags']);
+		expect(hrefs(full)).toContain('/admin/users?kind=client');
+		expect(hrefs(full)).toContain('/admin/consent/scripts');
+		const author = cms(c).adminNav({ status: 'active', capabilities: ['admin.access', 'content.view', 'content.create', 'media.view'] });
+		expect(hrefs(author)).toContain('/admin/content/article/new');
+		expect(hrefs(author)).toContain('/admin/media');
+		expect(hrefs(author)).not.toContain('/admin/users?kind=staff');
+		expect(hrefs(author)).not.toContain('/admin/taxonomy/tag');
+		// A parent whose children are all hidden disappears (Logs needs audit.view or settings.manage).
+		expect(author.flatMap((g) => g.items.map((i) => i.id))).not.toContain('logs');
+		expect(author.flatMap((g) => g.items.map((i) => i.id))).not.toContain('settings');
 	});
 });
 

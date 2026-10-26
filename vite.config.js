@@ -35,5 +35,10 @@ export default defineConfig({
 	// Accept reverse-proxied Host headers in dev (norns lint: vite/allowed-hosts).
 	server: { allowedHosts: true },
 	resolve: { dedupe: ['@sveltejs/kit'] },
-	ssr: { noExternal: ['@human-synthesis/norns'] }
+	ssr: { noExternal: ['@human-synthesis/norns'] },
+	// norns-ui ships .n (Pug + Civet) sources that only the norns plugins can
+	// compile. Left to Vite's dependency optimizer, a re-optimization during
+	// dev (a page importing a component for the first time) hands them to
+	// esbuild and fails with "No loader is configured for .n files".
+	optimizeDeps: { exclude: ['@human-synthesis/norns-ui'] }
 });

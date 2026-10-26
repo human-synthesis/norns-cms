@@ -17,8 +17,8 @@ export default (app: Container) =>
 	registerCapabilities app, [
 		{ id: 'taxonomy.manage', label: 'Manage categories and tags', group: 'Content' }
 	]
-	registerAdminNav app, { id: 'categories', label: 'Categories', icon: 'lucide:folder-tree', href: '/admin/taxonomy/category', section: 'Content', order: 31, capability: 'taxonomy.manage' }
-	registerAdminNav app, { id: 'tags', label: 'Tags', icon: 'lucide:tags', href: '/admin/taxonomy/tag', section: 'Content', order: 32, capability: 'taxonomy.manage' }
+	registerAdminNav app, { id: 'categories', parent: 'type-article', label: 'Categories', href: '/admin/taxonomy/category', order: 20, capability: 'taxonomy.manage' }
+	registerAdminNav app, { id: 'tags', parent: 'type-article', label: 'Tags', href: '/admin/taxonomy/tag', order: 21, capability: 'taxonomy.manage' }
 
 	registerOptions app, 'terms:category', (c: Container) =>
 		terms := await svc(c).terms 'category'

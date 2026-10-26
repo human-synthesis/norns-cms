@@ -1,23 +1,53 @@
 .admin
-	aside.admin-sidebar
+	header.admin-topbar
+		button.icon-btn(type="button" aria-label="Open menu" aria-expanded!="{drawer}" onclick!="{() => drawer = true}")
+			Icon(name="lucide:menu" size="size-5")
 		a.admin-brand(href="/admin")
 			.logo-mark {data.siteTitle.slice(0, 1)}
 			span.font-extrabold.tracking-tight.truncate {data.siteTitle}
+	+if('drawer')
+		button.admin-scrim(type="button" aria-label="Close menu" onclick!="{() => drawer = false}")
+	aside.admin-sidebar(class!="{drawer ? 'admin-sidebar-open' : ''}")
+		.flex.items-center.justify-between
+			a.admin-brand(href="/admin")
+				.logo-mark {data.siteTitle.slice(0, 1)}
+				span.font-extrabold.tracking-tight.truncate {data.siteTitle}
+			button.icon-btn.admin-close(type="button" aria-label="Close menu" onclick!="{() => drawer = false}")
+				Icon(name="lucide:x" size="size-4")
 		nav.admin-nav(aria-label="Admin")
+			a.admin-nav-link(href="/admin" class!="{active === '/admin' ? 'admin-nav-active' : ''}" aria-current!="{active === '/admin' ? 'page' : undefined}")
+				Icon(name="lucide:layout-dashboard" size="size-4")
+				span Dashboard
 			+each('data.nav as group (group.section)')
 				.admin-nav-section
 					.admin-nav-heading {group.section}
-					+each('group.items as item (item.href)')
-						a.admin-nav-link(href!="{item.href}" class!="{isActive(item.href) ? 'admin-nav-active' : ''}" aria-current!="{isActive(item.href) ? 'page' : undefined}")
-							Icon(name!="{item.icon}" size="size-4")
-							span {item.label}
-		.mt-auto.flex.flex-col.gap-2
+					+each('group.items as item (item.id)')
+						+if('item.children.length')
+							.admin-nav-group(class!="{isOpen(item) ? 'admin-nav-group-open' : ''}")
+								button.admin-nav-link.admin-nav-parent(
+									type="button"
+									aria-expanded!="{isOpen(item)}"
+									aria-controls!="{'nav-' + item.id}"
+									class!="{containsActive(item) ? 'admin-nav-parent-active' : ''}"
+									onclick!="{() => toggle(item)}"
+								)
+									Icon(name!="{item.icon}" size="size-4")
+									span.flex-1.text-left {item.label}
+									Icon(name="lucide:chevron-right" size="size-3.5" class="admin-nav-chevron")
+								+if('isOpen(item)')
+									ul.admin-subnav(id!="{'nav-' + item.id}")
+										+each('item.children as child (child.id)')
+											li
+												a.admin-subnav-link(href!="{child.href}" class!="{active === child.href ? 'admin-nav-active' : ''}" aria-current!="{active === child.href ? 'page' : undefined}") {child.label}
+						+else
+							a.admin-nav-link(href!="{item.href}" class!="{active === item.href ? 'admin-nav-active' : ''}" aria-current!="{active === item.href ? 'page' : undefined}")
+								Icon(name!="{item.icon}" size="size-4")
+								span {item.label}
+		.mt-auto.flex.flex-col.gap-2.pt-4.border-t(class="border-border")
 			a.admin-nav-link(href="/" target="_blank" rel="noopener")
 				Icon(name="lucide:external-link" size="size-4")
 				span View site
-			a.admin-nav-link(href="/admin/profile" class!="{isActive('/admin/profile') ? 'admin-nav-active' : ''}")
-				Icon(name="lucide:circle-user" size="size-4")
-				span.truncate {data.user.name || data.user.email}
+			.text-xs.px-3.truncate(class="text-fg-subtle") {data.user.email}
 			.flex.items-center.gap-2.px-1
 				ThemeToggler(variant="ghost" size="sm")
 				form(method="POST" action="/admin?/logout")
@@ -30,12 +60,67 @@
 
 <script>
 	import { page } from '$app/state'
+	import { afterNavigate } from '$app/navigation'
+	import { onMount } from 'svelte'
 	{ data } := $props()
 
-	isActive := (href) =>
-		path := page.url.pathname
-		if href === '/admin'
-			path === '/admin'
-		else
-			path === href || path.startsWith(href + '/')
+	STORE := 'cms-admin-nav'
+	drawer .= $state(false)
+	opened .= $state({})
+
+	// Every link in the menu, so exactly one is highlighted: the one that
+	// matches the current path (and its query, for Staff / Members) most
+	// specifically.
+	links := $derived.by =>
+		out := ['/admin']
+		for g of data.nav
+			for item of g.items
+				out.push(item.href) if item.href
+				for child of item.children
+					out.push child.href
+		out
+
+	score := (href, url) =>
+		[path, query] := href.split('?')
+		return -1 unless url.pathname === path || (path !== '/admin' && url.pathname.startsWith(path + '/'))
+		if query
+			for [k, v] of new URLSearchParams(query)
+				return -1 unless url.searchParams.get(k) === v
+		path.length * 10 + (query ? query.length : 0) + (url.pathname === path ? 5 : 0)
+
+	active := $derived.by =>
+		best .= null
+		top .= -1
+		for href of links
+			s := score(href, page.url)
+			if s > top
+				top = s
+				best = href
+		best
+
+	containsActive := (item) => item.children.some((c) => c.href === active)
+
+	// Open groups: remembered across visits; the group holding the current
+	// page is always open.
+	isOpen := (item) => opened[item.id] ?? containsActive(item)
+
+	toggle := (item) =>
+		opened[item.id] = !isOpen(item)
+		try
+			localStorage.setItem STORE, JSON.stringify(opened)
+		catch
+			return
+
+	onMount =>
+		try
+			opened = JSON.parse(localStorage.getItem(STORE) ?? '{}')
+		catch
+			opened = {}
+
+	afterNavigate =>
+		drawer = false
+		// Navigating into a group opens it even if it was closed before.
+		for g of data.nav
+			for item of g.items
+				opened[item.id] = true if containsActive(item)
 </script>

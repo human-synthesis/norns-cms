@@ -32,8 +32,13 @@ export default (app: Container) =>
 		{ id: 'maintenance.run', label: 'Run maintenance tasks', group: 'Admin' }
 		{ id: 'account.access', label: 'Use the member account area', group: 'Members' }
 	]
-	registerAdminNav app, { id: 'users', label: 'Users', icon: 'lucide:users', href: '/admin/users', section: 'People', order: 50, capability: 'users.view' }
-	registerAdminNav app, { id: 'roles', label: 'Roles', icon: 'lucide:key-round', href: '/admin/roles', section: 'People', order: 51, capability: 'roles.manage' }
-	registerAdminNav app, { id: 'audit', label: 'Audit log', icon: 'lucide:scroll-text', href: '/admin/audit', section: 'Site', order: 95, capability: 'audit.view' }
+	registerAdminNav app, { id: 'users', label: 'Users', icon: 'lucide:users', section: 'People', order: 50, capability: 'users.view' }
+	registerAdminNav app, { id: 'users-staff', parent: 'users', label: 'Staff', href: '/admin/users?kind=staff', order: 1 }
+	registerAdminNav app, { id: 'users-members', parent: 'users', label: 'Members', href: '/admin/users?kind=client', order: 2 }
+	registerAdminNav app, { id: 'users-invite', parent: 'users', label: 'Invite someone', href: '/admin/users/new', order: 3, capability: 'users.manage' }
+	registerAdminNav app, { id: 'roles', label: 'Roles & permissions', icon: 'lucide:key-round', href: '/admin/roles', section: 'People', order: 51, capability: 'roles.manage' }
+	registerAdminNav app, { id: 'profile', label: 'Your profile', icon: 'lucide:circle-user', href: '/admin/profile', section: 'People', order: 59 }
+	registerAdminNav app, { id: 'logs', label: 'Logs', icon: 'lucide:scroll-text', section: 'System', order: 95 }
+	registerAdminNav app, { id: 'logs-audit', parent: 'logs', label: 'Audit log', href: '/admin/audit', order: 1, capability: 'audit.view' }
 	registerOptions app, 'users:staff', (c: Container) => (c.resolve('auth.service') as AuthService).staffOptions()
 	registerAuthApi app

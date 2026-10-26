@@ -361,15 +361,30 @@ export class ContentService
 		pages.sort (a, b) => (Number(a.data.navOrder ?? 0) - Number(b.data.navOrder ?? 0)) || a.title.localeCompare(b.title)
 		[...pages.map((e) => ({ label: e.data.navLabel || e.title, href: `/${e.slug}` })), ...types]
 
-	// Admin navigation: one item per content type plus every registered
-	// item, filtered by the user's capabilities and grouped by section.
+	// Admin navigation as a tree: sections → items → children. Content
+	// types become items with "All …" / "New …" children; any feature adds
+	// items (or children, with `parent`) through registerAdminNav. Items
+	// the user lacks the capability for are dropped; a parent left with no
+	// visible children and no link of its own disappears too.
 	adminNav(user: any = null)
-		items := [{ id: 'dashboard', label: 'Dashboard', href: '/admin', icon: 'lucide:layout-dashboard', section: 'Content', order: 0, capability: 'admin.access' }] as any[]
+		items := [] as any[]
 		for ct, i of @registry.all()
-			items.push { id: `type-${ct.id}`, label: ct.labelPlural, href: `/admin/content/${ct.id}`, icon: ct.icon ?? 'lucide:file-text', section: 'Content', order: 10 + i, capability: 'content.view' }
+			id := `type-${ct.id}`
+			items.push { id, label: ct.labelPlural, icon: ct.icon ?? 'lucide:file-text', section: 'Content', order: 10 + i, capability: 'content.view' }
+			items.push { id: `${id}-all`, parent: id, label: `All ${ct.labelPlural.toLowerCase()}`, href: `/admin/content/${ct.id}`, order: 1 }
+			items.push { id: `${id}-review`, parent: id, label: 'Waiting for review', href: `/admin/content/${ct.id}?status=in_review`, order: 2, capability: 'content.publish' }
+			items.push { id: `${id}-new`, parent: id, label: `New ${ct.label.toLowerCase()}`, href: `/admin/content/${ct.id}/new`, order: 3, capability: 'content.create' }
 		items.push ...@registry.nav()
-		visible := user ? items.filter((it) => !it.capability || can(user, it.capability)) : items
-		visible.sort (a, b) => (a.order ?? 100) - (b.order ?? 100)
+		allowed := (it: any) => !user || !it.capability || can(user, it.capability)
+		byOrder := (a: any, b: any) => (a.order ?? 100) - (b.order ?? 100)
+		top := [] as any[]
+		for it of items.filter((x) => !x.parent && allowed(x)).sort(byOrder)
+			children := items.filter((x) => x.parent === it.id && allowed(x)).sort(byOrder).map((x) => ({ id: x.id, label: x.label, href: x.href, icon: x.icon }))
+			continue if !it.href && children.length === 0
+			top.push { id: it.id, label: it.label, href: it.href ?? null, icon: it.icon ?? 'lucide:circle', section: it.section ?? 'Content', children }
+		SECTIONS := ['Content', 'People', 'Marketing', 'System']
+		sections := [...SECTIONS, ...new Set(top.map((t) => t.section).filter((s) => !SECTIONS.includes(s)))]
+		sections.map((name) => ({ section: name, items: top.filter((t) => t.section === name) })).filter((g) => g.items.length)
 
 	async counts()
 		out := [] as { ct: ContentType, total: number, published: number, review: number }[]

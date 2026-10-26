@@ -67,7 +67,7 @@
 	}
 
 	.admin-sidebar {
-		@apply w-60 shrink-0 flex flex-col gap-6 p-4 border-r border-border bg-bg sticky top-0 h-screen overflow-y-auto;
+		@apply w-64 shrink-0 flex flex-col gap-5 p-4 border-r border-border bg-bg sticky top-0 h-screen overflow-y-auto;
 	}
 
 	.admin-brand {
@@ -139,6 +139,24 @@
 	.admin-nav { @apply flex flex-col gap-4; }
 	.admin-nav-section { @apply flex flex-col gap-0.5; }
 	.admin-nav-heading { @apply px-3 pb-1 text-[0.68rem] font-semibold uppercase tracking-wider text-fg-subtle; }
+	.admin-nav-parent { @apply w-full cursor-pointer; }
+	.admin-nav-parent-active { @apply text-fg; }
+	.admin-nav-chevron { @apply transition-transform duration-150 text-fg-subtle; }
+	.admin-nav-group-open .admin-nav-chevron { transform: rotate(90deg); }
+	.admin-subnav { @apply list-none m-0 mt-0.5 mb-1 ml-[1.15rem] pl-3 border-l border-border flex flex-col gap-0.5; }
+	.admin-subnav-link { @apply block rounded-md px-2.5 py-1.5 text-sm no-underline text-fg-muted transition-colors hover:bg-bg-muted hover:text-fg; }
+	.admin-topbar { @apply hidden; }
+	.admin-close { @apply hidden; }
+	.admin-scrim { @apply hidden; }
+	@media (max-width: 1023px) {
+		.admin { @apply flex-col; }
+		.admin-topbar { @apply flex items-center gap-3 sticky top-0 z-30 border-b border-border bg-bg px-4 py-3; }
+		.admin-sidebar { @apply fixed inset-y-0 left-0 z-50 shadow-2xl -translate-x-full transition-transform duration-200; }
+		.admin-sidebar-open { @apply translate-x-0; }
+		.admin-close { @apply inline-flex; }
+		.admin-scrim { @apply fixed inset-0 z-40 block border-0; background: rgb(0 0 0 / 0.35); }
+		.admin-main { @apply p-4 sm:p-6; }
+	}
 	.page-head { @apply flex flex-wrap items-start justify-between gap-4; }
 	.stat-grid { @apply grid gap-4 sm:grid-cols-2 lg:grid-cols-3; }
 	.stat { @apply block rounded-xl border border-border bg-bg p-4 no-underline text-fg transition-colors; }

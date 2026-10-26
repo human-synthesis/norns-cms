@@ -18,8 +18,10 @@ export default (app: Container) =>
 	registerCapabilities app, [
 		{ id: 'seo.manage', label: 'Manage SEO settings, redirects and the 404 log', group: 'SEO' }
 	]
-	registerAdminNav app, { id: 'seo', label: 'SEO', icon: 'lucide:search', href: '/admin/seo', section: 'Site', order: 70, capability: 'seo.manage' }
-	registerAdminNav app, { id: 'redirects', label: 'Redirects', icon: 'lucide:corner-up-right', href: '/admin/seo/redirects', section: 'Site', order: 71, capability: 'seo.manage' }
+	registerAdminNav app, { id: 'seo', label: 'SEO & GEO', icon: 'lucide:search', section: 'Marketing', order: 70, capability: 'seo.manage' }
+	registerAdminNav app, { id: 'seo-overview', parent: 'seo', label: 'Report & 404s', href: '/admin/seo', order: 1 }
+	registerAdminNav app, { id: 'seo-redirects', parent: 'seo', label: 'Redirects', href: '/admin/seo/redirects', order: 2 }
+	registerAdminNav app, { id: 'seo-settings', parent: 'seo', label: 'Settings', href: '/admin/settings/seo', order: 3 }
 
 	// A published entry's URL changed: keep the old URL working.
 	registerHook app, 'slug', 'seo.redirect', ({ c, fromUrl, toUrl }) =>
