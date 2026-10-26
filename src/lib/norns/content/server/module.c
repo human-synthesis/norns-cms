@@ -3,6 +3,7 @@ import { TypeRegistry } from './registry'
 import { EntriesRepo } from './repo'
 import { ContentService } from './service'
 import { registerCapabilities } from '../../auth/server/public'
+import { registerContentApi } from './api'
 
 // The registry is a root singleton (types never change after boot); repo and
 // service are transient because `db` is resolved per request (D1 binding on
@@ -21,3 +22,4 @@ export default (app: Container) =>
 		{ id: 'content.delete', label: 'Delete entries', group: 'Content' }
 		{ id: 'content.members', label: 'Read members-only content', group: 'Members' }
 	]
+	registerContentApi app

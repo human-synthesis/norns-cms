@@ -4,6 +4,7 @@ import { SettingsRegistry } from './registry'
 import { SettingsService } from './service'
 import { registerSettings } from './public'
 import { registerAdminNav } from '../../content/server/public'
+import { registerSettingsApi } from './api'
 import { siteSettings, securitySettings } from '../shared/groups'
 
 export default (app: Container) =>
@@ -13,3 +14,4 @@ export default (app: Container) =>
 	registerSettings app, securitySettings
 	registerAdminNav app, { id: 'settings', label: 'Settings', icon: 'lucide:settings', href: '/admin/settings', section: 'Site', order: 90, capability: 'settings.manage' }
 	registerAdminNav app, { id: 'maintenance', label: 'Maintenance', icon: 'lucide:wrench', href: '/admin/maintenance', section: 'Site', order: 97, capability: 'maintenance.run' }
+	registerSettingsApi app

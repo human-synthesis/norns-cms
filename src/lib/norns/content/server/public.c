@@ -57,6 +57,10 @@ export canEditEntry := (user: any, entry: Entry | null | undefined) =>
 	return true if can(user, 'content.edit_any')
 	can(user, 'content.edit_own') && entry.author_id === user?.id && entry.status !== 'published'
 
+// Who may delete: content.delete, or the author of an unpublished entry.
+export canRemoveEntry := (user: any, entry: Entry | null | undefined) =>
+	can(user, 'content.delete') || (can(user, 'content.edit_own') && entry?.author_id === user?.id && entry?.status !== 'published')
+
 // --- extension points (called from a feature's module.c) --------------------
 
 // Content types are bindings on the container, so registration order never

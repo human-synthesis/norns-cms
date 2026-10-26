@@ -5,6 +5,7 @@ import { TermsRepo } from './repo'
 import { ArticlesService } from './service'
 import { articleType, articleListBlock, readingMinutes } from '../shared/types'
 import { renderMarkdown } from '../../content/server/public'
+import { registerArticlesApi } from './api'
 
 svc := (c: Container) => c.resolve('articles.service') as ArticlesService
 
@@ -58,3 +59,4 @@ export default (app: Container) =>
 			list := await s.list { perPage: count, termId, featured: props.source === 'featured', member: !!viewer?.member }
 			{ entries: list.entries, moreHref: termId && termId > 0 ? null : '/articles' }
 	}
+	registerArticlesApi app

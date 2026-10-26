@@ -16,7 +16,7 @@ src/
                         media, taxonomy/[taxonomy], users, roles, audit, profile, settings/[group], seo,
                         consent (stats, scripts, log), mail, maintenance; api/ (preview, media JSON)
     login/ reset/ invite/ verify/    sign-in, two-factor step, one-time links
-    api/consent  api/content  api/cron           JSON endpoints (cron needs CRON_SECRET)
+    api/v1/[...path]   management API (bearer API keys); api/consent, api/content (public read), api/cron
     sitemap.xml  sitemap-[type].xml  robots.txt  llms.txt  llms-full.txt  feed.xml  media/[...key]
   lib/norns/<feature>/  server/module.c (DI + registrations), repo.c / service.c (private),
                         server/public.c (the ONLY cross-feature import), shared/ (pure), ui/ (.n)
@@ -40,6 +40,7 @@ Features:
 | `mail` | Resend over HTTP when `RESEND_API_KEY` is set; otherwise logged to `mail_log` (dev "inbox") |
 | `seo` | SEO field group and settings, head tags, JSON-LD, sitemaps, robots (AI crawler toggles), llms.txt, Markdown twins, feeds, redirects, 404 log, editor checks, location block |
 | `consent` | banner settings, regional rules, GPC, script presets, consent records, injection + loader, cookie table block |
+| `api` | API keys (hashed, capability-limited, acting for their creator), the endpoint registry, router (`/api/v1`), OpenAPI document, admin key management and docs |
 
 **Extension points** (all called from a feature's `module.c`, all bindings on the root container so order never matters): `registerType`, `registerFieldGroup`, `registerBlock` (a block's `resolve(props, { c, viewer, entry })` runs per request; add its component to `pages/ui/BlockRenderer.n`), `registerHook` (`beforeSave` may return replacement data; `afterSave`, `status`, `slug`, `delete`), `registerOptions`, `registerAdminNav` (from `content/server/public`); `registerCapabilities` (from `auth/server/public`); `registerSettings` (from `settings/server/public`).
 
@@ -50,6 +51,18 @@ Features:
 **Secrets** (`wrangler secret put`, `.dev.vars` locally — never in `wrangler.toml`): `CMS_SECRET` (encrypts 2FA secrets), `CRON_SECRET` (daily maintenance), `RESEND_API_KEY` (mail). Vars: `CMS_PUBLIC_URL`, `MAIL_FROM`.
 
 Import project code explicitly (`import { cms } from '$lib/norns/content/server/public'`); inside `src/lib/norns/**` use relative paths (`../../content/server/public`) so `bun test` can resolve them. Only framework helpers and norns-ui components (plus `src/lib/components`) are auto-imported.
+
+## Every feature ships its API
+
+The CMS has a management API at `/api/v1` (API keys from Admin → API; guide in `docs/API.md`; live reference at Admin → API → Documentation and `/api/v1/openapi.json`). **Anything a person can do in the admin must also be possible through the API.** When you add or change a feature:
+
+1. Register its endpoints in `<feature>/server/api.c` with `registerEndpoint(app, { method, path, capability, tag, summary, query?, body?, handler })` and call that from the feature's `module.c`. Shape and helpers (`apiError`, `validationError`, `paging`, `need`, `allow`): `src/lib/norns/api/server/router.js` and `public.c`.
+2. Reuse the feature's facade and the same permission rules as the admin route (`canEditEntry`, owner rules, capability per action). Never add an API-only shortcut around a check.
+3. Audit writes with `{ via: 'api' }` in the meta, like the admin does.
+4. Give every endpoint a `summary`, a `tag`, its `capability` (or `null` for any key), `query` docs and a `body` example: the reference and OpenAPI are generated from them, and `tests/api.test.js` fails on undocumented endpoints.
+5. Add a test in `tests/api.test.js` driving the endpoint through `handleApi`, and update `docs/API.md` when you add a new concept (not for each endpoint — the reference covers those).
+
+API keys themselves are managed only in the admin, never through the API.
 
 ## Commands
 
@@ -92,6 +105,7 @@ Civet is great for app code but has rough edges on advanced syntax. **When somet
 | `loop := …`, or any variable named after a Civet keyword | another name (`onward`, `cycle`) | `loop` starts Civet's infinite-loop statement; the parse fails on the next token |
 | `if (a)[k]` / `if (a).b()` / `x = y if (a)[k]` | name it first: `m := a`, then `if m[k]` | a parenthesised `if` condition ends at its `)`, so `[k]` / `.b` become the body (and a postfix `if (…)` turns the left side into a call) |
 | a class method or facade key named `type` | `getType` | `type` starts a TypeScript alias declaration in Civet |
+| a script-level function or variable named `state` (or `derived`, `effect`) in a `.n` file | another name (`keyState`) | collides with the compiled runes: SSR fails with `Cannot access 'state2' before initialization` |
 
 ### Pug / `.n` pitfalls — do not write these
 

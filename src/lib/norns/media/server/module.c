@@ -3,6 +3,7 @@ import { MediaRepo } from './repo'
 import { registerAdminNav, registerHook, cms } from '../../content/server/public'
 import { registerCapabilities } from '../../auth/server/public'
 import { media } from './public'
+import { registerMediaApi } from './api'
 
 export default (app: Container) =>
 	app.bind 'media.repo', (c: Container) => new MediaRepo c.resolve('db')
@@ -23,3 +24,4 @@ export default (app: Container) =>
 	// when alt text changes.
 	registerHook app, 'afterSave', 'media.usage', ({ c, ct, entry }) =>
 		media(c).setUsage entry.id, cms(c).mediaRefs(ct, entry.data)
+	registerMediaApi app

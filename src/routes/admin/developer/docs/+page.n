@@ -1,0 +1,111 @@
+.space-y-8
+	PageHead(title="API documentation" subtitle!="{'Base URL ' + data.origin + '/api/v1 · ' + total + ' endpoints'}" back="/admin/developer" backLabel="API")
+		+snippet('actions')
+			Btn(href="/api/v1/openapi.json" target="_blank" rel="noopener" variant="secondary" icon="lucide:file-json") OpenAPI JSON
+	.grid.gap-8(class="lg:grid-cols-[13rem_1fr]")
+		nav.api-toc(aria-label="Sections")
+			a(href="#guide") Guide
+			+each('data.groups as g (g.tag)')
+				a(href!="{'#' + slug(g.tag)}") {g.tag}
+					span.filter-count {g.endpoints.length}
+			a(href="#types") Content types
+			a(href="#blocks") Blocks
+		.min-w-0.space-y-10
+			section#guide.prose
+				| {@html data.guide}
+			+each('data.groups as g (g.tag)')
+				section.space-y-3(id!="{slug(g.tag)}")
+					h2.text-xl.font-bold.tracking-tight {g.tag}
+					+each('g.endpoints as ep (ep.method + ep.path)')
+						details.api-endpoint
+							summary
+								span.api-method(class!="{'api-' + ep.method.toLowerCase()}") {ep.method}
+								code.api-path {ep.path}
+								span.api-summary {ep.summary}
+							.api-body.space-y-3
+								+if('ep.description')
+									p.text-sm {ep.description}
+								p.text-sm
+									| Capability: 
+									+if('ep.capability')
+										code {ep.capability}
+										+if('!has(ep.capability)')
+											span.text-xs(class="text-fg-subtle")  (you do not hold it, so your keys cannot either)
+									+else
+										| any valid key
+								+if('ep.query.length')
+									table.cookie-table
+										thead
+											tr
+												th Query
+												th
+										tbody
+											+each('ep.query as q (q.name)')
+												tr
+													td
+														code {q.name}
+													td {q.description}
+								+if('ep.body')
+									p.text-sm {ep.raw ? 'Body: the raw file bytes. ' : 'JSON body: '}{ep.body.description}
+									+if('ep.body.example')
+										pre.api-code {ep.body.example}
+								pre.api-code {example(ep)}
+			section#types.space-y-3
+				h2.text-xl.font-bold.tracking-tight Content types on this site
+				p.text-sm(class="text-fg-muted") Field values go in “data” by name. * marks required fields.
+				+each('data.types as t (t.id)')
+					details.api-endpoint
+						summary
+							code.api-path {'/content/' + t.id}
+							span.api-summary {t.label}
+						.api-body
+							table.cookie-table
+								thead
+									tr
+										th Field
+										th Type
+										th Values
+								tbody
+									+each('t.fields as f (f.name)')
+										tr
+											td
+												code {f.name}{f.required ? '*' : ''}
+											td {f.type}
+											td.text-xs {f.options ? f.options.join(' | ') : ''}
+			section#blocks.space-y-3
+				h2.text-xl.font-bold.tracking-tight Blocks
+				p.text-sm(class="text-fg-muted") {'A blocks field holds an array of { "type": id, "props": { … } }.'}
+				.table-wrap
+					table.cookie-table
+						thead
+							tr
+								th Type
+								th Name
+								th Props
+						tbody
+							+each('data.blocks as b (b.id)')
+								tr
+									td
+										code {b.id}
+									td {b.label}
+									td.text-xs {b.fields.join(', ')}
+
+<script>
+	import { capMatches } from '$lib/norns/auth/shared/can'
+	{ data } := $props()
+
+	total := $derived data.groups.reduce(((n, g) => n + g.endpoints.length), 0)
+	slug := (s) => 'api-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+	has := (cap) => capMatches(data.capabilities, cap)
+
+	sample := (path) => path.replace(':type', 'article').replace(':taxonomy', 'category').replace(':group', 'site').replace(/:[a-z]+/g, '1')
+
+	example := (ep) =>
+		url := data.origin + '/api/v1' + sample(ep.path)
+		lines := [`curl${ep.method === 'GET' ? '' : ' -X ' + ep.method} "${ep.raw ? url + '?filename=photo.jpg' : url}"`, '  -H "Authorization: Bearer $KEY"']
+		if ep.raw
+			lines.push '  -H "Content-Type: image/jpeg" --data-binary @photo.jpg'
+		else if ep.body
+			lines.push '  -H "Content-Type: application/json"', `  -d '${ep.body.example ? JSON.stringify(JSON.parse(ep.body.example)) : '{}'}'`
+		lines.join(' \\\n')
+</script>

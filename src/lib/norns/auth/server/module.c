@@ -5,6 +5,7 @@ import { UsersRepo } from './repo'
 import { AuthService } from './service'
 import { registerCapabilities } from './public'
 import { registerAdminNav, registerOptions } from '../../content/server/public'
+import { registerAuthApi } from './api'
 
 // auth owns the `db` token for the whole app; nobody else opens a database.
 //
@@ -35,3 +36,4 @@ export default (app: Container) =>
 	registerAdminNav app, { id: 'roles', label: 'Roles', icon: 'lucide:key-round', href: '/admin/roles', section: 'People', order: 51, capability: 'roles.manage' }
 	registerAdminNav app, { id: 'audit', label: 'Audit log', icon: 'lucide:scroll-text', href: '/admin/audit', section: 'Site', order: 95, capability: 'audit.view' }
 	registerOptions app, 'users:staff', (c: Container) => (c.resolve('auth.service') as AuthService).staffOptions()
+	registerAuthApi app

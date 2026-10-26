@@ -374,6 +374,22 @@
 	.hljs-title, .hljs-section, .hljs-name { color: oklch(0.55 0.15 250); }
 	.hljs-meta, .hljs-type { color: oklch(0.6 0.12 20); }
 
+
+	/* --- API docs --- */
+	.api-toc { @apply hidden lg:flex flex-col gap-1 sticky top-6 self-start text-sm; }
+	.api-toc a { @apply flex items-center justify-between rounded-md px-2 py-1 no-underline text-fg-muted hover:bg-bg-muted hover:text-fg; }
+	.api-endpoint { @apply rounded-lg border border-border bg-bg; }
+	.api-endpoint summary { @apply flex flex-wrap items-center gap-3 px-3 py-2 cursor-pointer; }
+	.api-method { @apply w-16 shrink-0 rounded px-1.5 py-0.5 text-center text-[0.7rem] font-bold; }
+	.api-get { background: var(--color-info-bg); color: var(--color-info-fg); }
+	.api-post { background: var(--color-success-bg); color: var(--color-success-fg); }
+	.api-patch, .api-put { background: var(--color-warning-bg); color: var(--color-warning-fg); }
+	.api-delete { background: var(--color-danger-bg); color: var(--color-danger-fg); }
+	.api-path { @apply text-sm font-semibold; }
+	.api-summary { @apply text-sm text-fg-muted; }
+	.api-body { @apply border-t border-border px-4 py-3; }
+	.api-code { @apply m-0 overflow-x-auto rounded-lg bg-bg-muted p-3 text-xs; }
+
 	/* cookie banner */
 	.cookie-banner { @apply fixed inset-x-3 bottom-3 z-40 mx-auto max-w-3xl rounded-2xl border border-border bg-bg-elevated p-5 shadow-2xl; }
 	.cookie-banner-inner { @apply flex flex-col gap-4 md:flex-row md:items-end; }

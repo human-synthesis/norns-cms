@@ -5,6 +5,7 @@ import { registerFieldGroup, registerHook, registerAdminNav, registerBlock } fro
 import { registerCapabilities } from '../../auth/server/public'
 import { registerSettings } from '../../settings/server/public'
 import { seoFieldGroup, seoSettings, locationBlock } from '../shared/fields'
+import { registerSeoApi } from './api'
 
 svc := (c: Container) => c.resolve('seo.service') as SeoService
 
@@ -28,3 +29,4 @@ export default (app: Container) =>
 		...locationBlock
 		resolve: async (_props: any, { c }: any) => ({ location: await svc(c).location() })
 	}
+	registerSeoApi app

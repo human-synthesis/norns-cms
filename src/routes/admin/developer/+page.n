@@ -1,0 +1,95 @@
+.space-y-6
+	PageHead(title="API" subtitle="Manage everything in the CMS from other software with API keys.")
+		+snippet('actions')
+			Btn(href="/admin/developer/docs" variant="secondary" icon="lucide:book-open") Documentation
+			Btn(href="/api/v1/openapi.json" target="_blank" rel="noopener" variant="ghost" icon="lucide:file-json") OpenAPI
+	+if('form?.created')
+		Card(class="ring-2 ring-warning")
+			.space-y-3
+				h2.font-semibold Copy the key for “{form.created.name}” now
+				p.text-sm It will not be shown again. Store it in your secret manager; anyone holding it acts as you, within the capabilities you chose.
+				.flex.items-center.gap-2
+					code.text-xs.break-all {form.created.key}
+					CopyButton(value!="{form.created.key}" size="sm")
+				pre.text-xs.bg-bg-muted.rounded-lg.p-3.overflow-x-auto {'curl ' + data.origin + '/api/v1/me \\\n  -H "Authorization: Bearer ' + form.created.key + '"'}
+	+if('form?.revoked')
+		Banner(variant="success" icon="lucide:check") Key revoked. Requests with it now fail with 401.
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	+if('!data.manage')
+		Banner(variant="info" icon="lucide:info") Creating keys needs the api.manage capability. The documentation is open to all staff.
+	+else
+		Card
+			h2.font-semibold.mb-4 New key
+			Form(action="?/create" form!="{form}")
+				.space-y-4
+					Field(label="Name" name="name" required help="What uses it, e.g. “Newsletter sync” or “Import script”")
+						Input(name="name" value!="{form?.values?.name ?? ''}")
+					Field(label="Expires" name="expires")
+						Select(name="expires" value!="{form?.values?.expires ?? '90'}")
+							option(value="30") In 30 days
+							option(value="90") In 90 days
+							option(value="365") In a year
+							option(value="0") Never
+					+if('data.full')
+						label.check-item
+							input(type="checkbox" name="full" checked!="{full}" onchange!="{(e) => full = e.currentTarget.checked}")
+							span Full access — everything you can do, now and later (use sparingly)
+					+if('!full')
+						Field(label="Capabilities" name="capabilities" help="Give it only what it needs. A key never exceeds what you, its creator, are allowed to do.")
+							.space-y-4
+								+each('data.groups as g (g.name)')
+									div
+										.text-xs.font-semibold.uppercase.tracking-wide.mb-1(class="text-fg-subtle") {g.name}
+										.grid.gap-1(class="md:grid-cols-2")
+											+each('g.caps as cap (cap.id)')
+												label.check-item
+													Checkbox(name="capabilities" value!="{cap.id}")
+													span
+														| {cap.label}
+														code.text-xs.ml-1(class="text-fg-subtle") {cap.id}
+					Btn(type="submit" variant="primary" icon="lucide:key-round") Create key
+		Card
+			h2.font-semibold.mb-3 Keys
+			+if('data.keys.length === 0')
+				p.text-sm(class="text-fg-muted") No keys yet.
+			+else
+				.table-wrap
+					table.audit-table
+						thead
+							tr
+								th Name
+								th Key
+								th Acts as
+								th Capabilities
+								th Last used
+								th Expires
+								th
+						tbody
+							+each('data.keys as k (k.id)')
+								tr(class!="{keyState(k) !== 'active' ? 'opacity-60' : ''}")
+									td.font-medium {k.name}
+									td
+										code.text-xs {'ncms_' + k.prefix + '_…'}
+									td {k.user_name || k.user_email}
+									td.text-xs {k.capabilities.includes('*') ? 'full access' : k.capabilities.join(', ')}
+									td.whitespace-nowrap {k.last_used_at ? new Date(k.last_used_at).toLocaleString() : 'never'}
+									td.whitespace-nowrap {k.expires_at ? new Date(k.expires_at).toLocaleDateString() : 'never'}
+									td
+										+if('keyState(k) === "active"')
+											form(method="POST" action="?/revoke" onsubmit!="{confirmRevoke}")
+												input(type="hidden" name="id" value!="{k.id}")
+												Btn(type="submit" variant="ghost" size="sm" icon="lucide:ban") Revoke
+										+else
+											Badge(size="sm") {keyState(k)}
+
+<script>
+	{ data, form } := $props()
+	full .= $state(form?.values?.full === 'on')
+	keyState := (k) =>
+		return 'revoked' if k.revoked_at
+		return 'expired' if k.expires_at && k.expires_at < Date.now()
+		'active'
+	confirmRevoke := (e) =>
+		e.preventDefault() unless confirm('Revoke this key? Anything using it stops working immediately.')
+</script>

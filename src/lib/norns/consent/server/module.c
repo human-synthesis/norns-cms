@@ -5,6 +5,7 @@ import { registerAdminNav, registerBlock } from '../../content/server/public'
 import { registerCapabilities } from '../../auth/server/public'
 import { registerSettings } from '../../settings/server/public'
 import { consentSettings, cookieTableBlock } from '../shared/config'
+import { registerConsentApi } from './api'
 
 export default (app: Container) =>
 	app.bind 'consent.repo', (c: Container) => new ConsentRepo c.resolve('db')
@@ -21,3 +22,4 @@ export default (app: Container) =>
 		...cookieTableBlock
 		resolve: async (_props: any, { c }: any) => ({ declaration: await (c.resolve('consent.service') as ConsentService).declaration() })
 	}
+	registerConsentApi app
