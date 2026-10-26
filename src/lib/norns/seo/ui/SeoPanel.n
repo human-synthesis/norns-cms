@@ -1,0 +1,27 @@
+.seo-panel
+	.seo-preview
+		.seo-preview-url {context.origin ?? ''}{path}
+		.seo-preview-title {fullTitle}
+		.seo-preview-desc {description || 'No description: search engines will pick a snippet from the page.'}
+	ul.seo-checks
+		+if('issues.length === 0')
+			li.seo-ok
+				Icon(name="lucide:check-circle-2" size="size-4")
+				span Looks good.
+		+each('issues as issue (issue.message)')
+			li(class!="{'seo-' + issue.level}")
+				Icon(name!="{issue.level === 'error' ? 'lucide:x-circle' : (issue.level === 'warning' ? 'lucide:alert-triangle' : 'lucide:info')}" size="size-4")
+				span {issue.message}
+
+<script>
+	import { seoChecks } from '../shared/fields'
+	// Live search-result preview and checks for the editor's SEO tab, from
+	// the form's current values (same checks as the site-wide report).
+	{ values = {}, context = {} } := $props()
+
+	title := $derived String(values.seoTitle || values.title || '')
+	fullTitle := $derived String(context.template || '%s').replace('%s', title || 'Untitled').replace('%site', context.siteTitle || '')
+	description := $derived String(values.seoDescription || values.summary || values.excerpt || '').slice(0, 170)
+	path := $derived '/' + String(values.slug || '…')
+	issues := $derived seoChecks(values, context)
+</script>

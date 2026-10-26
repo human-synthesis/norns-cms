@@ -1,37 +1,64 @@
 .space-y-6
-	.flex.items-center.justify-between.gap-4
-		div
-			h1.text-2xl.font-bold.tracking-tight {data.ct.labelPlural}
-			p.text-sm(class="text-fg-muted") {data.total} total · {data.published} published
-		Btn(href="/admin/content/{data.ct.id}/new" variant="primary" icon="lucide:plus") New {data.ct.label}
+	PageHead(title!="{data.ct.labelPlural}" subtitle!="{data.tabs[0].count + ' total'}")
+		+snippet('actions')
+			+if('data.canCreate')
+				Btn(href="/admin/content/{data.ct.id}/new" variant="primary" icon="lucide:plus") New {data.ct.label}
+	nav.filter-tabs(aria-label="Status")
+		+each('data.tabs as t (t.id)')
+			a.filter-tab(href!="{tabHref(t.id)}" class!="{data.status === t.id ? 'filter-tab-active' : ''}") {t.label}
+				span.filter-count {t.count}
 	form.flex.flex-wrap.items-end.gap-2(method="GET")
-		Input(name="q" value!="{data.q}" placeholder="Search titles…" class="w-64")
-		Select(name="status" value!="{data.status}" class="w-40")
-			option(value="") All statuses
-			option(value="draft") Draft
-			option(value="published") Published
+		input(type="hidden" name="status" value!="{data.status}")
+		Input(name="q" value!="{data.q}" placeholder="Search titles and slugs…" class="w-64")
+		label.check-item
+			Checkbox(name="mine" value="1" checked!="{data.mine}")
+			span Only mine
 		Btn(type="submit" variant="secondary" icon="lucide:filter") Filter
-	DataTable(columns!="{columns}" rows!="{rows}" onrowclick!="{open}" emptyMessage="Nothing here yet — create the first one.")
+	DataTable(columns!="{columns}" rows!="{rows}" onrowclick!="{open}" emptyMessage="Nothing here yet.")
+	+if('data.pages > 1')
+		.flex.items-center.justify-between.text-sm
+			span(class="text-fg-muted") Page {data.page} of {data.pages}
+			.flex.gap-2
+				+if('data.page > 1')
+					Btn(href!="{pageHref(data.page - 1)}" variant="secondary" size="sm") Previous
+				+if('data.page < data.pages')
+					Btn(href!="{pageHref(data.page + 1)}" variant="secondary" size="sm") Next
 
 <script>
 	import { goto } from '$app/navigation'
+	import { page } from '$app/state'
+	import { displayStatus } from '$lib/norns/content/shared/types'
 	{ data } := $props()
 
 	columns := [
-		{ key: 'title', label: 'Title' },
-		{ key: 'slug', label: 'Slug', class: 'text-fg-muted' },
-		{ key: 'status', label: 'Status' },
-		{ key: 'updated', label: 'Updated' },
+		{ key: 'title', label: 'Title' }
+		{ key: 'slug', label: 'URL', class: 'text-fg-muted' }
+		{ key: 'status', label: 'Status' }
+		{ key: 'updated', label: 'Updated' }
 	]
 
 	rows := $derived.by =>
 		data.entries.map (e) => ({
-			id: e.id,
-			title: e.title || '(untitled)',
-			slug: e.slug,
-			status: e.status,
-			updated: new Date(e.updated_at).toLocaleString(),
+			id: e.id
+			title: e.title || '(untitled)'
+			slug: (data.ct.basePath || '') + '/' + e.slug
+			status: displayStatus(e).replace('_', ' ') + (e.visibility === 'members' ? ' · members' : '')
+			updated: new Date(e.updated_at).toLocaleString()
 		})
 
 	open := (row) => goto('/admin/content/' + data.ct.id + '/' + row.id)
+
+	tabHref := (id) =>
+		u := new URL(page.url)
+		if id
+			u.searchParams.set 'status', id
+		else
+			u.searchParams.delete 'status'
+		u.searchParams.delete 'page'
+		u.pathname + u.search
+
+	pageHref := (n) =>
+		u := new URL(page.url)
+		u.searchParams.set 'page', String(n)
+		u.pathname + u.search
 </script>

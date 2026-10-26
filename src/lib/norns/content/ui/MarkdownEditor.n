@@ -1,0 +1,171 @@
+.md-editor(class!="{fullscreen ? 'md-editor-full' : ''}")
+	+if('name')
+		input(type="hidden" name!="{name}" value!="{value ?? ''}")
+	.md-toolbar(role="toolbar" aria-label="Formatting")
+		+each('tools as t (t.id)')
+			button.md-tool(type="button" title!="{t.label}" aria-label!="{t.label}" onclick!="{() => apply(t)}")
+				Icon(name!="{t.icon}" size="size-4")
+		span.md-sep
+		button.md-tool(type="button" title="Insert image from the media library" aria-label="Insert image" onclick!="{() => libraryOpen = true}")
+			Icon(name="lucide:image-plus" size="size-4")
+		.ml-auto.flex.items-center.gap-1
+			button.md-tab(type="button" class!="{mode === 'write' ? 'md-tab-active' : ''}" onclick!="{() => setMode('write')}") Write
+			button.md-tab(type="button" class!="{mode === 'split' ? 'md-tab-active' : ''}" onclick!="{() => setMode('split')}") Split
+			button.md-tab(type="button" class!="{mode === 'preview' ? 'md-tab-active' : ''}" onclick!="{() => setMode('preview')}") Preview
+			button.md-tool(type="button" title!="{fullscreen ? 'Exit full screen' : 'Full screen'}" aria-label="Toggle full screen" onclick!="{() => fullscreen = !fullscreen}")
+				Icon(name!="{fullscreen ? 'lucide:minimize-2' : 'lucide:maximize-2'}" size="size-4")
+	.md-panes(class!="{'md-mode-' + mode}")
+		textarea.md-input(
+			bind:this!="{ta}"
+			data-field!="{name}"
+			bind:value!="{value}"
+			rows!="{rows}"
+			placeholder!="{placeholder}"
+			spellcheck="true"
+			onkeydown!="{keydown}"
+			onpaste!="{paste}"
+			ondrop!="{drop}"
+			oninput!="{schedulePreview}"
+		)
+		+if('mode !== "write"')
+			.md-preview.prose
+				+if('previewing && !html')
+					p(class="text-fg-muted") Rendering…
+				| {@html html}
+	.md-status
+		span {words} words · {minutes} min read
+		+if('uploading')
+			span Uploading image…
+		+if('error')
+			span.text-danger {error}
+		span.ml-auto
+			a(href="https://www.markdownguide.org/cheat-sheet/" target="_blank" rel="noopener") Markdown help
+			|  · :::note, ::youtube{'{'}id=…{'}'}, [[toc]]
+	MediaLibrary(bind:open!="{libraryOpen}" onpick!="{insertMedia}")
+
+<script>
+	import MediaLibrary from '../../media/ui/MediaLibrary.n'
+
+	// A Markdown textarea with a toolbar, keyboard shortcuts, server-rendered
+	// preview (same renderer as the public site), and image paste / drop
+	// upload into the media library. Named (hidden input) for forms, or
+	// bindable for blocks.
+	{ value = $bindable(''), name, rows = 16, placeholder = 'Write in Markdown…' } .= $props()
+
+	ta .= $state(null)
+	mode .= $state('write')
+	html .= $state('')
+	previewing .= $state(false)
+	fullscreen .= $state(false)
+	libraryOpen .= $state(false)
+	uploading .= $state(false)
+	error .= $state('')
+	timer .= null
+
+	words := $derived ((value ?? '').match(/[\p{L}\p{N}]+/gu) ?? []).length
+	minutes := $derived Math.max(1, Math.round(words / 220))
+
+	tools := [
+		{ id: 'h2', label: 'Heading', icon: 'lucide:heading-2', line: '## ' }
+		{ id: 'h3', label: 'Subheading', icon: 'lucide:heading-3', line: '### ' }
+		{ id: 'bold', label: 'Bold (Ctrl+B)', icon: 'lucide:bold', wrap: ['**', '**'] }
+		{ id: 'italic', label: 'Italic (Ctrl+I)', icon: 'lucide:italic', wrap: ['_', '_'] }
+		{ id: 'link', label: 'Link (Ctrl+K)', icon: 'lucide:link', wrap: ['[', '](https://)'] }
+		{ id: 'ul', label: 'Bulleted list', icon: 'lucide:list', line: '- ' }
+		{ id: 'ol', label: 'Numbered list', icon: 'lucide:list-ordered', line: '1. ' }
+		{ id: 'quote', label: 'Quote', icon: 'lucide:quote', line: '> ' }
+		{ id: 'code', label: 'Code block', icon: 'lucide:code', block: '```js\n\n```' }
+		{ id: 'table', label: 'Table', icon: 'lucide:table', block: '| Column | Column |\n| --- | --- |\n| Cell | Cell |' }
+		{ id: 'callout', label: 'Callout', icon: 'lucide:message-square-warning', block: ':::note Title\nText\n:::' }
+		{ id: 'video', label: 'YouTube video', icon: 'lucide:youtube', block: '::youtube{id=VIDEO_ID}' }
+		{ id: 'toc', label: 'Table of contents', icon: 'lucide:list-tree', block: '[[toc]]' }
+	]
+
+	replace := (start, end, text, selectFrom = null, selectTo = null) =>
+		v := value ?? ''
+		value = v.slice(0, start) + text + v.slice(end)
+		queueMicrotask =>
+			return unless ta
+			ta.focus()
+			ta.setSelectionRange(selectFrom ?? start + text.length, selectTo ?? start + text.length)
+		schedulePreview()
+
+	apply := (t) =>
+		return unless ta
+		{ selectionStart: s, selectionEnd: e } := ta
+		v := value ?? ''
+		sel := v.slice(s, e)
+		if t.wrap
+			[a, b] := t.wrap
+			replace s, e, a + sel + b, s + a.length, s + a.length + sel.length
+		else if t.line
+			lineStart := v.lastIndexOf('\n', s - 1) + 1
+			block := v.slice(lineStart, e)
+			prefixed := block.split('\n').map((l) => t.line + l).join('\n')
+			replace lineStart, e, prefixed
+		else if t.block
+			before := s > 0 && v[s - 1] !== '\n' ? '\n\n' : ''
+			replace s, e, before + t.block + '\n'
+
+	keydown := (e) =>
+		return unless e.ctrlKey || e.metaKey
+		key := e.key.toLowerCase()
+		t := key === 'b' ? tools[2] : (key === 'i' ? tools[3] : (key === 'k' ? tools[4] : null))
+		if t
+			e.preventDefault()
+			apply t
+
+	setMode := (m) =>
+		mode = m
+		refresh() if m !== 'write'
+
+	refresh := async =>
+		previewing = true
+		try
+			res := await fetch('/admin/api/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ markdown: value ?? '' }) })
+			body := await res.json()
+			html = body.html ?? ''
+		catch
+			html = '<p>Preview failed.</p>'
+		finally
+			previewing = false
+
+	schedulePreview := =>
+		return if mode === 'write'
+		clearTimeout timer
+		timer = setTimeout(refresh, 400)
+
+	insertMedia := (m) =>
+		return unless ta
+		s := ta.selectionStart
+		alt := (m.alt || m.filename || '').replace(/[\[\]]/g, '')
+		snippet := m.mime?.startsWith('image/') ? `![${alt}](media:${m.id})` : `[${m.filename}](${m.url})`
+		replace s, ta.selectionEnd, snippet
+
+	uploadFiles := async (files) =>
+		for file of files
+			continue unless file.type.startsWith('image/')
+			uploading = true
+			error = ''
+			fd := new FormData()
+			fd.append 'file', file
+			res := await fetch('/admin/api/media', { method: 'POST', body: fd })
+			body := await res.json().catch(=> ({}))
+			uploading = false
+			if res.ok
+				insertMedia body
+			else
+				error = body.message ?? 'Upload failed'
+
+	paste := (e) =>
+		files := [...(e.clipboardData?.files ?? [])]
+		if files.some((f) => f.type.startsWith('image/'))
+			e.preventDefault()
+			uploadFiles files
+
+	drop := (e) =>
+		files := [...(e.dataTransfer?.files ?? [])]
+		if files.length
+			e.preventDefault()
+			uploadFiles files
+</script>

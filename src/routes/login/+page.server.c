@@ -1,30 +1,19 @@
 import { page } from '@human-synthesis/norns/server'
-import { fail, redirect } from '@sveltejs/kit'
-import { auth, COOKIE } from '$lib/norns/auth/server/public'
+import { redirect } from '@sveltejs/kit'
+import { auth, finishLogin, clientIp, isStaff } from '$lib/norns/auth/server/public'
 import { loginSchema } from '$lib/norns/auth/shared/schema'
+import { settings } from '$lib/norns/settings/server/public'
 
 export load := page.load
-	handler: ({ user, url }) =>
+	handler: async ({ user, url, container }) =>
 		if user
-			throw redirect 303, '/admin'
-		{ next: url.searchParams.get('next') ?? '/admin' }
+			throw redirect 303, (isStaff(user) ? '/admin' : '/account')
+		site := await settings(container).get 'site'
+		{ next: url.searchParams.get('next') ?? '/admin', reset: url.searchParams.has('reset'), siteTitle: site.title }
 
 export actions := page.actions
 	login:
 		input: loginSchema
 		run: async ({ input, container, event }) =>
-			session := await auth(container).login input.email, input.password
-			unless session
-				return fail 400, {
-					errors: [{ path: [{ key: 'password' }], message: 'Invalid email or password' }],
-					values: { email: input.email },
-				}
-			event.cookies.set COOKIE, session.id, {
-				path: '/',
-				httpOnly: true,
-				sameSite: 'lax',
-				secure: event.url.protocol === 'https:',
-				maxAge: 60 * 60 * 24 * 30,
-			}
-			next := input.next || '/admin'
-			throw redirect 303, (next.startsWith('/') && !next.startsWith('//')) ? next : '/admin'
+			r := await auth(container).login input.email, input.password, { ip: clientIp(event), userAgent: event.request.headers.get('user-agent') ?? '' }
+			finishLogin event, r, input.next, input.email

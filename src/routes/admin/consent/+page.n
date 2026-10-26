@@ -1,0 +1,56 @@
+.space-y-8
+	PageHead(title="Cookie consent" subtitle!="{'Policy version ' + data.config.policyVersion + ' · banner ' + (data.config.enabled ? 'on' : 'off')}")
+		+snippet('actions')
+			+if('data.canManage')
+				Btn(href="/admin/settings/consent" variant="secondary" icon="lucide:settings") Banner & rules
+				Btn(href="/admin/consent/scripts" variant="secondary" icon="lucide:code") Scripts
+			Btn(href="/admin/consent/log" variant="secondary" icon="lucide:list") Log
+	+if('form?.saved')
+		Banner(variant="success" icon="lucide:check") {form.saved}
+	.stat-grid
+		Stat(label="Choices (30 days)" value!="{data.stats.total}" icon="lucide:mouse-pointer-click")
+		Stat(label="Accept all" value!="{data.stats.acceptAll}" hint!="{pct(data.stats.acceptAll)}")
+		Stat(label="Reject all" value!="{data.stats.rejectAll}" hint!="{pct(data.stats.rejectAll)}")
+		Stat(label="Customised" value!="{data.stats.custom}" hint!="{pct(data.stats.custom)}")
+		Stat(label="Allow analytics" value!="{data.stats.analyticsRate + '%'}" hint="of choices")
+		Stat(label="Allow marketing" value!="{data.stats.marketingRate + '%'}" hint="of choices")
+	.grid.gap-6(class="lg:grid-cols-2")
+		Card
+			h2.font-semibold.mb-3 Scripts on the public site
+			+if('data.scripts.length === 0')
+				p.text-sm(class="text-fg-muted") None yet. Add analytics or other tags under Scripts; they load only for visitors who allow their category.
+			+else
+				ul.text-sm.space-y-2
+					+each('data.scripts as s (s.id)')
+						li.flex.items-center.justify-between.gap-2
+							a(href="/admin/consent/scripts/{s.id}") {s.name}
+							.flex.gap-1
+								Badge(size="sm") {s.category}
+								+if('!s.enabled')
+									Badge(size="sm" variant="warning") off
+		Card
+			h2.font-semibold.mb-3 Top countries
+			+if('data.stats.byCountry.length === 0')
+				p.text-sm(class="text-fg-muted") No data yet.
+			+else
+				ul.text-sm.space-y-1
+					+each('data.stats.byCountry as c (c.country)')
+						li.flex.justify-between
+							span {c.country}
+							span(class="text-fg-muted") {c.n}
+	+if('data.canManage')
+		Card
+			.flex.flex-wrap.items-center.justify-between.gap-3
+				div
+					h2.font-semibold Ask everyone again
+					p.text-sm(class="text-fg-muted") Raise the policy version after adding a script or changing what you do with data. Earlier choices stop applying.
+				form(method="POST" action="?/bump" onsubmit!="{confirmBump}")
+					Btn(type="submit" variant="secondary" icon="lucide:refresh-cw") Raise to version {Number(data.config.policyVersion) + 1}
+	Banner(variant="info" icon="lucide:scale") The consent manager handles the mechanics: blocking before consent, equal accept and reject, granular choices, withdrawal and proof of consent. Your banner wording, cookie descriptions and regional choices should be checked against the laws of the places you serve.
+
+<script>
+	{ data, form } := $props()
+	pct := (n) => data.stats.total ? Math.round((n / data.stats.total) * 100) + '%' : ''
+	confirmBump := (e) =>
+		e.preventDefault() unless confirm('Every visitor will see the banner again. Continue?')
+</script>

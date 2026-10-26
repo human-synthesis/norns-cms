@@ -1,0 +1,80 @@
+Dialog(bind:open!="{open}" title="Media library" class="media-dialog")
+	.space-y-4
+		.flex.flex-wrap.items-center.gap-2
+			Input(bind:value!="{q}" placeholder="Search file names and alt text…" class="w-64" oninput!="{search}")
+			label.btn.btn-secondary.btn-sm.cursor-pointer
+				Icon(name="lucide:upload" size="size-3.5")
+				span {uploading ? 'Uploading…' : 'Upload'}
+				input.sr-only(type="file" accept!="{accept}" multiple onchange!="{upload}")
+		+if('error')
+			Banner(variant="danger" icon="lucide:alert-triangle") {error}
+		+if('loading && items.length === 0')
+			p.text-sm(class="text-fg-muted") Loading…
+		+elseif('items.length === 0')
+			p.text-sm(class="text-fg-muted") Nothing here yet. Upload a file to start.
+		+else
+			.media-grid
+				+each('items as m (m.id)')
+					button.media-tile(type="button" onclick!="{() => choose(m)}" title!="{m.filename}")
+						+if('m.thumb')
+							img(src!="{m.thumb}" alt!="{m.alt}" loading="lazy")
+						+else
+							.media-file
+								Icon(name="lucide:file-text" size="size-6")
+								span {m.filename}
+						span.media-tile-name {m.alt || m.filename}
+
+<script>
+	// Pick from or upload to the media library. Used by MediaPicker (image
+	// fields) and MarkdownEditor (insert image). JSON endpoints under
+	// /admin/api/media.
+	{ open = $bindable(false), onpick, accept = 'image/*' } .= $props()
+
+	items .= $state([])
+	q .= $state('')
+	loading .= $state(false)
+	uploading .= $state(false)
+	error .= $state('')
+	timer .= null
+
+	kind := $derived accept.startsWith('image') ? 'image' : ''
+
+	load := async =>
+		loading = true
+		error = ''
+		try
+			res := await fetch(`/admin/api/media?kind=${kind}&q=${encodeURIComponent(q)}`)
+			body := await res.json()
+			items = body.items ?? []
+		catch
+			error = 'Could not load the media library'
+		finally
+			loading = false
+
+	search := =>
+		clearTimeout timer
+		timer = setTimeout(load, 250)
+
+	upload := async (e) =>
+		files := [...(e.currentTarget.files ?? [])]
+		return unless files.length
+		uploading = true
+		error = ''
+		for file of files
+			fd := new FormData()
+			fd.append 'file', file
+			res := await fetch('/admin/api/media', { method: 'POST', body: fd })
+			body := await res.json().catch(=> ({}))
+			if !res.ok
+				error = body.message ?? body.error ?? 'Upload failed'
+		uploading = false
+		e.currentTarget.value = ''
+		await load()
+
+	choose := (m) =>
+		onpick?.(m)
+		open = false
+
+	$effect =>
+		load() if open
+</script>

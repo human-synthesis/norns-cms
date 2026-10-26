@@ -1,23 +1,30 @@
 .admin
 	aside.admin-sidebar
 		a.admin-brand(href="/admin")
-			.logo-mark N
-			span.font-extrabold.tracking-tight Norns CMS
-		nav.flex.flex-col.gap-1
-			+each('data.nav as item (item.href)')
-				a.admin-nav-link(href!="{item.href}" class!="{isActive(item.href) ? 'admin-nav-active' : ''}")
-					Icon(name!="{item.icon}" size="size-4")
-					span {item.label}
+			.logo-mark {data.siteTitle.slice(0, 1)}
+			span.font-extrabold.tracking-tight.truncate {data.siteTitle}
+		nav.admin-nav(aria-label="Admin")
+			+each('data.nav as group (group.section)')
+				.admin-nav-section
+					.admin-nav-heading {group.section}
+					+each('group.items as item (item.href)')
+						a.admin-nav-link(href!="{item.href}" class!="{isActive(item.href) ? 'admin-nav-active' : ''}" aria-current!="{isActive(item.href) ? 'page' : undefined}")
+							Icon(name!="{item.icon}" size="size-4")
+							span {item.label}
 		.mt-auto.flex.flex-col.gap-2
 			a.admin-nav-link(href="/" target="_blank" rel="noopener")
 				Icon(name="lucide:external-link" size="size-4")
 				span View site
-			.text-xs.px-3.truncate(class="text-fg-subtle") {data.user.email}
+			a.admin-nav-link(href="/admin/profile" class!="{isActive('/admin/profile') ? 'admin-nav-active' : ''}")
+				Icon(name="lucide:circle-user" size="size-4")
+				span.truncate {data.user.name || data.user.email}
 			.flex.items-center.gap-2.px-1
 				ThemeToggler(variant="ghost" size="sm")
 				form(method="POST" action="/admin?/logout")
 					Btn(type="submit" variant="ghost" size="sm" icon="lucide:log-out") Sign out
 	main.admin-main
+		+if('data.user.needs2fa')
+			Banner(variant="warning" icon="lucide:shield-alert" class="mb-6") Two-factor sign-in is required for your role. Set it up below to use the rest of the admin.
 		slot
 	ToastProvider
 

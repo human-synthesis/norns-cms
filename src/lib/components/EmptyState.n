@@ -1,0 +1,12 @@
+.empty-state
+	+if('icon')
+		Icon(name!="{icon}" size="size-6")
+	+if('title')
+		p.font-semibold {title}
+	+if('children')
+		p.text-sm(class="text-fg-muted")
+			| {@render children()}
+
+<script>
+	{ icon = '', title = '', children } := $props()
+</script>

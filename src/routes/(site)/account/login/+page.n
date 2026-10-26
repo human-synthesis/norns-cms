@@ -1,0 +1,30 @@
+.account-narrow
+	h1.text-3xl.font-bold.tracking-tight Sign in
+	+if('data.verified')
+		Banner(variant="success" icon="lucide:check") Email confirmed. You can sign in now.
+	+if('data.reset')
+		Banner(variant="success" icon="lucide:check") Password changed. Sign in with the new one.
+	+if('form?.resent')
+		Banner(variant="info" icon="lucide:mail") If that account is waiting for confirmation, a new link is on its way.
+	Card
+		Form(action="?/login" form!="{form}")
+			.space-y-4
+				input(type="hidden" name="next" value!="{data.next}")
+				Field(label="Email" name="email" required)
+					Input(type="email" name="email" value!="{form?.values?.email ?? ''}" autocomplete="username" required)
+				Field(label="Password" name="password" required)
+					Input(type="password" name="password" autocomplete="current-password" required)
+				Btn(type="submit" variant="primary" class="w-full") Sign in
+		+if('form?.unverified')
+			form.pt-3(method="POST" action="?/resend")
+				input(type="hidden" name="email" value!="{form.values?.email ?? ''}")
+				Btn(type="submit" variant="ghost" size="sm") Send the confirmation link again
+	.text-sm.flex.justify-between
+		a(href="/account/forgot") Forgot your password?
+		+if('page.data.site?.registration === "open"')
+			a(href="/account/register") Create an account
+
+<script>
+	import { page } from '$app/state'
+	{ data, form } := $props()
+</script>

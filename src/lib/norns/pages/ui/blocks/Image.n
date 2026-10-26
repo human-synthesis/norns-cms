@@ -1,0 +1,9 @@
+figure.block-image(class!="{props.wide ? 'block-wide' : ''}")
+	Img(m!="{media[props.image]}" sizes!="{props.wide ? '100vw' : '(min-width: 768px) 768px, 100vw'}")
+	+if('props.caption || media[props.image]?.caption')
+		figcaption {props.caption || media[props.image].caption}
+
+<script>
+	import Img from '../Img.n'
+	{ props, media = {} } := $props()
+</script>

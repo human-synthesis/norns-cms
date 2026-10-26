@@ -1,0 +1,17 @@
+.members-only
+	+if('summary')
+		p.lede {summary}
+	Card
+		.space-y-3.text-center
+			Icon(name="lucide:lock" size="size-6")
+			p.font-semibold This is for members.
+			p.text-sm(class="text-fg-muted") Sign in to keep reading.
+			.flex.justify-center.gap-2
+				Btn(href!="{'/account/login?next=' + encodeURIComponent(page.url.pathname)}" variant="primary") Sign in
+				+if('page.data.site?.registration === "open"')
+					Btn(href="/account/register" variant="secondary") Create an account
+
+<script>
+	import { page } from '$app/state'
+	{ summary = '' } := $props()
+</script>

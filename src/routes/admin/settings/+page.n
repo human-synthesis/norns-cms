@@ -1,0 +1,14 @@
+.space-y-6
+	PageHead(title="Settings")
+	.grid.gap-4(class="md:grid-cols-2")
+		+each('data.groups as g (g.id)')
+			Card(href="/admin/settings/{g.id}")
+				.flex.items-start.gap-3
+					Icon(name!="{g.icon ?? 'lucide:settings'}" size="size-5" class="text-fg-subtle")
+					div
+						.font-semibold {g.label}
+						p.text-sm(class="text-fg-muted") {g.description ?? ''}
+
+<script>
+	{ data } := $props()
+</script>

@@ -1,0 +1,107 @@
+.space-y-6
+	PageHead(title!="{data.u.name || data.u.email}" subtitle!="{data.u.email}" back="/admin/users?kind={data.u.kind}" backLabel="Users")
+		+snippet('actions')
+			Badge(variant!="{data.u.status === 'active' ? 'success' : (data.u.status === 'suspended' ? 'danger' : 'warning')}") {data.u.status}
+			+if('data.u.totp_enabled')
+				Badge(variant="info") 2FA
+	+if('data.created')
+		Banner(variant="success" icon="lucide:check") User created.
+	+if('form?.saved')
+		Banner(variant="success" icon="lucide:check") {form.saved}
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	.grid.gap-6(class="lg:grid-cols-[1fr_22rem]")
+		Card
+			Form(action="?/save" form!="{form}")
+				fieldset.space-y-4(disabled!="{!data.canManage}")
+					Field(label="Name" name="name")
+						Input(name="name" value!="{v.name ?? ''}")
+					Field(label="Email" name="email" required)
+						Input(type="email" name="email" value!="{v.email}")
+					Field(label="Role" name="role" help!="{data.isSelf ? 'You cannot change your own role' : ''}")
+						Select(name="role" value!="{v.role}")
+							+each('data.roles as r (r.id)')
+								+if('r.id !== "owner" || data.isOwner || data.u.role === "owner"')
+									option(value!="{r.id}") {r.label}
+					Field(label="Status" name="status")
+						Select(name="status" value!="{v.status === 'invited' ? 'active' : v.status}" disabled!="{data.u.status === 'invited'}")
+							option(value="active") Active
+							option(value="suspended") Suspended — cannot sign in
+					+if('data.u.kind === "staff"')
+						Field(label="Author URL" name="slug" help!="{'/authors/' + (v.slug || '…')}")
+							Input(name="slug" value!="{v.slug ?? ''}")
+						Field(label="Bio" name="bio" help="Shown on the author page and under articles")
+							Textarea(name="bio" value!="{v.bio ?? ''}" rows="3")
+						Field(label="Photo" name="avatar")
+							MediaPicker(name="avatar" value!="{v.avatar_media_id}")
+					+if('data.canManage')
+						Btn(type="submit" variant="primary" icon="lucide:save") Save
+		.space-y-4
+			Card
+				dl.meta-list
+					dt Kind
+					dd {data.u.kind === 'staff' ? 'Staff' : 'Member'}
+					dt Joined
+					dd {new Date(data.u.created_at).toLocaleDateString()}
+					dt Last sign-in
+					dd {data.u.last_login_at ? new Date(data.u.last_login_at).toLocaleString() : 'never'}
+					dt Email
+					dd {data.u.email_verified_at ? 'verified' : 'not verified'}
+					+if('data.u.kind === "staff"')
+						dt Entries
+						dd {data.entries}
+			+if('data.canManage')
+				Card
+					.flex.flex-col.gap-2
+						+if('data.u.status === "invited"')
+							form(method="POST" action="?/resend")
+								Btn(type="submit" variant="secondary" icon="lucide:send" class="w-full") Resend invitation
+						+else
+							form(method="POST" action="?/reset")
+								Btn(type="submit" variant="secondary" icon="lucide:key-round" class="w-full") Send password reset link
+						+if('data.u.totp_enabled')
+							form(method="POST" action="?/reset2fa")
+								Btn(type="submit" variant="secondary" icon="lucide:shield-off" class="w-full") Remove two-factor
+						form(method="POST" action="?/revoke")
+							Btn(type="submit" variant="secondary" icon="lucide:log-out" class="w-full") Sign out everywhere
+	Card
+		h2.text-sm.font-semibold.mb-3 Active sessions
+		+if('data.sessions.length === 0')
+			p.text-sm(class="text-fg-muted") None.
+		+else
+			ul.session-list
+				+each('data.sessions as s (s.id)')
+					li
+						.min-w-0
+							.text-sm.truncate {s.user_agent || 'Unknown device'}
+							.text-xs(class="text-fg-subtle") Last seen {new Date(s.last_seen_at ?? s.created_at).toLocaleString()}
+						+if('data.canManage')
+							form(method="POST" action="?/revoke")
+								input(type="hidden" name="session" value!="{s.id}")
+								Btn(type="submit" variant="ghost" size="sm") Sign out
+	+if('data.activity.length')
+		Card
+			h2.text-sm.font-semibold.mb-3 Recent activity
+			ul.text-sm.space-y-1
+				+each('data.activity as a (a.id)')
+					li
+						code.text-xs {a.action}
+						span(class="text-fg-muted")  {a.target} · {new Date(a.created_at).toLocaleString()}
+	+if('data.canManage && !data.isSelf')
+		Card
+			form.flex.flex-wrap.items-end.gap-3(method="POST" action="?/remove" onsubmit!="{confirmRemove}")
+				+if('data.u.kind === "staff" && data.entries > 0')
+					Field(label!="{'Give their ' + data.entries + ' entries to'}" name="reassign")
+						Select(name="reassign")
+							option(value="") Nobody (no author)
+							+each('data.others as o (o.id)')
+								option(value!="{o.id}") {o.label}
+				Btn(type="submit" variant="danger" icon="lucide:user-x") Delete user
+
+<script>
+	import MediaPicker from '$lib/norns/media/ui/MediaPicker.n'
+	{ data, form } := $props()
+	v := $derived form?.values ?? data.u
+	confirmRemove := (e) =>
+		e.preventDefault() unless confirm(`Delete ${data.u.email}? This cannot be undone.`)
+</script>

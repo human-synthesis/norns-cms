@@ -1,11 +1,13 @@
-.min-h-screen.flex.items-center.justify-center.p-6(class="bg-bg-subtle")
-	Card(class="w-full max-w-sm")
+.auth-page
+	Card(class="auth-card")
 		.space-y-6
 			.flex.items-center.gap-3
-				.logo-mark N
+				.logo-mark {data.siteTitle.slice(0, 1)}
 				div
-					.font-bold.tracking-tight Norns CMS
-					.text-xs(class="text-fg-muted") Sign in to the admin
+					.font-bold.tracking-tight {data.siteTitle}
+					.text-xs(class="text-fg-muted") Sign in
+			+if('data.reset')
+				Banner(variant="success" icon="lucide:check") Password changed. Sign in with the new one.
 			Form(action="?/login" form!="{form}")
 				.space-y-4
 					input(type="hidden" name="next" value!="{data.next}")
@@ -14,6 +16,8 @@
 					Field(label="Password" name="password" required)
 						Input(type="password" name="password" autocomplete="current-password" required)
 					Btn(type="submit" variant="primary" class="w-full") Sign in
+			.text-sm.text-center
+				a(href="/login/forgot") Forgot your password?
 
 <script>
 	{ data, form } := $props()

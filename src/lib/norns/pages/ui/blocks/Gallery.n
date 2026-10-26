@@ -1,0 +1,16 @@
+section.block-gallery
+	+if('props.title')
+		h2 {props.title}
+	.block-gallery-grid
+		+each('props.images ?? [] as item, i (i)')
+			+if('media[item.image]')
+				figure
+					a(href!="{media[item.image].url}" target="_blank" rel="noopener")
+						Img(m!="{media[item.image]}" sizes="(min-width: 768px) 33vw, 50vw")
+					+if('item.caption')
+						figcaption {item.caption}
+
+<script>
+	import Img from '../Img.n'
+	{ props, media = {} } := $props()
+</script>

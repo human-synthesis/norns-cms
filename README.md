@@ -2,7 +2,7 @@
 
 **A content management system that is an ordinary Norns app.**
 
-Admin at `/admin`, a public site at `/`, pages and posts written in Markdown, and a content engine where a new content type is one feature folder. Built on [`@human-synthesis/norns`](https://github.com/human-synthesis/norns), [`norns-core`](https://github.com/human-synthesis/norns-core) and [`norns-ui`](https://github.com/human-synthesis/norns-ui); started from [`norns-app`](https://github.com/human-synthesis/norns-app).
+Admin at `/admin`, a public site at `/`, rich Markdown articles and block-built pages, staff and member accounts, a cookie consent manager that gates analytics, and SEO / GEO built in. A new content type, block or setting is one feature folder. Built on [`@human-synthesis/norns`](https://github.com/human-synthesis/norns), [`norns-core`](https://github.com/human-synthesis/norns-core) and [`norns-ui`](https://github.com/human-synthesis/norns-ui); started from [`norns-app`](https://github.com/human-synthesis/norns-app).
 
 ## Setup
 
@@ -15,7 +15,7 @@ CMS_ADMIN_EMAIL=you@example.com CMS_ADMIN_PASSWORD=change-me bun run db:seed
 bun run dev                                          # http://localhost:5173
 ```
 
-Sign in at `/login`, then create a page or a post. Published pages resolve at `/<slug>`, posts at `/posts/<slug>`, and `/posts` lists them. Signed-in users see drafts as previews.
+Sign in at `/login`, then create a page or an article. Pages resolve at `/<slug>`, articles at `/articles/<slug>` with archives per category, tag and author. Staff see drafts and scheduled entries as previews. Pick a home page under Settings → Site.
 
 The app runs on Cloudflare D1 whenever a `DB` binding is present (production through wrangler, `bun run dev` through adapter-cloudflare's platform proxy) and on a local SQLite file otherwise (`bun test`, or a Bun/Node server without D1: `bun run migrate up` + `bun run cms:seed`, path from `DATABASE_URL`, default `data/app.db`). Both go through the same async surface in `src/lib/norns/auth/server/db.js`.
 
@@ -27,18 +27,18 @@ To ship a change, either `bun run deploy` (build, apply migrations remotely, `wr
 
 Migrations live in `migrations/<feature>/`; `bun run d1:sync` mirrors them into the flat `migrations/d1/` folder wrangler reads. Run it after adding a migration and commit both.
 
-## What's in the MVP
+## Features
 
 | | |
 |---|---|
-| **Admin** | dashboard with counts and recent edits, a collection list per content type (search, status filter), a generic editor (save, publish / unpublish, delete), draft and revision tracking, dark mode |
-| **Public site** | header built from published pages flagged *Show in navigation* plus listable types, latest posts on the home page, Markdown rendering, draft preview for signed-in users |
-| **Content engine** | content types declared in code, compiled to valibot schemas; field types `text`, `textarea`, `markdown`, `number`, `boolean`, `datetime`, `select`, `tags`; one `entries` table with JSON field values plus `revisions` |
-| **Auth** | scrypt passwords, cookie sessions, `admin` / `editor` roles |
-| **API** | `GET /api/content/<type>` and `/api/content/<type>/<slug>`, JSON or TRON by `Accept` |
-| **Storage** | Cloudflare D1 in production and dev, SQLite (`bun:sqlite`, or `better-sqlite3` under Node) for tests and D1-less servers; hand-written SQL behind one async surface |
-
-Not yet: media uploads, menus and settings pages, users UI, block-based pages, a rich text editor, scheduled publishing. See `docs/plans/PLAN_CMS_V1.md` in the workspace for the roadmap.
+| **Content** | code-defined types with tabs, 20 field types, page blocks (hero, text, columns, call to action, image, gallery, FAQ, video / embed, article list, location, cookie table), drafts → review → publish or schedule, members-only visibility, revisions with diff and restore, draft autosave |
+| **Articles** | summary (TL;DR), cover, rich Markdown body, categories (nested) and tags, several authors with author pages, key facts, sources, featured, reading time, related articles, RSS per site and category |
+| **Rich Markdown** | GFM tables and task lists, highlighted code, media-library images with captions, `:::note` / `:::tip` / `:::warning` callouts, `::youtube{id=…}` / `::vimeo{id=…}` / `::embed{url=…}` consent-aware embeds, `::article{slug=…}` cards, `[[toc]]`; sanitised; HTML cached per entry. Editor with toolbar, shortcuts, server preview, paste / drop image upload |
+| **Media** | library on R2, type sniffing (no SVG/HTML), 10 MB limit, alt text and captions, usage tracking, optional Cloudflare Image Resizing srcsets |
+| **Users** | staff and member accounts, built-in roles (owner, admin, editor, author, viewer, member) plus custom roles from declared capabilities, invites, email verification, password reset, open / invite-only / closed registration, two-factor sign-in (TOTP + recovery codes, can be required), sessions you can revoke, suspension, rate-limited sign-in, audit log, member self-service (profile, data export, account deletion) |
+| **Consent** | cookie banner with equal Accept / Reject / Customise, per-category choices, regional rules (EU/EEA, UK, CH, rest: opt-in / opt-out / notice) from Cloudflare's country, Global Privacy Control, script presets (GA4, GTM, Plausible, Matomo, Clarity, Hotjar, Meta Pixel, LinkedIn) and custom code, Google Consent Mode v2, scripts inert until consent and activated in place, withdrawal clears cookies, consent log without IPs + CSV export, policy versions, cookie declaration |
+| **SEO & GEO** | per-entry meta, canonical, robots, social image, schema type; title template; Open Graph / X cards; JSON-LD (Organization or LocalBusiness, WebSite, BlogPosting with authors, citations and abstract, BreadcrumbList, FAQPage); sitemaps with images; robots.txt with per-bot AI crawler switches; `llms.txt`, `llms-full.txt` and a Markdown twin of every page (`/<path>.md`); automatic 301s on URL changes, redirect manager with CSV import, 404 log; live editor checks and a site report; local business address, hours and coordinates |
+| **Platform** | Cloudflare Workers + D1 + R2, nonce-based CSP with `strict-dynamic`, security headers, daily maintenance cron, mail through Resend (or a log in dev), read API as JSON or TRON |
 
 ## Add a content type
 
@@ -48,7 +48,7 @@ src/lib/norns/events/
   server/module.c      export default (app) => registerType app, eventType
 ```
 
-That is the whole change: the admin sidebar, the list, the editor, `/events`, `/events/<slug>` and `/api/content/event` all appear. Field types are listed in `src/lib/norns/content/server/fields.c`; add one there (schema factory) and in `content/ui/FieldEditor.n` (control).
+That is the whole change: the admin sidebar, the list, the editor (with its SEO tab), `/events`, `/events/<slug>`, the sitemap, `llms.txt` and `/api/content/event` all appear. Field types are listed in `src/lib/norns/content/server/fields.c`; add one there (schema factory) and in `content/ui/FieldEditor.n` (control).
 
 ## Commands
 
@@ -70,22 +70,17 @@ bun test               # feature tests through the DI container + architecture r
 ## Layout
 
 ```
-src/
-  hooks.server.c                 boots the runtime, adds the session handle
-  routes/(site)/                 public frontend
-  routes/login/                  sign in
-  routes/admin/                  admin shell, dashboard, content/[type], content/[type]/[id]
-  routes/api/content/            read API
-  lib/norns/auth/                db owner (db.js: SQLite + D1 adapters), users, sessions
-  lib/norns/content/             registry, field types, entries, revisions, rendering, routing
-  lib/norns/pages/, posts/       one content type each
-migrations/<feature>/            SQL, forward-only (source of truth)
-migrations/d1/                   flat mirror for wrangler, generated by tools/d1-sync.js
-tests/                           bun tests
-tools/seed.js                    first admin user (SQLite file or D1)
-wrangler.toml                    Workers config, D1 binding, custom domain
-.github/workflows/deploy.yml     lint, check, test, build, migrate, deploy on push to main
+src/hooks.server.c          security → session → SEO → consent handles
+src/routes/(site)/          public site and the members' account area
+src/routes/admin/           the admin
+src/lib/norns/<feature>/    auth · settings · content · pages · articles · media · mail · seo · consent
+worker/index.js             Worker entry with the daily maintenance cron
+migrations/                 per-feature SQL, mirrored into migrations/d1/ for wrangler
 ```
+
+`CLAUDE.md` describes each feature, the extension points and the conventions.
+
+Production secrets (`wrangler secret put`): `CMS_SECRET` (2FA encryption), `CRON_SECRET` (maintenance cron), `RESEND_API_KEY` (mail). The R2 bucket `norns-cms-media` must exist before deploying (`bunx wrangler r2 bucket create norns-cms-media`).
 
 ## License
 

@@ -1,0 +1,14 @@
+.page-head
+	.min-w-0
+		+if('back')
+			a.text-sm.no-underline(href!="{back}" class="text-fg-muted hover:text-fg") ← {backLabel}
+		h1.text-2xl.font-bold.tracking-tight {title}
+		+if('subtitle')
+			p.text-sm(class="text-fg-muted") {subtitle}
+	+if('actions')
+		.flex.flex-wrap.items-center.gap-2
+			| {@render actions()}
+
+<script>
+	{ title, subtitle = '', back = '', backLabel = 'Back', actions } := $props()
+</script>

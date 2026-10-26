@@ -1,0 +1,35 @@
+.space-y-6
+	PageHead(title!="{data.tax.labelPlural}" subtitle!="{data.terms.length + ' ' + data.tax.labelPlural.toLowerCase()}")
+	+if('form?.created')
+		Banner(variant="success" icon="lucide:check") Created “{form.created}”.
+	Card
+		Form(action="?/create" form!="{form}" class="flex flex-wrap items-end gap-3")
+			Field(label="Name" name="name" required)
+				Input(name="name" value!="{form?.values?.name ?? ''}" placeholder!="{data.tax.id === 'tag' ? 'svelte' : 'Guides'}")
+			+if('data.tax.hierarchical')
+				Field(label="Parent" name="parent_id")
+					Select(name="parent_id")
+						option(value="") —
+						+each('data.terms as t (t.id)')
+							option(value!="{t.id}") {t.name}
+			Btn(type="submit" variant="primary" icon="lucide:plus") Add {data.tax.label.toLowerCase()}
+	+if('data.terms.length === 0')
+		EmptyState(icon="lucide:tags" title!="{'No ' + data.tax.labelPlural.toLowerCase() + ' yet'}")
+			| {data.tax.id === 'tag' ? 'Tags are also created when you type them on an article.' : 'Create one above, then pick it on an article.'}
+	+else
+		DataTable(columns!="{columns}" rows!="{rows}" onrowclick!="{open}")
+
+<script>
+	import { goto } from '$app/navigation'
+	{ data, form } := $props()
+
+	byId := $derived new Map(data.terms.map((t) => [t.id, t]))
+	columns := [
+		{ key: 'name', label: 'Name' }
+		{ key: 'slug', label: 'URL', class: 'text-fg-muted' }
+		{ key: 'parent', label: 'Parent' }
+		{ key: 'count', label: 'Published articles' }
+	]
+	rows := $derived data.terms.map((t) => ({ id: t.id, name: t.name, slug: '/articles/' + data.tax.id + '/' + t.slug, parent: byId.get(t.parent_id)?.name ?? '', count: t.count }))
+	open := (row) => goto(`/admin/taxonomy/${data.tax.id}/${row.id}`)
+</script>

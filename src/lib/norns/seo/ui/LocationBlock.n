@@ -1,0 +1,28 @@
++if('data?.location')
+	section.block-location
+		+if('props.title')
+			h2 {props.title}
+		.block-location-grid
+			address
+				+if('data.location.name')
+					strong {data.location.name}
+				+each('data.location.lines as line (line)')
+					span {line}
+				+if('data.location.phone')
+					a(href!="{'tel:' + data.location.phone.replace(/\\s/g, '')}") {data.location.phone}
+				+if('data.location.email')
+					a(href!="{'mailto:' + data.location.email}") {data.location.email}
+				+if('data.location.area')
+					span(class="text-fg-muted") Serving {data.location.area}
+			+if('data.location.hours.length')
+				div
+					strong Opening hours
+					ul
+						+each('data.location.hours as h (h)')
+							li {h}
+		+if('props.showMap && data.location.map')
+			Btn(href!="{data.location.map}" target="_blank" rel="noopener" variant="secondary" icon="lucide:map-pin") Open map
+
+<script>
+	{ props = {}, data = null } := $props()
+</script>

@@ -1,0 +1,13 @@
+section.block-columns
+	+if('props.title')
+		h2 {props.title}
+	.block-columns-grid(style!="{'--cols:' + Math.min(3, Math.max(1, (props.columns ?? []).length))}")
+		+each('props.columns ?? [] as col, i (i)')
+			.prose
+				+if('col.title')
+					h3 {col.title}
+				| {@html html.columns?.[i]?.body?.html ?? ''}
+
+<script>
+	{ props, html = {} } := $props()
+</script>

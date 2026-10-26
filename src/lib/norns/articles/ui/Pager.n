@@ -1,0 +1,12 @@
++if('pages > 1')
+	nav.pager(aria-label="Pagination")
+		+if('page > 1')
+			a(href!="{href(page - 1)}" rel="prev") ← Newer
+		span {page} / {pages}
+		+if('page < pages')
+			a(href!="{href(page + 1)}" rel="next") Older →
+
+<script>
+	{ page = 1, pages = 1, base = '' } := $props()
+	href := (n) => n === 1 ? base : `${base}?page=${n}`
+</script>

@@ -1,0 +1,45 @@
+.space-y-6
+	PageHead(title="Consent log" subtitle="Proof of consent: what each visitor chose, when, under which policy version and banner text. No IP addresses are stored." back="/admin/consent" backLabel="Consent")
+		+snippet('actions')
+			Btn(href="/admin/consent/export.csv" variant="secondary" icon="lucide:download") Export CSV
+	form.flex.flex-wrap.items-end.gap-2(method="GET")
+		Input(name="id" value!="{data.id}" placeholder="Consent ID (shown to visitors in Cookie settings)" class="w-96")
+		Select(name="action" value!="{data.action}" class="w-44")
+			option(value="") All actions
+			option(value="accept_all") Accept all
+			option(value="reject_all") Reject all
+			option(value="custom") Custom
+			option(value="withdraw") Withdraw
+			option(value="acknowledge") Acknowledge
+		Btn(type="submit" variant="secondary" icon="lucide:search") Search
+	+if('data.records.length === 0')
+		EmptyState(icon="lucide:list" title="No records")
+	+else
+		.table-wrap
+			table.audit-table
+				thead
+					tr
+						th When
+						th Consent ID
+						th Action
+						th Preferences
+						th Analytics
+						th Marketing
+						th Version
+						th Country / rule
+				tbody
+					+each('data.records as r (r.id)')
+						tr
+							td.whitespace-nowrap {new Date(r.created_at).toLocaleString()}
+							td
+								a.text-xs.font-mono(href="?id={r.consent_id}") {r.consent_id.slice(0, 12)}…
+							td {r.action.replace('_', ' ')}{r.gpc ? ' (GPC)' : ''}
+							td {r.categories.preferences ? 'yes' : 'no'}
+							td {r.categories.analytics ? 'yes' : 'no'}
+							td {r.categories.marketing ? 'yes' : 'no'}
+							td {r.policy_version}
+							td {r.country || '—'} · {r.region_mode}
+
+<script>
+	{ data } := $props()
+</script>

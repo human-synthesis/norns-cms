@@ -1,0 +1,23 @@
+.space-y-6
+	PageHead(title="Scripts" subtitle="Analytics, tag managers, pixels and custom code, each tied to a consent category." back="/admin/consent" backLabel="Consent")
+		+snippet('actions')
+			Btn(href="/admin/consent/scripts/new" variant="primary" icon="lucide:plus") Add script
+	+if('data.scripts.length === 0')
+		EmptyState(icon="lucide:code" title="No scripts") Add Google Analytics, Plausible, Matomo, a pixel or your own code. Each one loads only after the visitor allows its category.
+	+else
+		DataTable(columns!="{columns}" rows!="{rows}" onrowclick!="{open}")
+
+<script>
+	import { goto } from '$app/navigation'
+	{ data } := $props()
+	label := (id) => data.providers.find((p) => p.id === id)?.label ?? id
+	columns := [
+		{ key: 'name', label: 'Name' }
+		{ key: 'provider', label: 'Provider' }
+		{ key: 'category', label: 'Category' }
+		{ key: 'placement', label: 'Placement' }
+		{ key: 'state', label: 'State' }
+	]
+	rows := $derived data.scripts.map((s) => ({ id: s.id, name: s.name, provider: label(s.provider), category: s.category, placement: s.placement, state: s.enabled ? 'on' : 'off' }))
+	open := (row) => goto('/admin/consent/scripts/' + row.id)
+</script>

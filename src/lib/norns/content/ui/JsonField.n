@@ -1,0 +1,76 @@
++if('field.type === "repeater"')
+	.repeater
+		+if('name')
+			input(type="hidden" name!="{name}" value!="{JSON.stringify(local)}")
+		+each('local as item, i (i)')
+			.repeater-item
+				.repeater-head
+					span.text-xs.font-semibold(class="text-fg-muted") {field.itemLabel ?? 'Item'} {i + 1}
+					.flex.gap-1
+						button.icon-btn(type="button" aria-label="Move up" disabled!="{i === 0}" onclick!="{() => move(i, -1)}")
+							Icon(name="lucide:arrow-up" size="size-3.5")
+						button.icon-btn(type="button" aria-label="Move down" disabled!="{i === local.length - 1}" onclick!="{() => move(i, 1)}")
+							Icon(name="lucide:arrow-down" size="size-3.5")
+						button.icon-btn(type="button" aria-label="Remove" onclick!="{() => remove(i)}")
+							Icon(name="lucide:trash-2" size="size-3.5")
+				.space-y-3
+					+each('field.fields as sub (sub.name)')
+						label.json-field
+							span.json-label {sub.label}{sub.required ? ' *' : ''}
+							JsonField(field!="{sub}" bind:value!="{item[sub.name]}" blocks!="{blocks}")
+		Btn(variant="secondary" size="sm" icon="lucide:plus" onclick!="{add}") Add {(field.itemLabel ?? 'item').toLowerCase()}
++elseif('field.type === "markdown"')
+	MarkdownEditor(bind:value!="{value}" rows="8")
++elseif('field.type === "textarea" || field.type === "code"')
+	Textarea(bind:value!="{value}" rows="3" class!="{field.type === 'code' ? 'font-mono text-xs' : ''}")
++elseif('field.type === "lines"')
+	Textarea(value!="{Array.isArray(value) ? value.join('\\n') : (value ?? '')}" rows="3" oninput!="{(e) => value = e.currentTarget.value.split('\\n')}")
++elseif('field.type === "boolean"')
+	Switch(bind:checked!="{value}")
++elseif('field.type === "select" || field.type === "term" || field.type === "reference"')
+	Select(bind:value!="{value}")
+		option(value="") —
+		+each('field.options ?? [] as opt (opt.value)')
+			option(value!="{opt.value}") {opt.label}
++elseif('field.type === "number"')
+	Input(type="number" bind:value!="{value}")
++elseif('field.type === "image"')
+	MediaPicker(bind:value!="{value}")
++else
+	Input(bind:value!="{value}" placeholder!="{field.placeholder ?? ''}")
++if('field.help && field.type !== "repeater"')
+	span.json-help {field.help}
+
+<script>
+	import MarkdownEditor from './MarkdownEditor.n'
+	import MediaPicker from '../../media/ui/MediaPicker.n'
+	import JsonField from './JsonField.n'
+
+	// A field bound to a value in a JSON structure (block props, repeater
+	// items) instead of a named form input. A top-level repeater passes
+	// `name` and mirrors itself into a hidden input.
+	{ field, value = $bindable(), name, blocks = [] } .= $props()
+
+	// Repeaters keep their own deep $state copy (the incoming value may be
+	// plain page data) and write snapshots back for parents that bind.
+	local .= $state(field.type === 'repeater' ? JSON.parse(JSON.stringify(Array.isArray(value) ? value : [])) : [])
+	$effect =>
+		if field.type === 'repeater'
+			value = $state.snapshot(local)
+
+	blank := =>
+		out := {}
+		for sub of field.fields ?? []
+			out[sub.name] = sub.default ?? (sub.type === 'boolean' ? false : (sub.type === 'repeater' ? [] : ''))
+		out
+
+	add := =>
+		local.push blank()
+
+	remove := (i) =>
+		local.splice i, 1
+
+	move := (i, d) =>
+		[a] := local.splice(i, 1)
+		local.splice i + d, 0, a
+</script>

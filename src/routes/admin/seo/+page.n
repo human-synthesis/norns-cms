@@ -1,0 +1,65 @@
+.space-y-8
+	PageHead(title="SEO & GEO")
+		+snippet('actions')
+			Btn(href="/admin/settings/seo" variant="secondary" icon="lucide:settings") Settings
+			Btn(href="/admin/seo/redirects" variant="secondary" icon="lucide:corner-up-right") Redirects
+	section.space-y-3
+		h2.text-lg.font-semibold What search engines and assistants read
+		.grid.gap-3(class="sm:grid-cols-2 lg:grid-cols-3")
+			+each('LINKS as l (l.href)')
+				a.link-card(href!="{l.href}" target="_blank" rel="noopener")
+					Icon(name!="{l.icon}" size="size-4")
+					span.font-medium {l.label}
+					span.text-xs(class="text-fg-muted") {l.hint}
+	section.space-y-3
+		h2.text-lg.font-semibold Content with issues
+		+if('data.report.length === 0')
+			Banner(variant="success" icon="lucide:check") No warnings. Every entry has a title and description of a sensible length.
+		+else
+			ul.issue-list
+				+each('data.report as r (r.id)')
+					li
+						a(href="/admin/content/{r.type}/{r.id}") {r.title || '(untitled)'}
+						span.text-xs(class="text-fg-subtle")  {r.typeLabel} · {r.status}
+						ul
+							+each('r.issues as i (i.message)')
+								li(class!="{'seo-' + i.level}") {i.message}
+	section#not-found.space-y-3
+		.flex.items-center.justify-between
+			h2.text-lg.font-semibold Not found (404)
+			+if('data.notFound.length')
+				form(method="POST" action="?/clear404")
+					Btn(type="submit" variant="ghost" size="sm") Clear all
+		+if('data.notFound.length === 0')
+			p.text-sm(class="text-fg-muted") No missing pages recorded.
+		+else
+			.table-wrap
+				table.audit-table
+					thead
+						tr
+							th Path
+							th Hits
+							th Last seen
+							th Referrer
+							th
+					tbody
+						+each('data.notFound as n (n.path)')
+							tr
+								td
+									code.text-xs {n.path}
+								td {n.hits}
+								td.whitespace-nowrap {new Date(n.last_seen).toLocaleString()}
+								td.text-xs {n.referrer}
+								td.whitespace-nowrap
+									a.text-sm(href="/admin/seo/redirects?from={encodeURIComponent(n.path)}") Redirect…
+
+<script>
+	{ data } := $props()
+	LINKS := [
+		{ href: '/sitemap.xml', label: 'sitemap.xml', hint: 'Every public, indexable URL', icon: 'lucide:map' }
+		{ href: '/robots.txt', label: 'robots.txt', hint: 'Crawler rules, AI bots', icon: 'lucide:bot' }
+		{ href: '/llms.txt', label: 'llms.txt', hint: 'Site summary for AI assistants', icon: 'lucide:sparkles' }
+		{ href: '/llms-full.txt', label: 'llms-full.txt', hint: 'All public content as Markdown', icon: 'lucide:file-text' }
+		{ href: '/feed.xml', label: 'feed.xml', hint: 'RSS for articles', icon: 'lucide:rss' }
+	]
+</script>

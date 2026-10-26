@@ -1,0 +1,89 @@
+.space-y-6
+	PageHead(title="Your profile" subtitle!="{data.u.email}")
+	+if('form?.saved')
+		Banner(variant="success" icon="lucide:check") {form.saved}
+	+if('form?.codes')
+		Card
+			.space-y-3
+				h2.font-semibold Recovery codes
+				p.text-sm Each code signs you in once if you lose your device. Store them somewhere safe; they will not be shown again.
+				ul.recovery-codes
+					+each('form.codes as code (code)')
+						li
+							code {code}
+				CopyButton(value!="{form.codes.join('\\n')}" size="sm") Copy codes
+	.grid.gap-6(class="lg:grid-cols-2")
+		Card
+			h2.font-semibold.mb-4 Details
+			Form(action="?/details" form!="{form?.values ? form : null}")
+				.space-y-4
+					Field(label="Name" name="name")
+						Input(name="name" value!="{form?.values?.name ?? data.u.name}")
+					Field(label="Email" name="email")
+						Input(type="email" name="email" value!="{form?.values?.email ?? data.u.email}")
+					Field(label="Author URL" name="slug" help!="{'/authors/' + (data.u.slug || '…')}")
+						Input(name="slug" value!="{form?.values?.slug ?? data.u.slug ?? ''}")
+					Field(label="Bio" name="bio")
+						Textarea(name="bio" value!="{form?.values?.bio ?? data.u.bio}" rows="3")
+					Field(label="Photo" name="avatar")
+						MediaPicker(name="avatar" value!="{data.u.avatar_media_id}")
+					Btn(type="submit" variant="primary" icon="lucide:save") Save
+		Card
+			h2.font-semibold.mb-4 Password
+			Form(action="?/password" form!="{form}")
+				.space-y-4
+					Field(label="Current password" name="current")
+						Input(type="password" name="current" autocomplete="current-password")
+					Field(label="New password" name="next" help="At least 12 characters")
+						Input(type="password" name="next" autocomplete="new-password")
+					Field(label="New password again" name="confirm")
+						Input(type="password" name="confirm" autocomplete="new-password")
+					Btn(type="submit" variant="primary" icon="lucide:key-round") Change password
+	Card(class!="{data.enroll && !data.u.totp_enabled ? 'ring-2 ring-warning' : ''}")
+		h2.font-semibold.mb-2 Two-factor sign-in
+		+if('data.u.totp_enabled')
+			p.text-sm.mb-4 On. Signing in asks for a code from your authenticator app.
+			Form(action="?/totpDisable" form!="{form}" class="flex flex-wrap items-end gap-3")
+				Field(label="Password" name="disablePassword")
+					Input(type="password" name="password" autocomplete="current-password")
+				Btn(type="submit" variant="danger" icon="lucide:shield-off") Turn off
+		+elseif('form?.setup')
+			.space-y-4
+				p.text-sm Add this key to an authenticator app (1Password, Google Authenticator, Aegis…), then enter the 6-digit code it shows.
+				.space-y-1
+					.text-xs.font-semibold.uppercase(class="text-fg-subtle") Setup key
+					.flex.items-center.gap-2
+						code.text-sm.tracking-widest.break-all {form.setup.secret}
+						CopyButton(value!="{form.setup.secret}" size="sm")
+					a.text-xs(href!="{form.setup.uri}") Open in an authenticator app on this device
+				Form(action="?/totpConfirm" form!="{form}" class="flex flex-wrap items-end gap-3")
+					input(type="hidden" name="secret" value!="{form.setup.secret}")
+					input(type="hidden" name="uri" value!="{form.setup.uri}")
+					Field(label="Code" name="code")
+						Input(name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456")
+					Btn(type="submit" variant="primary" icon="lucide:shield-check") Turn on
+		+else
+			p.text-sm.mb-4 Off. A code from your phone on top of your password protects the admin if your password leaks.
+			form(method="POST" action="?/totpBegin")
+				Btn(type="submit" variant="primary" icon="lucide:shield-plus") Set up two-factor sign-in
+	Card
+		.flex.items-center.justify-between.mb-3
+			h2.font-semibold Sessions
+			+if('data.sessions.length > 1')
+				form(method="POST" action="?/revoke")
+					Btn(type="submit" variant="secondary" size="sm") Sign out other sessions
+		ul.session-list
+			+each('data.sessions as s (s.id)')
+				li
+					.min-w-0
+						.text-sm.truncate {s.user_agent || 'Unknown device'}{s.id === data.current ? ' (this device)' : ''}
+						.text-xs(class="text-fg-subtle") Last seen {new Date(s.last_seen_at ?? s.created_at).toLocaleString()}
+					+if('s.id !== data.current')
+						form(method="POST" action="?/revoke")
+							input(type="hidden" name="session" value!="{s.id}")
+							Btn(type="submit" variant="ghost" size="sm") Sign out
+
+<script>
+	import MediaPicker from '$lib/norns/media/ui/MediaPicker.n'
+	{ data, form } := $props()
+</script>

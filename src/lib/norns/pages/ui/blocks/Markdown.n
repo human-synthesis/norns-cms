@@ -1,0 +1,6 @@
+.prose.block-markdown
+	| {@html html.body?.html ?? ''}
+
+<script>
+	{ html = {} } := $props()
+</script>

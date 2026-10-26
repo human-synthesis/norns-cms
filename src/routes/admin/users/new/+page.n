@@ -1,0 +1,43 @@
+.space-y-6
+	PageHead(title!="{data.kind === 'client' ? 'Add a member' : 'Invite staff'}" back="/admin/users?kind={data.kind}" backLabel="Users")
+	+if('form?.invited')
+		Banner(variant="success" icon="lucide:mail-check")
+			| Invitation for {form.invited} created{form.mailed && !form.link ? ' and emailed' : ''}. It works for 7 days.
+		+if('form.link')
+			Card
+				.space-y-2
+					p.text-sm No mail provider is configured (RESEND_API_KEY), so send this link yourself:
+					.flex.items-center.gap-2
+						code.text-xs.break-all {form.link}
+						CopyButton(value!="{form.link}" size="sm")
+		Btn(href="/admin/users/{form.id}" variant="secondary" size="sm") Open the user
+	Card
+		Form(action="?/create" form!="{form}")
+			.space-y-4
+				Field(label="How" name="mode")
+					.flex.gap-4
+						label.check-item
+							input(type="radio" name="mode" value="invite" checked!="{mode === 'invite'}" onchange!="{() => mode = 'invite'}")
+							span Email an invitation — they choose their password
+						label.check-item
+							input(type="radio" name="mode" value="password" checked!="{mode === 'password'}" onchange!="{() => mode = 'password'}")
+							span Set a password now
+				Field(label="Email" name="email" required)
+					Input(type="email" name="email" value!="{form?.values?.email ?? ''}" required)
+				Field(label="Name" name="name")
+					Input(name="name" value!="{form?.values?.name ?? ''}")
+				Field(label="Role" name="role" required)
+					Select(name="role" value!="{form?.values?.role ?? defaultRole}")
+						+each('data.roles as r (r.id)')
+							+if('r.id !== "owner" || data.isOwner')
+								option(value!="{r.id}") {r.label} — {r.description}
+				+if('mode === "password"')
+					Field(label="Password" name="password" required help="At least 12 characters")
+						Input(type="password" name="password" autocomplete="new-password")
+				Btn(type="submit" variant="primary" icon!="{mode === 'invite' ? 'lucide:send' : 'lucide:user-plus'}") {mode === 'invite' ? 'Send invitation' : 'Create user'}
+
+<script>
+	{ data, form } := $props()
+	mode .= $state(form?.values?.mode ?? 'invite')
+	defaultRole := $derived data.kind === 'client' ? 'member' : 'author'
+</script>

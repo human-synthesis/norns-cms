@@ -1,0 +1,18 @@
+section.block-hero(class!="{props.align === 'center' ? 'block-hero-center' : ''}")
+	.block-hero-text
+		h1.block-hero-title {props.title}
+		+if('props.text')
+			p.block-hero-lede {props.text}
+		+if('props.primaryLabel || props.secondaryLabel')
+			.flex.flex-wrap.gap-3(class!="{props.align === 'center' ? 'justify-center' : ''}")
+				+if('props.primaryLabel && props.primaryHref')
+					Btn(href!="{props.primaryHref}" variant="primary" size="lg") {props.primaryLabel}
+				+if('props.secondaryLabel && props.secondaryHref')
+					Btn(href!="{props.secondaryHref}" variant="secondary" size="lg") {props.secondaryLabel}
+	+if('media[props.image]')
+		Img(m!="{media[props.image]}" eager class="block-hero-image")
+
+<script>
+	import Img from '../Img.n'
+	{ props, media = {} } := $props()
+</script>

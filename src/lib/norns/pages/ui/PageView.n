@@ -1,0 +1,20 @@
+article.page-view
+	+if('res.entry.status !== "published" || res.entry.published_at > Date.now()')
+		Banner(variant="warning" icon="lucide:eye") Preview — {res.entry.status === 'published' ? 'scheduled, not live yet' : 'draft'}, only visible to staff.
+	+if('!res.entry.data.hideTitle')
+		header.page-header
+			h1.page-title {res.entry.title}
+	+if('res.locked')
+		MembersOnly(summary!="{res.entry.data.summary}")
+	+elseif('res.entry.data.layout === "blocks"')
+		.blocks
+			BlockRenderer(blocks!="{res.blocks}" media!="{res.media}")
+	+else
+		.prose
+			| {@html res.html.body ?? ''}
+
+<script>
+	import BlockRenderer from './BlockRenderer.n'
+	import MembersOnly from '../../articles/ui/MembersOnly.n'
+	{ res } := $props()
+</script>

@@ -1,0 +1,13 @@
+section.block-faq
+	+if('props.title')
+		h2 {props.title}
+	.faq-list
+		+each('props.items ?? [] as item, i (i)')
+			details.faq-item
+				summary {item.question}
+				.prose
+					| {@html html.items?.[i]?.answer?.html ?? ''}
+
+<script>
+	{ props, html = {} } := $props()
+</script>

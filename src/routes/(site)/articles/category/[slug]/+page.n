@@ -1,0 +1,19 @@
+.space-y-8
+	header.space-y-2
+		p.article-kicker {data.label}
+		h1.text-4xl.font-bold.tracking-tight {data.term.name}
+		+if('data.term.description')
+			p.text-lg.max-w-prose(class="text-fg-muted") {data.term.description}
+	+if('data.list.entries.length === 0')
+		p(class="text-fg-muted") Nothing here yet.
+	+else
+		.article-grid
+			+each('data.list.entries as a (a.id)')
+				ArticleCard(a!="{a}")
+	Pager(page!="{data.list.page}" pages!="{data.list.pages}" base!="{data.path}")
+
+<script>
+	import ArticleCard from '$lib/norns/articles/ui/ArticleCard.n'
+	import Pager from '$lib/norns/articles/ui/Pager.n'
+	{ data } := $props()
+</script>

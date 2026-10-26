@@ -1,0 +1,55 @@
+.space-y-6
+	PageHead(title!="{data.script?.name ?? 'Add a script'}" back="/admin/consent/scripts" backLabel="Scripts")
+	+if('page.url.searchParams.has("saved")')
+		Banner(variant="success" icon="lucide:check") Saved. Live on the site within a few seconds for visitors who allow “{data.script?.category}”.
+	+if('form?.errors')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.errors[0].message}
+	Card
+		Form(action="?/save" form!="{form}")
+			.space-y-4
+				Field(label="Provider" name="provider" required)
+					Select(name="provider" bind:value!="{provider}" disabled!="{!!data.script}")
+						+each('data.providers as p (p.id)')
+							+if('p.id !== "custom" || data.canCustom')
+								option(value!="{p.id}") {p.label}
+				+if('data.script')
+					input(type="hidden" name="provider" value!="{provider}")
+				Field(label="Name" name="name" help="How it appears in the banner's details and the cookie table")
+					Input(name="name" value!="{v.name ?? current?.label ?? ''}")
+				Field(label="Consent category" name="category")
+					Select(name="category" value!="{v.category ?? current?.category ?? 'analytics'}")
+						option(value="preferences") Preferences
+						option(value="analytics") Analytics
+						option(value="marketing") Marketing
+				+each('current?.fields ?? [] as f (f.name)')
+					Field(label!="{f.label}" name!="{'config_' + f.name}" required!="{!f.optional}")
+						Input(name!="{'config_' + f.name}" value!="{v.config?.[f.name] ?? v['config_' + f.name] ?? ''}" placeholder!="{f.placeholder}")
+				+if('provider === "custom"')
+					Field(label="Code" name="code" required help="HTML and scripts, injected as is for visitors who allow the category. Scripts get the page nonce automatically.")
+						Textarea(name="code" value!="{v.code ?? ''}" rows="10" class="font-mono text-xs")
+					Field(label="Placement" name="placement")
+						Select(name="placement" value!="{v.placement ?? 'head'}")
+							option(value="head") In the page head
+							option(value="body") At the end of the page body
+				Field(label="Extra cookies to declare" name="cookies" help="One per line: name | duration | purpose")
+					Textarea(name="cookies" value!="{v.cookies ?? ''}" rows="3" class="font-mono text-xs")
+				+if('current?.cookies?.length')
+					.text-xs(class="text-fg-muted") Declared automatically: {current.cookies.map((c) => c.name).join(', ')}
+				Field(label="Enabled" name="enabled")
+					.flex.items-center.gap-2
+						Switch(name="enabled" checked!="{v.enabled ?? true}")
+						span.text-sm(class="text-fg-muted") Off keeps the settings without loading anything
+				Btn(type="submit" variant="primary" icon="lucide:save") Save
+	+if('data.script')
+		form(method="POST" action="?/remove" onsubmit!="{confirmRemove}")
+			Btn(type="submit" variant="danger" icon="lucide:trash-2") Remove script
+
+<script>
+	import { page } from '$app/state'
+	{ data, form } := $props()
+	v := $derived form?.values ?? data.script ?? {}
+	provider .= $state(form?.values?.provider ?? data.script?.provider ?? 'ga4')
+	current := $derived data.providers.find((p) => p.id === provider)
+	confirmRemove := (e) =>
+		e.preventDefault() unless confirm('Remove this script from the site?')
+</script>

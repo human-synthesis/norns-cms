@@ -1,0 +1,11 @@
+section.block-cta(class!="{'block-cta-' + (props.tone || 'accent')}")
+	div
+		h2 {props.title}
+		+if('props.text')
+			p {props.text}
+	+if('props.buttonLabel && props.buttonHref')
+		Btn(href!="{props.buttonHref}" variant!="{props.tone === 'subtle' ? 'secondary' : 'primary'}" size="lg") {props.buttonLabel}
+
+<script>
+	{ props } := $props()
+</script>

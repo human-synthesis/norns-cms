@@ -1,0 +1,14 @@
+.account-narrow
+	h1.text-3xl.font-bold.tracking-tight Reset your password
+	+if('form?.sent')
+		Banner(variant="success" icon="lucide:mail") If an account uses that address, the link is on its way. It works for one hour.
+	Card
+		form.space-y-4(method="POST" action="?/request")
+			Field(label="Email" name="email" required)
+				Input(type="email" name="email" autocomplete="username" required)
+			Btn(type="submit" variant="primary" class="w-full") Send the link
+	a.text-sm(href="/account/login") Back to sign in
+
+<script>
+	{ form } := $props()
+</script>

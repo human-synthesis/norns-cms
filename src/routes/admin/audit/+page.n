@@ -1,0 +1,56 @@
+.space-y-6
+	PageHead(title="Audit log" subtitle="Sign-ins, account changes, publishing, settings and script changes. Retention is set under Settings → Security.")
+	form.flex.flex-wrap.items-end.gap-2(method="GET")
+		Input(name="q" value!="{data.q}" placeholder="Search people, targets, actions…" class="w-72")
+		Select(name="action" value!="{data.action}" class="w-48")
+			option(value="") All actions
+			+each('PREFIXES as p (p.value)')
+				option(value!="{p.value}") {p.label}
+		Btn(type="submit" variant="secondary" icon="lucide:filter") Filter
+	+if('data.rows.length === 0')
+		EmptyState(icon="lucide:scroll-text" title="Nothing logged")
+	+else
+		.table-wrap
+			table.audit-table
+				thead
+					tr
+						th When
+						th Who
+						th Action
+						th Target
+						th Details
+				tbody
+					+each('data.rows as r (r.id)')
+						tr
+							td.whitespace-nowrap {new Date(r.created_at).toLocaleString()}
+							td {r.actor || '—'}
+							td
+								code.text-xs {r.action}
+							td {r.target}
+							td.text-xs(class="text-fg-muted") {Object.keys(r.meta).length ? JSON.stringify(r.meta) : ''}
+	.flex.gap-2
+		+if('data.page > 1')
+			Btn(href!="{link(data.page - 1)}" variant="secondary" size="sm") Newer
+		+if('data.more')
+			Btn(href!="{link(data.page + 1)}" variant="secondary" size="sm") Older
+
+<script>
+	import { page } from '$app/state'
+	{ data } := $props()
+	PREFIXES := [
+		{ value: 'login', label: 'Sign-ins' }
+		{ value: 'user.', label: 'Users' }
+		{ value: 'role.', label: 'Roles' }
+		{ value: 'content.', label: 'Content' }
+		{ value: 'media.', label: 'Media' }
+		{ value: 'taxonomy.', label: 'Taxonomies' }
+		{ value: 'settings.', label: 'Settings' }
+		{ value: 'consent.', label: 'Consent' }
+		{ value: 'seo.', label: 'SEO' }
+		{ value: 'maintenance', label: 'Maintenance' }
+	]
+	link := (n) =>
+		u := new URL(page.url)
+		u.searchParams.set 'page', String(n)
+		u.pathname + u.search
+</script>

@@ -1,0 +1,22 @@
+import { page } from '@human-synthesis/norns/server'
+import { redirect } from '@sveltejs/kit'
+import { auth, finishLogin, clientIp, isStaff } from '$lib/norns/auth/server/public'
+import { loginSchema } from '$lib/norns/auth/shared/schema'
+
+export load := page.load
+	handler: ({ user, url }) =>
+		if user
+			throw redirect 303, (isStaff(user) ? '/admin' : '/account')
+		{ next: url.searchParams.get('next') ?? '/account', verified: url.searchParams.has('verified'), reset: url.searchParams.has('reset'), seo: { title: 'Sign in', robots: 'noindex, follow' } }
+
+export actions := page.actions
+	login:
+		input: loginSchema
+		run: async ({ input, container, event }) =>
+			r := await auth(container).login input.email, input.password, { ip: clientIp(event), userAgent: event.request.headers.get('user-agent') ?? '' }
+			finishLogin event, r, input.next, input.email
+	resend:
+		run: async ({ container, event }) =>
+			email := String((await event.request.formData()).get('email') ?? '')
+			await auth(container).resendVerification email, clientIp(event)
+			{ resent: true }

@@ -1,0 +1,17 @@
+section.block-articles
+	.flex.items-baseline.justify-between.gap-4
+		+if('props.title')
+			h2 {props.title}
+		+if('props.showMore && data?.moreHref')
+			a.text-sm(href!="{data.moreHref}") All articles →
+	+if('!data?.entries?.length')
+		p(class="text-fg-muted") No articles yet.
+	+else
+		div(class!="{props.layout === 'list' ? 'article-list' : 'article-grid'}")
+			+each('data.entries as a (a.id)')
+				ArticleCard(a!="{a}" compact!="{props.layout === 'list'}")
+
+<script>
+	import ArticleCard from './ArticleCard.n'
+	{ props = {}, data = null } := $props()
+</script>

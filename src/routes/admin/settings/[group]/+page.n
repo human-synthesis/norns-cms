@@ -1,0 +1,21 @@
+.space-y-6
+	PageHead(title!="{data.group.label}" subtitle!="{data.group.description ?? ''}" back="/admin/settings" backLabel="Settings")
+	+if('form?.saved')
+		Banner(variant="success" icon="lucide:check") Saved. Changes reach every page within a few seconds.
+	+if('form?.errors')
+		Banner(variant="danger" icon="lucide:alert-triangle") Please fix the highlighted fields.
+	Card
+		Form(action="?/save" form!="{form}")
+			.settings-grid
+				+each('data.group.fields as field (field.name)')
+					Field(label!="{field.label}" name!="{field.name}" required!="{field.required}" help!="{field.type === 'boolean' ? undefined : field.help}" class!="{wide(field) ? 'settings-wide' : ''}")
+						FieldEditor(field!="{field}" value!="{values[field.name]}")
+			.pt-4
+				Btn(type="submit" variant="primary" icon="lucide:save") Save
+
+<script>
+	import FieldEditor from '$lib/norns/content/ui/FieldEditor.n'
+	{ data, form } := $props()
+	values := $derived form?.values ?? data.values
+	wide := (f) => ['textarea', 'code', 'lines', 'markdown'].includes(f.type)
+</script>

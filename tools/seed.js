@@ -31,14 +31,15 @@ if (!email || !password) {
 }
 
 const hash = hashPassword(password);
+const slugOf = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'owner';
 
 if (flags.has('--d1')) {
 	// D1 has no local file API from here; hand a one-off SQL file to wrangler.
 	// INSERT OR IGNORE keeps it idempotent on the UNIQUE email.
 	const q = (s) => `'${String(s).replace(/'/g, "''")}'`;
 	const sql =
-		`INSERT OR IGNORE INTO users (email, name, password_hash, role, created_at) ` +
-		`VALUES (${q(email)}, ${q(name)}, ${q(hash)}, 'admin', ${Date.now()});\n`;
+		`INSERT OR IGNORE INTO users (email, name, password_hash, role, kind, status, slug, email_verified_at, created_at) ` +
+		`VALUES (${q(email)}, ${q(name)}, ${q(hash)}, 'owner', 'staff', 'active', ${q(slugOf(name))}, ${Date.now()}, ${Date.now()});\n`;
 	const file = join(tmpdir(), `norns-cms-seed-${process.pid}.sql`);
 	writeFileSync(file, sql, { mode: 0o600 });
 	try {
@@ -71,12 +72,10 @@ if (existing) {
 	process.exit(0);
 }
 
-const role = Number(count?.n ?? 0) === 0 ? 'admin' : 'editor';
-await db.run('INSERT INTO users (email, name, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)', [
-	email,
-	name,
-	hash,
-	role,
-	Date.now()
-]);
+// The first account owns the site; later ones made with this tool are editors.
+const role = Number(count?.n ?? 0) === 0 ? 'owner' : 'editor';
+await db.run(
+	'INSERT INTO users (email, name, password_hash, role, kind, status, slug, email_verified_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+	[email, name, hash, role, 'staff', 'active', slugOf(name), Date.now(), Date.now()]
+);
 console.log(`Created ${role} ${email}. Sign in at /login.`);

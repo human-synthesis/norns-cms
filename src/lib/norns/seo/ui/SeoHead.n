@@ -1,0 +1,50 @@
+svelte:head
+	title {head.title ?? site.siteName}
+	+if('head.description')
+		meta(name="description" content!="{head.description}")
+	+if('head.canonical')
+		link(rel="canonical" href!="{head.canonical}")
+	meta(name="robots" content!="{head.robots ?? 'index, follow'}")
+	meta(property="og:site_name" content!="{site.siteName}")
+	meta(property="og:locale" content!="{site.locale}")
+	meta(property="og:type" content!="{head.type ?? 'website'}")
+	meta(property="og:title" content!="{head.title ?? site.siteName}")
+	+if('head.description')
+		meta(property="og:description" content!="{head.description}")
+	+if('head.canonical')
+		meta(property="og:url" content!="{head.canonical}")
+	+if('head.image')
+		meta(property="og:image" content!="{head.image.url}")
+		+if('head.image.width')
+			meta(property="og:image:width" content!="{String(head.image.width)}")
+			meta(property="og:image:height" content!="{String(head.image.height)}")
+		+if('head.image.alt')
+			meta(property="og:image:alt" content!="{head.image.alt}")
+	+if('head.published')
+		meta(property="article:published_time" content!="{head.published}")
+	+if('head.modified && head.type === "article"')
+		meta(property="article:modified_time" content!="{head.modified}")
+	+if('head.section')
+		meta(property="article:section" content!="{head.section}")
+	+each('head.tags ?? [] as tag (tag)')
+		meta(property="article:tag" content!="{tag}")
+	meta(name="twitter:card" content!="{head.image ? 'summary_large_image' : 'summary'}")
+	+if('site.twitter')
+		meta(name="twitter:site" content!="{site.twitter}")
+	+if('site.google')
+		meta(name="google-site-verification" content!="{site.google}")
+	+if('site.bing')
+		meta(name="msvalidate.01" content!="{site.bing}")
+	link(rel="alternate" type="application/rss+xml" title!="{site.siteName}" href!="{site.feed}")
+	+if('head.markdown')
+		link(rel="alternate" type="text/markdown" href!="{head.markdown}")
+	| {@html ldTag(site.jsonLd)}
+	| {@html ldTag(head.jsonLd)}
+
+<script>
+	import { ldTag } from './ld.js'
+	// Head tags for every public page: per-page `head` (seo.forEntry /
+	// forPage, returned by each page load as `seo`) over site-wide `site`
+	// (seo.siteHead, from the layout).
+	{ site, head = {} } := $props()
+</script>

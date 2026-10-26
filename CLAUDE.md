@@ -6,32 +6,50 @@ A content management system that is an ordinary Norns app: SvelteKit + Svelte 5 
 
 ```
 src/
-  hooks.server.c                     boots the runtime; eager-loads src/lib/norns/*/server/module.c; adds sessionHandle
+  hooks.server.c        boots the runtime; handles in order: securityHandle (nonce + CSP), sessionHandle
+                        (guards /admin for staff and /account for members, every method), seoHandle
+                        (redirects, /<path>.md twins, 404 log), consentHandle (consent state, script injection)
   routes/
-    (site)/                          public frontend: +layout (header from cms.nav), +page (latest posts), [...slug]
-    login/                           sign-in form action
-    admin/                           +layout.server.c guards every admin route; +layout.n is the shell
-    admin/content/[type]/            generic collection list for ANY registered content type
-    admin/content/[type]/[id]/       generic editor (id = 'new' creates); actions save / publish / remove
-    api/content/[type]/[slug]?       read API, JSON or TRON
-  lib/norns/<feature>/
-    server/module.c                  DI registrations — the only file boot() touches
-    server/repo.c, service.c         SQL and business logic (private to the feature)
-    server/public.c                  the ONLY file routes / other features import
-    shared/schema.c, types.c         valibot schemas, content type definitions
-    ui/*.n                           feature-local components (imported explicitly)
-migrations/<feature>/*.sql           source of truth; `bun run migrate up` (SQLite file) reads these
-migrations/d1/*.sql                  flat mirror for wrangler (`bun run d1:sync`); `bun run db:migrate[:remote]`
-tests/                               bun tests; tests/civet-loader.js lets bun import .c files
-tools/seed.js                        first admin user (SQLite file, or --d1 [--remote])
-wrangler.toml                        Workers config: D1 `DB` binding, custom domain, [vars]
+    (site)/             public site: home (a chosen page or latest articles), [...slug] (any entry),
+                        articles/ (+ category/tag archives), authors/[slug], account/ (members area)
+    admin/              staff area; content/[type] (generic list) and [id] (generic editor, revisions),
+                        media, taxonomy/[taxonomy], users, roles, audit, profile, settings/[group], seo,
+                        consent (stats, scripts, log), mail, maintenance; api/ (preview, media JSON)
+    login/ reset/ invite/ verify/    sign-in, two-factor step, one-time links
+    api/consent  api/content  api/cron           JSON endpoints (cron needs CRON_SECRET)
+    sitemap.xml  sitemap-[type].xml  robots.txt  llms.txt  llms-full.txt  feed.xml  media/[...key]
+  lib/norns/<feature>/  server/module.c (DI + registrations), repo.c / service.c (private),
+                        server/public.c (the ONLY cross-feature import), shared/ (pure), ui/ (.n)
+  lib/components/       auto-imported app components (Stat, EmptyState, PageHead)
+worker/index.js         Worker entry: SvelteKit's worker + scheduled() → POST /api/cron
+migrations/<feature>/   source of truth (timestamped; applied in file-name order across features)
+migrations/d1/          flat mirror for wrangler — run `bun run d1:sync` after adding a migration
+tests/                  bun tests through the DI container; tests/e2e/browser.mjs (Playwright, opt-in)
 ```
 
-Features: `auth` (owns `db`, users, sessions, `sessionHandle`), `content` (type registry, field types, entries, revisions, markdown rendering, routing), `pages` and `posts` (each registers one content type).
+Features:
 
-**Adding a content type** is a feature folder with `shared/types.c` (a plain object: `id`, `label`, `labelPlural`, `icon`, `basePath`, `listable`, `fields`) and a `server/module.c` that calls `registerType(app, myType)` from `content/server/public`. The admin list, editor, public routing and API pick it up with no route changes. Field types: `text`, `textarea`, `markdown`, `number`, `boolean`, `datetime`, `select`, `tags` (see `content/server/fields.c` and `content/ui/FieldEditor.n`).
+| Feature | Owns |
+|---|---|
+| `auth` | the `db` token; staff and client users, roles (rows) with capabilities (declared in code), sessions, invites / verification / reset / 2FA tokens, rate limits, audit log, `sessionHandle` |
+| `settings` | settings groups (`registerSettings`), env access (`envVar`, `binding`, `siteOrigin`), `securityHandle`, `runMaintenance` |
+| `content` | the engine: type registry, field types, field groups, blocks, hooks, option providers, admin nav; entries, revisions, rich Markdown renderer with cached HTML, public routing, members-only locking |
+| `pages` | the page type (Markdown or blocks layout) and the general blocks (hero, text, columns, CTA, image, gallery, FAQ, embed) |
+| `articles` | the article type, categories and tags (`terms`), authors, review notifications, article-list block |
+| `media` | uploads (sniffed type, size limit) to R2 (`MEDIA`) or `data/media`, usage tracking, `/media/*` |
+| `mail` | Resend over HTTP when `RESEND_API_KEY` is set; otherwise logged to `mail_log` (dev "inbox") |
+| `seo` | SEO field group and settings, head tags, JSON-LD, sitemaps, robots (AI crawler toggles), llms.txt, Markdown twins, feeds, redirects, 404 log, editor checks, location block |
+| `consent` | banner settings, regional rules, GPC, script presets, consent records, injection + loader, cookie table block |
 
-Import project code explicitly (`import { cms } from '$lib/norns/content/server/public'`); inside `src/lib/norns/**` use relative paths (`../../content/server/public`) so `bun test` can resolve them. Only framework helpers and norns-ui components are auto-imported.
+**Extension points** (all called from a feature's `module.c`, all bindings on the root container so order never matters): `registerType`, `registerFieldGroup`, `registerBlock` (a block's `resolve(props, { c, viewer, entry })` runs per request; add its component to `pages/ui/BlockRenderer.n`), `registerHook` (`beforeSave` may return replacement data; `afterSave`, `status`, `slug`, `delete`), `registerOptions`, `registerAdminNav` (from `content/server/public`); `registerCapabilities` (from `auth/server/public`); `registerSettings` (from `settings/server/public`).
+
+**Adding a content type** is a feature folder with `shared/types.c` (`id`, `label`, `labelPlural`, `icon`, `basePath`, `listable`, `tabs?`, `fields`) and a `server/module.c` that calls `registerType`. The admin list, editor (tabs, SEO tab, revisions), public routing, sitemap, llms.txt and API pick it up. Field types: `text`, `textarea`, `markdown`, `code`, `number`, `boolean`, `datetime`, `select`, `tags`, `lines`, `email`, `url`, `image`, `reference`, `references`, `users`, `term`, `blocks`, `repeater`, `json` (see `content/server/fields.c`, `content/ui/FieldEditor.n`, `content/ui/JsonField.n`). `showIf: { field, equals }` hides a field in the editor; `default` applies when a key is absent.
+
+**Permissions.** Routes check capabilities with `requireCap(user, 'content.publish')`; the admin nav hides what the user lacks. Owners and admins hold `*`; editor, author, viewer and member are built-in rows in `roles`; custom roles pick from the capabilities features declare. Only owners manage owners, the last active owner cannot be removed, nobody changes their own role or status.
+
+**Secrets** (`wrangler secret put`, `.dev.vars` locally — never in `wrangler.toml`): `CMS_SECRET` (encrypts 2FA secrets), `CRON_SECRET` (daily maintenance), `RESEND_API_KEY` (mail). Vars: `CMS_PUBLIC_URL`, `MAIL_FROM`.
+
+Import project code explicitly (`import { cms } from '$lib/norns/content/server/public'`); inside `src/lib/norns/**` use relative paths (`../../content/server/public`) so `bun test` can resolve them. Only framework helpers and norns-ui components (plus `src/lib/components`) are auto-imported.
 
 ## Commands
 
@@ -43,6 +61,7 @@ bun run lint           # norns lint — Civet / Pug pitfall scan (templates + sc
 bun run check          # norns check — preprocess + compile every .n / .c; file:line:column errors
 bun run build          # full Vite build
 bun test               # tests/*.test.js (features through the DI container + architecture rules)
+bun tests/e2e/browser.mjs         # Playwright smoke test against a running server (E2E_URL, E2E_EMAIL, E2E_PASSWORD)
 bunx norns diag <file>            # JS that Civet emits for a .c / .n script
 bunx norns diag --template <f.n>  # Svelte source the compiler sees after Pug / Civet / auto-import
 ```
@@ -70,6 +89,8 @@ Civet is great for app code but has rough edges on advanced syntax. **When somet
 | `async *foo()` as class method | callback `foo(onEvent)` or top-level `async function*` | parser rejects async generators in class shorthand |
 | `value := $state ''` then later `value = 'x'` | `value .= $state ''` | `:=` creates `const`; reassigning `$state` needs `let` (which `.=` produces) |
 | `raw: unknown` / `raw: any` as a let-with-type | `raw .= null` (no annotation) or `let raw: any = null` | bare `Type` annotations get read as identifier references |
+| `loop := …`, or any variable named after a Civet keyword | another name (`onward`, `cycle`) | `loop` starts Civet's infinite-loop statement; the parse fails on the next token |
+| `if (a)[k]` / `if (a).b()` / `x = y if (a)[k]` | name it first: `m := a`, then `if m[k]` | a parenthesised `if` condition ends at its `)`, so `[k]` / `.b` become the body (and a postfix `if (…)` turns the left side into a call) |
 | a class method or facade key named `type` | `getType` | `type` starts a TypeScript alias declaration in Civet |
 
 ### Pug / `.n` pitfalls — do not write these
@@ -86,6 +107,9 @@ Template syntax that works: `+if('cond')` / `+elseif('cond')` / `+else`, `+each(
 
 ### SvelteKit / norns gotchas
 
+- **Workers forbid randomness and I/O in global scope.** `randomBytes()`, `crypto.getRandomValues`, `fetch` or timers at module top level crash every request under workerd (`Disallowed operation called within global scope`) while working under Bun and Vite. Compute such values lazily inside a handler or function, and smoke-test the production build with `wrangler dev`.
+- **norns-ui `Btn` and `Form` do not forward unknown attributes.** `formaction`, `oninput`, `onchange`, `data-*` on them are silently dropped. Use a plain `button.btn.btn-primary(type="submit" formaction="?/publish")`, and put input listeners on a wrapper element inside the form (events bubble).
+- **norns-ui `Tabs` renders only the active panel.** Fields on other tabs are not in the DOM, so a form spanning tabs loses them on submit. For tabbed forms, toggle `hidden` on panels you render yourself.
 - **`event.locals.container`** is the per-request DI scope set by `contextHandle` in `boot()`. Don't destructure DI directly from event args.
 - **`event.locals.user`** is set by `sessionHandle` (auth) and reaches `page.load` / `page.actions` / `route()` handlers as `user`.
 - **A layout `load` guard does not protect form actions.** SvelteKit runs `?/action` POSTs before any layout load, so `/admin` is enforced in `sessionHandle({ protect: ['/admin'] })` in `hooks.server.c`; the layout guard is only the friendly redirect. Any new protected area must be added to `protect`.
@@ -107,6 +131,7 @@ Template syntax that works: `+if('cond')` / `+elseif('cond')` / `+else`, `+each(
 
 - **Don't introduce ORMs.** Hand-written SQL in `repo.c`, through the `db` token.
 - **Don't add `bcrypt`/`argon2`.** Passwords via `node:crypto.scrypt` (`auth/server/password.js`).
+- **Never inject third-party code outside the consent manager.** Analytics, pixels and embeds go through consent scripts (or the embed directive/block) so they wait for consent.
 - **Don't open the database anywhere but `auth/server/module.c`.** Everyone else calls `c.resolve('db')`; `tests/architecture.test.js` enforces it.
 - **Don't use `single` for anything that resolves `db`.** On Workers the D1 binding is per request; a root singleton would capture the first request's binding.
 - **After adding a migration, run `bun run d1:sync`** and commit `migrations/d1/` too, or production will not get it.

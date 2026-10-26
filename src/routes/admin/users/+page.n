@@ -1,0 +1,47 @@
+.space-y-6
+	PageHead(title="Users" subtitle="Staff sign in to the admin; members (clients) use the account area on the site.")
+		+snippet('actions')
+			+if('data.canManage')
+				Btn(href="/admin/users/new?kind={data.kind}" variant="primary" icon="lucide:user-plus") {data.kind === 'client' ? 'Add member' : 'Invite staff'}
+	nav.filter-tabs
+		a.filter-tab(href="?kind=staff" class!="{data.kind === 'staff' ? 'filter-tab-active' : ''}") Staff
+			span.filter-count {data.counts.staff}
+		a.filter-tab(href="?kind=client" class!="{data.kind === 'client' ? 'filter-tab-active' : ''}") Members
+			span.filter-count {data.counts.client}
+	form.flex.flex-wrap.items-end.gap-2(method="GET")
+		input(type="hidden" name="kind" value!="{data.kind}")
+		Input(name="q" value!="{data.q}" placeholder="Search name or email…" class="w-64")
+		Select(name="role" value!="{data.role}" class="w-44")
+			option(value="") All roles
+			+each('data.roles as r (r.id)')
+				option(value!="{r.id}") {r.label}
+		Select(name="status" value!="{data.status}" class="w-40")
+			option(value="") Any status
+			option(value="active") Active
+			option(value="invited") Invited
+			option(value="suspended") Suspended
+		Btn(type="submit" variant="secondary" icon="lucide:filter") Filter
+	DataTable(columns!="{columns}" rows!="{rows}" onrowclick!="{open}" emptyMessage="No users match.")
+
+<script>
+	import { goto } from '$app/navigation'
+	{ data } := $props()
+
+	roleLabel := (id) => data.roles.find((r) => r.id === id)?.label ?? id
+	columns := [
+		{ key: 'name', label: 'Name' }
+		{ key: 'email', label: 'Email', class: 'text-fg-muted' }
+		{ key: 'role', label: 'Role' }
+		{ key: 'status', label: 'Status' }
+		{ key: 'seen', label: 'Last sign-in' }
+	]
+	rows := $derived data.users.map((u) => ({
+		id: u.id
+		name: u.name || '—'
+		email: u.email
+		role: roleLabel(u.role)
+		status: u.status + (u.totp_enabled ? ' · 2FA' : '') + (u.kind === 'client' && !u.email_verified_at ? ' · unverified' : '')
+		seen: u.last_login_at ? new Date(u.last_login_at).toLocaleString() : 'never'
+	}))
+	open := (row) => goto('/admin/users/' + row.id)
+</script>

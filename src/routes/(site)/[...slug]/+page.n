@@ -7,24 +7,20 @@
 			+each('data.entries as e (e.id)')
 				Card(href="{data.ct.basePath}/{e.slug}")
 					.font-semibold.text-lg {e.title}
-					+if('e.data.excerpt')
-						p.text-sm.mt-1(class="text-fg-muted") {e.data.excerpt}
-					.text-xs.mt-2(class="text-fg-subtle") {new Date(e.published_at ?? e.updated_at).toLocaleDateString()}
+					+if('e.data.summary')
+						p.text-sm.mt-1(class="text-fg-muted") {e.data.summary}
++elseif('data.kind === "cookies"')
+	article.page-view
+		h1.page-title Cookies
+		CookieTableBlock(props!="{{ title: '', showButton: true }}" data!="{{ declaration: data.declaration }}")
++elseif('data.res.ct.id === "article"')
+	ArticleView(res!="{data.res}" extra!="{data.extra}")
 +else
-	article.space-y-6
-		header.space-y-3
-			+if('data.entry.status !== "published"')
-				Banner(variant="warning" icon="lucide:eye") Draft preview — only visible while signed in.
-			h1.text-4xl.font-bold.tracking-tight {data.entry.title}
-			+if('data.ct.basePath')
-				.text-sm(class="text-fg-muted") {new Date(data.entry.published_at ?? data.entry.updated_at).toLocaleDateString()}
-			+if('data.entry.data.tags?.length')
-				.flex.flex-wrap(class="gap-1.5")
-					+each('data.entry.data.tags as tag')
-						Chip {tag}
-		.prose
-			| {@html data.html.body ?? ''}
+	PageView(res!="{data.res}")
 
 <script>
+	import PageView from '$lib/norns/pages/ui/PageView.n'
+	import ArticleView from '$lib/norns/articles/ui/ArticleView.n'
+	import CookieTableBlock from '$lib/norns/consent/ui/CookieTableBlock.n'
 	{ data } := $props()
 </script>

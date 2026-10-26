@@ -1,0 +1,20 @@
+.space-y-6
+	PageHead(title="Mail log" subtitle!="{data.provider === 'resend' ? 'Sending through Resend.' : 'No mail provider configured: messages are logged here instead of sent. Set RESEND_API_KEY and MAIL_FROM to send.'}")
+	+if('data.log.length === 0')
+		EmptyState(icon="lucide:mail" title="No mail yet")
+	+else
+		.space-y-2
+			+each('data.log as m (m.id)')
+				details.mail-item
+					summary
+						span.font-medium {m.subject}
+						span.text-xs(class="text-fg-muted")  → {m.recipient} · {new Date(m.created_at).toLocaleString()}
+						Badge(size="sm" variant!="{m.status === 'failed' ? 'danger' : (m.status === 'sent' ? 'success' : 'default')}") {m.status}
+					+if('m.body')
+						pre.mail-body {m.body}
+					+if('m.error')
+						p.text-sm.text-danger {m.error}
+
+<script>
+	{ data } := $props()
+</script>

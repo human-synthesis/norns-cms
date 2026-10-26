@@ -1,0 +1,41 @@
++each('blocks as b (b.id)')
+	+if('b.type === "hero"')
+		Hero(props!="{b.props}" media!="{media}")
+	+elseif('b.type === "markdown"')
+		Markdown(html!="{b.html}")
+	+elseif('b.type === "columns"')
+		Columns(props!="{b.props}" html!="{b.html}")
+	+elseif('b.type === "cta"')
+		Cta(props!="{b.props}")
+	+elseif('b.type === "image"')
+		ImageBlock(props!="{b.props}" media!="{media}")
+	+elseif('b.type === "gallery"')
+		Gallery(props!="{b.props}" media!="{media}")
+	+elseif('b.type === "faq"')
+		Faq(props!="{b.props}" html!="{b.html}")
+	+elseif('b.type === "embed"')
+		Embed(data!="{b.data}")
+	+elseif('b.type === "articleList"')
+		ArticleListBlock(props!="{b.props}" data!="{b.data}")
+	+elseif('b.type === "location"')
+		LocationBlock(props!="{b.props}" data!="{b.data}")
+	+elseif('b.type === "cookieTable"')
+		CookieTableBlock(props!="{b.props}" data!="{b.data}")
+
+<script>
+	// Block type → component. Blocks contributed by other features render
+	// through their own ui/ components; add a line here when a site adds a
+	// block of its own.
+	import Hero from './blocks/Hero.n'
+	import Markdown from './blocks/Markdown.n'
+	import Columns from './blocks/Columns.n'
+	import Cta from './blocks/Cta.n'
+	import ImageBlock from './blocks/Image.n'
+	import Gallery from './blocks/Gallery.n'
+	import Faq from './blocks/Faq.n'
+	import Embed from './blocks/Embed.n'
+	import ArticleListBlock from '../../articles/ui/ArticleListBlock.n'
+	import LocationBlock from '../../seo/ui/LocationBlock.n'
+	import CookieTableBlock from '../../consent/ui/CookieTableBlock.n'
+	{ blocks = [], media = {} } := $props()
+</script>

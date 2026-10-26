@@ -1,0 +1,20 @@
+.auth-page
+	Card(class="auth-card")
+		.space-y-5
+			h1.text-lg.font-bold Choose a new password
+			+if('!data.valid')
+				Banner(variant="danger" icon="lucide:alert-triangle") This link is invalid or has expired.
+				a.text-sm(href="/login/forgot") Ask for a new one
+			+else
+				p.text-sm(class="text-fg-muted") For {data.email}. Signing in again will be needed on every device.
+				Form(action="?/reset" form!="{form}")
+					.space-y-4
+						Field(label="New password" name="password" required help="At least 12 characters")
+							Input(type="password" name="password" autocomplete="new-password" required)
+						Field(label="New password again" name="confirm" required)
+							Input(type="password" name="confirm" autocomplete="new-password" required)
+						Btn(type="submit" variant="primary" class="w-full") Save password
+
+<script>
+	{ data, form } := $props()
+</script>

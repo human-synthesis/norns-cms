@@ -1,0 +1,40 @@
+.space-y-6
+	PageHead(title="Media" subtitle!="{data.total + ' files'}")
+	+if('data.canUpload')
+		Card
+			form.flex.flex-wrap.items-center.gap-3(method="POST" action="?/upload" enctype="multipart/form-data")
+				input.text-sm(type="file" name="files" multiple accept="image/png,image/jpeg,image/gif,image/webp,image/avif,application/pdf" required)
+				Btn(type="submit" variant="primary" icon="lucide:upload") Upload
+				span.text-xs(class="text-fg-subtle") PNG, JPEG, GIF, WebP, AVIF or PDF, up to 10 MB each.
+	+if('form?.uploaded')
+		Banner(variant="success" icon="lucide:check") Uploaded {form.uploaded} file{form.uploaded === 1 ? '' : 's'}.
+	+if('form?.errors?.length || form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error ?? form.errors.join(' · ')}
+	form.flex.flex-wrap.items-end.gap-2(method="GET")
+		Input(name="q" value!="{data.q}" placeholder="Search…" class="w-64")
+		Select(name="kind" value!="{data.kind}" class="w-40")
+			option(value="") All files
+			option(value="image") Images
+			option(value="document") Documents
+		Btn(type="submit" variant="secondary" icon="lucide:filter") Filter
+	+if('data.items.length === 0')
+		EmptyState(icon="lucide:image" title="No media yet") Upload images here, or paste them straight into the Markdown editor.
+	+else
+		.media-grid.media-grid-lg
+			+each('data.items as m (m.id)')
+				a.media-tile(href="/admin/media/{m.id}")
+					+if('m.thumb')
+						img(src!="{m.thumb}" alt!="{m.alt}" loading="lazy")
+					+else
+						.media-file
+							Icon(name="lucide:file-text" size="size-6")
+							span {m.filename}
+					span.media-tile-name {m.alt || m.filename}
+					+if('!m.alt && m.mime.startsWith("image/")')
+						span.media-badge no alt
+					+elseif('m.usage === 0')
+						span.media-badge.media-badge-muted unused
+
+<script>
+	{ data, form } := $props()
+</script>

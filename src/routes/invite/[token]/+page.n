@@ -1,0 +1,21 @@
+.auth-page
+	Card(class="auth-card")
+		.space-y-5
+			h1.text-lg.font-bold Join {data.siteTitle}
+			+if('!data.valid')
+				Banner(variant="danger" icon="lucide:alert-triangle") This invitation is invalid or has expired. Ask whoever invited you for a new one.
+			+else
+				p.text-sm(class="text-fg-muted") Set a password for {data.email}.
+				Form(action="?/accept" form!="{form}")
+					.space-y-4
+						Field(label="Your name" name="name")
+							Input(name="name" value!="{form?.values?.name ?? data.name}" autocomplete="name")
+						Field(label="Password" name="password" required help="At least 12 characters")
+							Input(type="password" name="password" autocomplete="new-password" required)
+						Field(label="Password again" name="confirm" required)
+							Input(type="password" name="confirm" autocomplete="new-password" required)
+						Btn(type="submit" variant="primary" class="w-full") Create my account
+
+<script>
+	{ data, form } := $props()
+</script>

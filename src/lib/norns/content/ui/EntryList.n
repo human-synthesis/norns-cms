@@ -1,0 +1,13 @@
+ul.entry-list
+	+each('entries as e (e.id)')
+		li
+			a.no-underline.truncate(href="/admin/content/{e.type}/{e.id}" class="text-fg hover:underline") {e.title || '(untitled)'}
+			.flex.items-center.gap-3.text-xs.shrink-0(class="text-fg-subtle")
+				span {e.type}
+				StatusBadge(entry!="{e}")
+				span {new Date(showDate && e.published_at ? e.published_at : e.updated_at).toLocaleString()}
+
+<script>
+	import StatusBadge from './StatusBadge.n'
+	{ entries = [], showDate = false } := $props()
+</script>

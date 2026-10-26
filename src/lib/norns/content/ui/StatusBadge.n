@@ -1,0 +1,15 @@
+Badge(variant!="{variant}" size="sm") {label}
++if('entry?.visibility === "members"')
+	Badge(variant="info" size="sm") members
+
+<script>
+	import { displayStatus } from '../shared/types'
+	{ entry } := $props()
+
+	VARIANTS := { published: 'success', scheduled: 'info', in_review: 'warning' } as Record<string, string>
+	LABELS := { in_review: 'in review' } as Record<string, string>
+
+	status := $derived displayStatus(entry)
+	variant := $derived VARIANTS[status] ?? 'default'
+	label := $derived LABELS[status] ?? status
+</script>

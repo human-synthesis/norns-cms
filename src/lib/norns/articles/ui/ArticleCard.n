@@ -1,0 +1,24 @@
+article.article-card(class!="{compact ? 'article-card-compact' : ''}")
+	+if('a.coverMedia && !compact')
+		a.article-card-cover(href!="{a.url}" tabindex="-1" aria-hidden="true")
+			img(src!="{a.coverMedia.thumb || a.coverMedia.url}" alt="" width!="{a.coverMedia.width}" height!="{a.coverMedia.height}" loading="lazy" decoding="async")
+	.article-card-body
+		+if('a.category')
+			a.article-kicker(href!="{a.category.url}") {a.category.name}
+		h3.article-card-title
+			a(href!="{a.url}") {a.title}
+		+if('a.data.summary && !compact')
+			p.article-card-summary {a.data.summary}
+		.article-meta
+			+if('a.authors.length')
+				span {a.authors.map((p) => p.name).join(', ')}
+			time(datetime!="{new Date(a.published_at ?? a.updated_at).toISOString()}") {new Date(a.published_at ?? a.updated_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+			+if('a.readingTime')
+				span {a.readingTime} min read
+			+if('a.visibility === "members"')
+				span.members-badge Members
+
+<script>
+	// One article in a list, from articles(c).decorate().
+	{ a, compact = false } := $props()
+</script>

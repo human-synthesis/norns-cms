@@ -1,0 +1,21 @@
++if('href')
+	a.stat(href!="{href}")
+		| {@render body()}
++else
+	.stat
+		| {@render body()}
+
++snippet('body')
+	.flex.items-start.justify-between.gap-3
+		.min-w-0
+			.stat-label {label}
+			.stat-value {value}
+			+if('hint')
+				.stat-hint {hint}
+		+if('icon')
+			Icon(name!="{icon}" size="size-5" class="text-fg-subtle")
+
+<script>
+	// A dashboard number. Auto-imported (src/lib/components).
+	{ label, value, hint = '', href = '', icon = '' } := $props()
+</script>

@@ -1,0 +1,57 @@
+.space-y-6
+	PageHead(title!="{data.m.filename}" back="/admin/media" backLabel="Media")
+	+if('form?.saved')
+		Banner(variant="success" icon="lucide:check") Saved{form.rerendered ? ` — ${form.rerendered} entr${form.rerendered === 1 ? 'y' : 'ies'} refreshed` : ''}.
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	.grid.gap-6(class="lg:grid-cols-[1fr_22rem]")
+		Card
+			+if('data.m.mime.startsWith("image/")')
+				img.media-full(src!="{data.m.url}" alt!="{data.m.alt}" width!="{data.m.width}" height!="{data.m.height}")
+			+else
+				a(href!="{data.m.url}" target="_blank" rel="noopener") Open {data.m.filename}
+		.space-y-4
+			Card
+				form.space-y-4(method="POST" action="?/save")
+					Field(label="Alt text" name="alt" help="Describe the image for people who cannot see it. Leave empty only for decoration.")
+						Textarea(name="alt" value!="{data.m.alt}" rows="2" disabled!="{!data.canEdit}")
+					Field(label="Caption" name="caption")
+						Input(name="caption" value!="{data.m.caption}" disabled!="{!data.canEdit}")
+					+if('data.canEdit')
+						Btn(type="submit" variant="primary" icon="lucide:save") Save
+			Card
+				dl.meta-list
+					dt Type
+					dd {data.m.mime}
+					dt Size
+					dd {(data.m.size / 1024).toFixed(0)} KB
+					+if('data.m.width')
+						dt Dimensions
+						dd {data.m.width} × {data.m.height}
+					dt URL
+					dd
+						code.text-xs {data.m.url}
+					dt Markdown
+					dd
+						code.text-xs ![{data.m.alt}](media:{data.m.id})
+			Card
+				h2.text-sm.font-semibold.mb-2 Used in
+				+if('data.usage.length === 0')
+					p.text-sm(class="text-fg-muted") Not used anywhere.
+				+else
+					ul.text-sm.space-y-1
+						+each('data.usage as u (u.id)')
+							li
+								a(href="/admin/content/{u.type}/{u.id}") {u.title || u.slug}
+			+if('data.canDelete')
+				form(method="POST" action="?/remove" onsubmit!="{confirmRemove}")
+					+if('data.usage.length')
+						input(type="hidden" name="force" value="1")
+					Btn(type="submit" variant="danger" icon="lucide:trash-2") Delete{data.usage.length ? ' anyway' : ''}
+
+<script>
+	{ data, form } := $props()
+	confirmRemove := (e) =>
+		msg := data.usage.length ? `This file is used in ${data.usage.length} entr${data.usage.length === 1 ? 'y' : 'ies'}; they will show a broken image. Delete anyway?` : 'Delete this file?'
+		e.preventDefault() unless confirm(msg)
+</script>

@@ -1,0 +1,44 @@
+.media-picker
+	+if('name')
+		input(type="hidden" name!="{name}" value!="{value ?? ''}")
+	+if('value && info')
+		.media-picker-preview
+			+if('info.thumb')
+				img(src!="{info.thumb}" alt!="{info.alt}")
+			+else
+				.media-file
+					Icon(name="lucide:file-text" size="size-5")
+			.min-w-0
+				.text-sm.font-medium.truncate {info.filename}
+				.text-xs(class="text-fg-muted") {info.width && info.height ? `${info.width}×${info.height}` : ''} {info.alt ? '· alt: ' + info.alt : '· no alt text'}
+	+elseif('value')
+		.text-sm(class="text-fg-muted") {'Media item ' + value}
+	.flex.gap-2
+		Btn(variant="secondary" size="sm" icon="lucide:image" onclick!="{() => open = true}") {value ? 'Change' : 'Choose'}
+		+if('value')
+			Btn(variant="ghost" size="sm" icon="lucide:x" onclick!="{clear}") Remove
+	MediaLibrary(bind:open!="{open}" onpick!="{pick}" accept!="{accept}")
+
+<script>
+	import MediaLibrary from './MediaLibrary.n'
+	// An image/media field: a hidden input with the media id (when `name`
+	// is set, for named forms) or a bindable `value` (blocks, repeaters).
+	{ value = $bindable(null), name, accept = 'image/*' } .= $props()
+
+	open .= $state(false)
+	info .= $state(null)
+
+	pick := (m) =>
+		value = m.id
+		info = m
+
+	clear := =>
+		value = null
+		info = null
+
+	$effect =>
+		id := Number(value)
+		if id > 0 && info?.id !== id
+			fetch(`/admin/api/media/${id}`).then((r) => r.ok ? r.json() : null).then (m) =>
+				info = m if m
+</script>

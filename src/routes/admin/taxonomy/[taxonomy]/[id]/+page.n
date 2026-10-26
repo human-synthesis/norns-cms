@@ -1,0 +1,45 @@
+.space-y-6
+	PageHead(title!="{data.term.name}" back="/admin/taxonomy/{data.tax.id}" backLabel!="{data.tax.labelPlural}")
+		+snippet('actions')
+			Btn(href!="{data.url}" target="_blank" rel="noopener" variant="ghost" size="sm" icon="lucide:external-link") View archive
+	+if('form?.saved')
+		Banner(variant="success" icon="lucide:check") Saved.
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	Card
+		Form(action="?/save" form!="{form}")
+			.space-y-4
+				Field(label="Name" name="name" required)
+					Input(name="name" value!="{v.name}")
+				Field(label="URL slug" name="slug" help="Changing it keeps the old archive URL working with a redirect")
+					Input(name="slug" value!="{v.slug}")
+				Field(label="Description" name="description" help="Shown at the top of the archive page and in its meta description")
+					Textarea(name="description" value!="{v.description}" rows="3")
+				+if('data.tax.hierarchical')
+					Field(label="Parent" name="parent_id")
+						Select(name="parent_id" value!="{v.parent_id == null ? '' : String(v.parent_id)}")
+							option(value="") —
+							+each('data.others as t (t.id)')
+								option(value!="{t.id}") {t.name}
+					Field(label="Sort order" name="sort")
+						Input(type="number" name="sort" value!="{v.sort ?? 0}")
+				Btn(type="submit" variant="primary" icon="lucide:save") Save
+	+if('data.others.length')
+		Card
+			form.flex.flex-wrap.items-end.gap-3(method="POST" action="?/merge" onsubmit!="{confirmMerge}")
+				Field(label!="{'Merge into another ' + data.tax.label.toLowerCase()}" name="into" help="Its articles move over and this one is removed")
+					Select(name="into")
+						+each('data.others as t (t.id)')
+							option(value!="{t.id}") {t.name}
+				Btn(type="submit" variant="secondary" icon="lucide:merge") Merge
+	form(method="POST" action="?/remove" onsubmit!="{confirmRemove}")
+		Btn(type="submit" variant="danger" icon="lucide:trash-2") Delete {data.tax.label.toLowerCase()}
+
+<script>
+	{ data, form } := $props()
+	v := $derived form?.values ?? data.term
+	confirmMerge := (e) =>
+		e.preventDefault() unless confirm('Merge? This cannot be undone.')
+	confirmRemove := (e) =>
+		e.preventDefault() unless confirm('Delete? Articles keep their other terms.')
+</script>

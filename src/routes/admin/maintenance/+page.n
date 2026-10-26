@@ -1,0 +1,23 @@
+.space-y-6
+	PageHead(title="Maintenance" subtitle="These also run every night through the Worker's cron trigger.")
+	+if('form?.result')
+		Card
+			h2.font-semibold.mb-2 Removed
+			pre.text-xs {JSON.stringify(form.result, null, 2)}
+	+if('form?.rerendered !== undefined')
+		Banner(variant="success" icon="lucide:check") Re-rendered {form.rerendered} entries.
+	.grid.gap-4(class="md:grid-cols-2")
+		Card
+			h2.font-semibold Purge expired data
+			p.text-sm.mb-4(class="text-fg-muted") Expired sessions and links, old rate-limit counters, audit entries and consent records past their retention, deleted member accounts after 30 days, old 404 and mail logs.
+			form(method="POST" action="?/purge")
+				Btn(type="submit" variant="secondary" icon="lucide:trash") Run now
+		Card
+			h2.font-semibold Re-render content
+			p.text-sm.mb-4(class="text-fg-muted") Rebuild the cached HTML of every entry, e.g. after media changes or a renderer upgrade.
+			form(method="POST" action="?/rerender")
+				Btn(type="submit" variant="secondary" icon="lucide:refresh-cw") Re-render all
+
+<script>
+	{ form } := $props()
+</script>

@@ -1,0 +1,6 @@
+section.block-embed
+	| {@html data?.html ?? ''}
+
+<script>
+	{ data = null } := $props()
+</script>

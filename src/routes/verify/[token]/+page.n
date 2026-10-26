@@ -1,0 +1,6 @@
+.auth-page
+	Card(class="auth-card")
+		.space-y-4
+			h1.text-lg.font-bold Link expired
+			p.text-sm This confirmation link is invalid or was already used.
+			a.text-sm(href="/account/login") Go to sign in

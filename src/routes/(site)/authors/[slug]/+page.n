@@ -1,0 +1,22 @@
+.space-y-8
+	header.author-header
+		+if('data.avatar')
+			img.author-avatar-lg(src!="{data.avatar.thumb || data.avatar.url}" alt="" width="96" height="96")
+		div
+			p.article-kicker Author
+			h1.text-4xl.font-bold.tracking-tight {data.author.name}
+			+if('data.author.bio')
+				p.text-lg.max-w-prose(class="text-fg-muted") {data.author.bio}
+	+if('data.list.entries.length === 0')
+		p(class="text-fg-muted") No articles yet.
+	+else
+		.article-grid
+			+each('data.list.entries as a (a.id)')
+				ArticleCard(a!="{a}")
+	Pager(page!="{data.list.page}" pages!="{data.list.pages}" base!="{data.path}")
+
+<script>
+	import ArticleCard from '$lib/norns/articles/ui/ArticleCard.n'
+	import Pager from '$lib/norns/articles/ui/Pager.n'
+	{ data } := $props()
+</script>

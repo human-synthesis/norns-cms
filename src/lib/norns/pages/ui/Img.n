@@ -1,0 +1,7 @@
++if('m')
+	img(src!="{m.url}" srcset!="{m.srcset || undefined}" sizes!="{m.srcset ? sizes : undefined}" alt!="{alt ?? m.alt ?? ''}" width!="{m.width}" height!="{m.height}" loading!="{eager ? 'eager' : 'lazy'}" decoding="async" fetchpriority!="{eager ? 'high' : undefined}" class!="{klass}")
+
+<script>
+	// A media-library image from the page's `media` map.
+	{ m, alt, eager = false, sizes = '(min-width: 768px) 768px, 100vw', class: klass = '' } := $props()
+</script>

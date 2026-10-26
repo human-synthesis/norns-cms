@@ -2,28 +2,37 @@
 	div
 		h1.text-2xl.font-bold.tracking-tight Dashboard
 		p.text-sm(class="text-fg-muted") Welcome back, {data.user.name || data.user.email}.
-	.grid.gap-4(class="sm:grid-cols-2 lg:grid-cols-3")
+	.stat-grid
 		+each('data.counts as c (c.ct.id)')
-			Card
-				.flex.items-center.justify-between.gap-4
-					div
-						.text-sm(class="text-fg-muted") {c.ct.labelPlural}
-						.text-3xl.font-bold.tracking-tight {c.total}
-						.text-xs(class="text-fg-subtle") {c.published} published
-					Btn(href="/admin/content/{c.ct.id}/new" variant="secondary" size="sm" icon="lucide:plus") New
+			Stat(label!="{c.ct.labelPlural}" value!="{c.total}" hint!="{c.published + ' live' + (c.review ? ' · ' + c.review + ' in review' : '')}" href!="{'/admin/content/' + c.ct.id}" icon!="{c.ct.icon}")
+		+if('data.media !== null')
+			Stat(label="Media" value!="{data.media}" href="/admin/media" icon="lucide:image")
+		+if('data.users')
+			Stat(label="People" value!="{data.users.staff + data.users.clients}" hint!="{data.users.staff + ' staff · ' + data.users.clients + ' members'}" href="/admin/users" icon="lucide:users")
+		+if('data.consent')
+			Stat(label="Consent choices (30 days)" value!="{data.consent.total}" hint!="{data.consent.total ? data.consent.analyticsRate + '% allow analytics' : 'No choices recorded yet'}" href="/admin/consent" icon="lucide:cookie")
+		+if('data.notFound !== null')
+			Stat(label="404 paths" value!="{data.notFound}" hint="Missing pages people hit" href="/admin/seo#not-found" icon="lucide:file-question")
+	+if('data.review.length')
+		section.space-y-3
+			h2.text-lg.font-semibold Waiting for review
+			EntryList(entries!="{data.review}")
+	+if('data.scheduled.length')
+		section.space-y-3
+			h2.text-lg.font-semibold Scheduled
+			EntryList(entries!="{data.scheduled}" showDate)
+	+if('data.mine.length')
+		section.space-y-3
+			h2.text-lg.font-semibold Your entries
+			EntryList(entries!="{data.mine}")
 	section.space-y-3
 		h2.text-lg.font-semibold Recently updated
 		+if('data.recent.length === 0')
-			Banner(variant="info" icon="lucide:info") Nothing yet. Create your first page or post from the sidebar.
+			EmptyState(icon="lucide:sparkles" title="Nothing yet") Create your first page or article from the sidebar.
 		+else
-			ul.list-none.p-0.m-0.divide-y(class="divide-border")
-				+each('data.recent as e (e.id)')
-					li.py-2.flex.items-center.justify-between.gap-4
-						a.no-underline.truncate(href="/admin/content/{e.type}/{e.id}" class="text-fg hover:underline") {e.title || '(untitled)'}
-						.flex.items-center.gap-3.text-xs.shrink-0(class="text-fg-subtle")
-							Badge(variant!="{e.status === 'published' ? 'success' : 'default'}" size="sm") {e.status}
-							span {new Date(e.updated_at).toLocaleString()}
+			EntryList(entries!="{data.recent}")
 
 <script>
+	import EntryList from '$lib/norns/content/ui/EntryList.n'
 	{ data } := $props()
 </script>

@@ -1,0 +1,57 @@
+.space-y-6
+	PageHead(title="Redirects" subtitle="Old URLs keep working. Renaming a published entry adds one automatically." back="/admin/seo" backLabel="SEO")
+	+if('form?.saved')
+		Banner(variant="success" icon="lucide:check") {form.saved}
+	+if('form?.importErrors?.length')
+		Banner(variant="warning" icon="lucide:alert-triangle") {form.importErrors.join(' · ')}
+	Card
+		Form(action="?/create" form!="{form}" class="flex flex-wrap items-end gap-3")
+			Field(label="From" name="from" required)
+				Input(name="from" value!="{form?.values?.from ?? data.from}" placeholder="/old-path")
+			Field(label="To" name="to")
+				Input(name="to" value!="{form?.values?.to ?? ''}" placeholder="/new-path or https://…")
+			Field(label="Type" name="status")
+				Select(name="status" value!="{form?.values?.status ?? '301'}")
+					option(value="301") 301 — moved permanently
+					option(value="302") 302 — temporary
+					option(value="410") 410 — gone for good
+			Btn(type="submit" variant="primary" icon="lucide:plus") Add
+	form.flex.flex-wrap.items-end.gap-2(method="GET")
+		Input(name="q" value!="{data.q}" placeholder="Search paths…" class="w-64")
+		Btn(type="submit" variant="secondary" icon="lucide:search") Search
+	+if('data.redirects.length === 0')
+		EmptyState(icon="lucide:corner-up-right" title="No redirects")
+	+else
+		.table-wrap
+			table.audit-table
+				thead
+					tr
+						th From
+						th To
+						th Type
+						th Source
+						th Hits
+						th
+				tbody
+					+each('data.redirects as r (r.id)')
+						tr
+							td
+								code.text-xs {r.from_path}
+							td
+								code.text-xs {r.to_path || '—'}
+							td {r.status}
+							td {r.source}
+							td {r.hits}
+							td
+								form(method="POST" action="?/remove")
+									input(type="hidden" name="id" value!="{r.id}")
+									Btn(type="submit" variant="ghost" size="sm" icon="lucide:trash-2") Remove
+	details.import-box
+		summary Import from CSV
+		form.space-y-3.pt-3(method="POST" action="?/import")
+			Textarea(name="csv" rows="6" placeholder="/old,/new\n/older,/new,302\n/removed,,410" class="font-mono text-xs")
+			Btn(type="submit" variant="secondary" icon="lucide:upload") Import
+
+<script>
+	{ data, form } := $props()
+</script>

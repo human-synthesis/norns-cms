@@ -1,41 +1,175 @@
 .space-y-6
-	.flex.items-start.justify-between.gap-4
-		div
-			a.text-sm.no-underline(href="/admin/content/{data.ct.id}" class="text-fg-muted hover:text-fg") ← {data.ct.labelPlural}
-			h1.text-2xl.font-bold.tracking-tight {heading}
-		+if('data.entry')
-			.flex.items-center.gap-2
-				Badge(variant!="{data.entry.status === 'published' ? 'success' : 'default'}") {data.entry.status}
+	PageHead(title!="{heading}" back="/admin/content/{data.ct.id}" backLabel!="{data.ct.labelPlural}")
+		+snippet('actions')
+			+if('data.entry')
+				StatusBadge(entry!="{data.entry}")
 				+if('data.publicUrl')
-					Btn(href!="{data.publicUrl}" target="_blank" rel="noopener" variant="ghost" size="sm" icon="lucide:external-link") View
+					Btn(href!="{data.publicUrl}" target="_blank" rel="noopener" variant="ghost" size="sm" icon!="{data.entry.status === 'published' ? 'lucide:external-link' : 'lucide:eye'}") {data.entry.status === 'published' ? 'View' : 'Preview'}
 	+if('data.saved')
-		Banner(variant="success" icon="lucide:check") Saved.
+		Banner(variant="success" icon="lucide:check") {savedMessage}
 	+if('form?.errors')
-		Banner(variant="danger" icon="lucide:alert-triangle") Please fix the highlighted fields.
-	Form(action="?/save" form!="{form}")
-		.space-y-5
-			+each('data.form.fields as field (field.name)')
-				Field(label!="{field.label}" name!="{field.name}" required!="{field.required}" help!="{field.type === 'boolean' ? undefined : field.help}")
-					FieldEditor(field!="{field}" value!="{values[field.name]}")
-			Field(label="Slug" name="slug" help="Leave empty to derive it from the title")
-				Input(name="slug" value!="{values.slug ?? ''}" placeholder="my-page")
-			.flex.items-center.gap-2.pt-2
-				Btn(type="submit" variant="primary" icon="lucide:save") Save
+		Banner(variant="danger" icon="lucide:alert-triangle") Please fix the highlighted fields{errorTabs.length ? ' (on ' + errorTabs.join(', ') + ')' : ''}.
+	+if('!data.perms.edit')
+		Banner(variant="info" icon="lucide:lock") You can read this entry but not change it{data.entry?.status === 'published' ? ' — it is published' : ''}.
+	Form(action="?/save" form!="{form}" class="editor")
+		.editor-grid(onchange!="{track}" oninput!="{track}")
+			.editor-main
+				+if('data.form.tabs.length > 1')
+					.editor-tabs(role="tablist")
+						+each('data.form.tabs as t (t.id)')
+							button.editor-tab(type="button" role="tab" aria-selected!="{tab === t.id}" class!="{tab === t.id ? 'editor-tab-active' : ''}" onclick!="{() => tab = t.id}")
+								| {t.label}
+								+if('errorTabIds.includes(t.id)')
+									span.tab-dot(aria-label="has errors")
+				+each('data.form.tabs as t (t.id)')
+					.editor-panel(hidden!="{tab !== t.id}")
+						.space-y-5
+							+each('fieldsOn(t.id) as field (field.name)')
+								.field-wrap(hidden!="{!visible(field)}")
+									Field(label!="{field.label}" name!="{field.name}" required!="{field.required}" help!="{field.type === 'boolean' ? undefined : field.help}")
+										FieldEditor(field!="{field}" value!="{values[field.name]}" blocks!="{data.form.blocks}")
+							+if('t.id === "content"')
+								Field(label="URL" name="slug" help!="{'Leave empty to derive it from the title. ' + (data.ct.basePath || '') + '/' + (values.slug || '…')}")
+									Input(name="slug" value!="{values.slug ?? ''}" placeholder="my-page")
+							+if('t.id === "seo"')
+								SeoPanel(values!="{live}" context!="{data.seoContext}")
+			aside.editor-side
+				Card
+					.space-y-4
+						.flex.items-center.justify-between
+							span.text-sm.font-semibold Status
+							+if('data.entry')
+								StatusBadge(entry!="{data.entry}")
+							+else
+								Badge(size="sm") new
+						+if('autosaved')
+							p.text-xs(class="text-fg-subtle") Draft autosaved {autosaved}
+						Field(label="Visibility" name="visibility")
+							Select(name="visibility" value!="{values.visibility ?? 'public'}")
+								+each('VISIBILITIES as v (v.value)')
+									option(value!="{v.value}") {v.label}
+						+if('data.perms.publish')
+							Field(label="Publish at" name="publishAt" help="Empty: now. A future time schedules it.")
+								Input(type="datetime-local" name="publishAt" value!="{publishAtValue}")
+							input(type="hidden" name="tzOffset" value!="{tzOffset}")
+						.flex.flex-col.gap-2
+							+if('data.perms.edit')
+								Btn(type="submit" variant="secondary" icon="lucide:save" class="w-full") Save
+								+if('data.perms.publish')
+									button.btn.btn-primary.w-full(type="submit" formaction="?/publish")
+										Icon(name="lucide:globe" size="size-4")
+										span {publishLabel}
+								+elseif('data.entry?.status !== "in_review"')
+									button.btn.btn-primary.w-full(type="submit" formaction="?/submit")
+										Icon(name="lucide:send" size="size-4")
+										span Submit for review
+				+if('data.entry')
+					Card
+						dl.meta-list
+							dt Created
+							dd {new Date(data.entry.created_at).toLocaleString()}
+							dt Updated
+							dd {new Date(data.entry.updated_at).toLocaleString()}
+							+if('data.entry.published_at')
+								dt {data.entry.published_at > Date.now() ? 'Goes live' : 'Published'}
+								dd {new Date(data.entry.published_at).toLocaleString()}
+							+if('data.author')
+								dt Created by
+								dd {data.author}
+						a.text-sm(href="/admin/content/{data.ct.id}/{data.entry.id}/revisions") History ({data.revisions} revisions)
 	+if('data.entry')
 		.flex.items-center.gap-2.border-t.pt-4(class="border-border")
-			form(method="POST" action="?/publish")
-				Btn(type="submit" variant="secondary" icon!="{data.entry.status === 'published' ? 'lucide:eye-off' : 'lucide:globe'}") {data.entry.status === 'published' ? 'Unpublish' : 'Publish'}
-			form(method="POST" action="?/remove" onsubmit!="{confirmRemove}")
-				Btn(type="submit" variant="danger" icon="lucide:trash-2") Delete
+			+if('data.perms.publish && data.entry.status === "published"')
+				form(method="POST" action="?/unpublish")
+					Btn(type="submit" variant="secondary" icon="lucide:eye-off") {data.entry.published_at > Date.now() ? 'Cancel schedule' : 'Unpublish'}
+			+if('data.perms.remove')
+				form(method="POST" action="?/remove" onsubmit!="{confirmRemove}")
+					Btn(type="submit" variant="danger" icon="lucide:trash-2") Delete
 
 <script>
+	import { onMount } from 'svelte'
+	import { beforeNavigate } from '$app/navigation'
 	import FieldEditor from '$lib/norns/content/ui/FieldEditor.n'
+	import StatusBadge from '$lib/norns/content/ui/StatusBadge.n'
+	import SeoPanel from '$lib/norns/seo/ui/SeoPanel.n'
+	import { VISIBILITIES } from '$lib/norns/content/shared/types'
 	{ data, form } := $props()
 
 	values := $derived form?.values ?? data.values
 	heading := $derived data.entry ? (data.entry.title || '(untitled)') : ('New ' + data.ct.label)
 
+	tab .= $state 'content'
+	live .= $state { ...data.values }
+	dirty .= $state false
+	autosaved .= $state ''
+	tzOffset .= $state 0
+
+	MESSAGES := { saved: 'Saved.', submitted: 'Saved and submitted for review. Editors have been notified.', published: 'Published.', scheduled: 'Scheduled.', unpublished: 'Unpublished; it is a draft again.' } as Record<string, string>
+	savedMessage := $derived MESSAGES[data.saved] ?? 'Saved.'
+
+	fieldsOn := (tabId) => data.form.fields.filter((f) => (f.tab ?? 'content') === tabId)
+
+	visible := (field) =>
+		return true unless field.showIf
+		String(live[field.showIf.field] ?? '') === String(field.showIf.equals)
+
+	errorNames := $derived (form?.errors ?? []).map((i) => i.path?.[0]?.key).filter(Boolean)
+	errorTabIds := $derived [...new Set(data.form.fields.filter((f) => errorNames.includes(f.name)).map((f) => f.tab ?? 'content'))]
+	errorTabs := $derived data.form.tabs.filter((t) => errorTabIds.includes(t.id) && t.id !== tab).map((t) => t.label)
+
+	publishLabel := $derived.by =>
+		return 'Publish' unless data.entry
+		data.entry.status === 'published' ? 'Update' : 'Publish'
+
+	pad := (n) => String(n).padStart(2, '0')
+	publishAtValue := $derived.by =>
+		at := data.entry?.published_at
+		return '' unless at && at > Date.now()
+		d := new Date(at)
+		`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+
+	track := (e) =>
+		key := e.target?.name || e.target?.dataset?.field
+		return unless key && key !== 'publishAt'
+		live[key] = e.target.type === 'checkbox' ? e.target.checked : e.target.value
+		dirty = true
+
 	confirmRemove := (e) =>
 		unless confirm('Delete this entry? This cannot be undone.')
 			e.preventDefault()
+
+	// Drafts autosave every 30 s while changed; published entries only warn.
+	autosave := async =>
+		return unless dirty && data.entry && data.entry.status !== 'published' && data.perms.edit
+		formEl := document.querySelector('form.editor')
+		return unless formEl
+		res := await fetch('?/autosave', { method: 'POST', body: new FormData(formEl), headers: { 'x-sveltekit-action': 'true', accept: 'application/json' } })
+		body := await res.json().catch(=> ({}))
+		if body.type === 'success'
+			dirty = false
+			autosaved = new Date().toLocaleTimeString()
+
+	onMount =>
+		tzOffset = new Date().getTimezoneOffset()
+		if form?.errors && errorTabIds.length && !errorTabIds.includes(tab)
+			tab = errorTabIds[0]
+		timer := setInterval(autosave, 30000)
+		warn := (e) =>
+			if dirty
+				e.preventDefault()
+				e.returnValue = ''
+		window.addEventListener 'beforeunload', warn
+		formEl := document.querySelector('form.editor')
+		clean := => dirty = false
+		formEl?.addEventListener 'submit', clean
+		=>
+			clearInterval timer
+			window.removeEventListener 'beforeunload', warn
+			formEl?.removeEventListener 'submit', clean
+
+	// In-app navigation only; leaving the page is covered by beforeunload
+	// (browsers refuse confirm() while unloading).
+	beforeNavigate (nav) =>
+		return if nav.type === 'leave' || nav.type === 'form' || !dirty
+		nav.cancel() unless confirm('You have unsaved changes. Leave anyway?')
 </script>

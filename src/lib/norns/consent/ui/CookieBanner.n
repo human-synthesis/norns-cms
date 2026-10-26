@@ -1,0 +1,136 @@
++if('visible && !dialogOpen')
+	section.cookie-banner(role="region" aria-label="Cookie consent")
+		.cookie-banner-inner
+			.min-w-0
+				h2.cookie-title {banner.title}
+				p.cookie-text
+					| {banner.text}
+					+if('banner.policyUrl')
+						|  
+						a(href!="{banner.policyUrl}") {banner.policyLabel}
+			+if('banner.mode === "notice"')
+				.cookie-actions
+					form(method="POST" action="/api/consent" onsubmit!="{(e) => submit(e, 'acknowledge')}")
+						input(type="hidden" name="action" value="acknowledge")
+						input(type="hidden" name="back" value!="{back}")
+						Btn(type="submit" variant="primary") OK
+					Btn(variant="ghost" onclick!="{openDialog}") Settings
+			+else
+				.cookie-actions
+					form(method="POST" action="/api/consent" onsubmit!="{(e) => submit(e, 'reject_all')}")
+						input(type="hidden" name="action" value="reject_all")
+						input(type="hidden" name="back" value!="{back}")
+						Btn(type="submit" variant="secondary") Reject all
+					form(method="POST" action="/api/consent" onsubmit!="{(e) => submit(e, 'accept_all')}")
+						input(type="hidden" name="action" value="accept_all")
+						input(type="hidden" name="back" value!="{back}")
+						Btn(type="submit" variant="secondary") Accept all
+					Btn(variant="ghost" onclick!="{openDialog}") Customise
+Dialog(bind:open!="{dialogOpen}" title="Cookie settings" class="cookie-dialog")
+	form.space-y-4(method="POST" action="/api/consent" onsubmit!="{(e) => submit(e, 'custom')}")
+		input(type="hidden" name="action" value="custom")
+		input(type="hidden" name="back" value!="{back}")
+		p.text-sm(class="text-fg-muted") {banner.text}
+		+if('banner.gpc')
+			Banner(variant="info" icon="lucide:shield") Your browser sends a Global Privacy Control signal, so marketing starts switched off.
+		+each('banner.groups as g (g.id)')
+			.cookie-group
+				.flex.items-start.justify-between.gap-4
+					div
+						.font-semibold {g.label}
+						p.text-sm(class="text-fg-muted") {g.text}
+					+if('g.required')
+						span.text-xs.font-semibold(class="text-fg-subtle") Always on
+					+else
+						Switch(name!="{g.id}" bind:checked!="{choice[g.id]}")
+				+if('g.services.length || g.cookies.length')
+					details.cookie-details
+						summary {g.services.length ? g.services.join(', ') : 'Details'}
+						+if('g.cookies.length')
+							table.cookie-table
+								thead
+									tr
+										th Cookie
+										th Lasts
+										th Purpose
+								tbody
+									+each('g.cookies as ck, i (i)')
+										tr
+											td
+												code {ck.name}
+											td {ck.duration}
+											td {ck.purpose}
+		.flex.flex-wrap.items-center.gap-2.pt-2
+			Btn(type="submit" variant="primary") Save choices
+			Btn(variant="secondary" onclick!="{() => choose('accept_all')}") Accept all
+			Btn(variant="secondary" onclick!="{() => choose('reject_all')}") Reject all
+		+if('consentId')
+			p.text-xs(class="text-fg-subtle") Your consent ID: 
+				code {consentId}
+		+if('banner.policyUrl')
+			p.text-xs
+				a(href!="{banner.policyUrl}") {banner.policyLabel}
+
+<script>
+	import { page } from '$app/state'
+
+	// The cookie banner and the settings dialog. Works without JavaScript
+	// (plain forms to /api/consent, then back); with JavaScript it posts in
+	// place, tells the loader (`cms:consent`) to activate allowed scripts and
+	// embeds, and reloads only when something was withdrawn (scripts that
+	// already ran cannot be unloaded).
+	import { onMount } from 'svelte'
+	{ banner, consent } := $props()
+
+	visible .= $state(consent.showBanner)
+	dialogOpen .= $state(false)
+	choice .= $state({ ...consent.choice })
+	consentId .= $state(consent.consentId)
+	back := $derived page.url.pathname + page.url.search
+
+	// "Cookie settings" links anywhere on the page open the dialog.
+	onMount =>
+		show := => dialogOpen = true
+		window.addEventListener 'cms:open-consent', show
+		=> window.removeEventListener 'cms:open-consent', show
+
+	openDialog := =>
+		dialogOpen = true
+
+	// Delete first-party cookies matching a category's patterns (`_ga*`).
+	clearCookies := (patterns) =>
+		host := location.hostname
+		domains := ['', host, '.' + host, '.' + host.split('.').slice(-2).join('.')]
+		for c of document.cookie.split(';')
+			name := c.split('=')[0].trim()
+			hit := patterns.some (p) => p.endsWith('*') ? name.startsWith(p.slice(0, -1)) : name === p
+			continue unless hit
+			for d of domains
+				document.cookie = `${name}=; Max-Age=0; path=/${d ? '; domain=' + d : ''}`
+
+	send := async (action, values) =>
+		previous := { ...(window.__cmsConsent ?? consent.choice) }
+		res := await fetch('/api/consent', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ action, ...values }) })
+		return false unless res.ok
+		body := await res.json()
+		consentId = body.consentId
+		choice = { ...body.choice }
+		visible = false
+		dialogOpen = false
+		withdrawn := ['preferences', 'analytics', 'marketing'].filter((k) => previous[k] && !body.choice[k])
+		if withdrawn.length
+			clearCookies withdrawn.flatMap((k) => banner.patterns?.[k] ?? [])
+			location.reload()
+		else
+			window.dispatchEvent new CustomEvent('cms:consent', { detail: body.choice })
+		true
+
+	submit := async (e, action) =>
+		e.preventDefault()
+		formEl := e.currentTarget
+		values := action === 'custom' ? { preferences: !!choice.preferences, analytics: !!choice.analytics, marketing: !!choice.marketing } : {}
+		ok := await send(action, values).catch(=> false)
+		formEl.submit() unless ok
+
+	choose := (action) => send(action, {})
+</script>

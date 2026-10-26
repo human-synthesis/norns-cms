@@ -1,0 +1,34 @@
+.account-page
+	.flex.flex-wrap.items-center.justify-between.gap-3
+		h1.text-3xl.font-bold.tracking-tight Your account
+		.flex.gap-2
+			Btn(href="/account/privacy" variant="secondary" icon="lucide:shield") Privacy & data
+			form(method="POST" action="?/logout")
+				Btn(type="submit" variant="ghost" icon="lucide:log-out") Sign out
+	+if('form?.saved')
+		Banner(variant="success" icon="lucide:check") {form.saved}
+	.grid.gap-6(class="md:grid-cols-2")
+		Card
+			h2.font-semibold.mb-4 Details
+			Form(action="?/profile" form!="{form?.values ? form : null}")
+				.space-y-4
+					Field(label="Name" name="name")
+						Input(name="name" value!="{form?.values?.name ?? data.u.name}" autocomplete="name")
+					Field(label="Email" name="email")
+						Input(type="email" name="email" value!="{form?.values?.email ?? data.u.email}" autocomplete="email")
+					Btn(type="submit" variant="primary") Save
+		Card
+			h2.font-semibold.mb-4 Password
+			Form(action="?/password" form!="{form?.values ? null : form}")
+				.space-y-4
+					Field(label="Current password" name="current")
+						Input(type="password" name="current" autocomplete="current-password")
+					Field(label="New password" name="next" help="At least 12 characters")
+						Input(type="password" name="next" autocomplete="new-password")
+					Field(label="New password again" name="confirm")
+						Input(type="password" name="confirm" autocomplete="new-password")
+					Btn(type="submit" variant="primary") Change password
+
+<script>
+	{ data, form } := $props()
+</script>

@@ -1,0 +1,18 @@
+.auth-page
+	Card(class="auth-card")
+		.space-y-5
+			div
+				h1.text-lg.font-bold Two-factor sign-in
+				p.text-sm(class="text-fg-muted") Enter the 6-digit code from your authenticator app, or one of your recovery codes.
+			Form(action="?/verify" form!="{form}")
+				.space-y-4
+					input(type="hidden" name="next" value!="{data.next}")
+					Field(label="Code" name="code" required)
+						Input(name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" required)
+					Btn(type="submit" variant="primary" class="w-full") Verify
+			.text-sm.text-center
+				a(href="/login") Start over
+
+<script>
+	{ data, form } := $props()
+</script>

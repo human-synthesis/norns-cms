@@ -1,0 +1,33 @@
+section.block-cookies
+	+if('props.title')
+		h2 {props.title}
+	+each('data?.declaration?.groups ?? [] as g (g.id)')
+		.cookie-group
+			h3 {g.label}
+			p {g.text}
+			+if('g.cookies.length')
+				.table-wrap
+					table.cookie-table
+						thead
+							tr
+								th Cookie
+								th Service
+								th Lasts
+								th Purpose
+						tbody
+							+each('g.cookies as ck, i (i)')
+								tr
+									td
+										code {ck.name}
+									td {ck.service ?? ''}
+									td {ck.duration}
+									td {ck.purpose}
+			+else
+				p.text-sm(class="text-fg-muted") No cookies in this category.
+	+if('props.showButton')
+		Btn(variant="secondary" icon="lucide:cookie" onclick!="{openSettings}") Cookie settings
+
+<script>
+	{ props = {}, data = null } := $props()
+	openSettings := => window.dispatchEvent(new CustomEvent('cms:open-consent'))
+</script>

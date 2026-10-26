@@ -1,28 +1,61 @@
 +if('field.type === "markdown"')
-	Textarea(name!="{field.name}" value!="{value ?? ''}" rows="14" placeholder!="{field.placeholder ?? 'Write in Markdown…'}" class="font-mono text-sm")
+	MarkdownEditor(name!="{field.name}" value!="{value ?? ''}" placeholder!="{field.placeholder ?? 'Write in Markdown…'}")
 +elseif('field.type === "textarea"')
-	Textarea(name!="{field.name}" value!="{value ?? ''}" rows="4" placeholder!="{field.placeholder}")
+	Textarea(name!="{field.name}" value!="{value ?? ''}" rows="3" placeholder!="{field.placeholder}")
++elseif('field.type === "code"')
+	Textarea(name!="{field.name}" value!="{value ?? ''}" rows="6" placeholder!="{field.placeholder}" class="font-mono text-xs")
++elseif('field.type === "lines"')
+	Textarea(name!="{field.name}" value!="{Array.isArray(value) ? value.join('\\n') : (value ?? '')}" rows="4" placeholder!="{field.placeholder ?? 'One per line'}")
 +elseif('field.type === "boolean"')
 	.flex.items-center.gap-2
+		input(type="hidden" name!="{field.name}" value="false")
 		Switch(name!="{field.name}" checked!="{!!value}")
 		span.text-sm(class="text-fg-muted") {field.help ?? ''}
-+elseif('field.type === "select"')
-	Select(name!="{field.name}" value!="{value ?? ''}")
-		+if('!field.required')
++elseif('field.type === "select" || field.type === "reference" || field.type === "term"')
+	Select(name!="{field.name}" value!="{value == null ? '' : String(value)}")
+		+if('!field.required || field.type !== "select"')
 			option(value="") —
 		+each('field.options ?? [] as opt (opt.value)')
 			option(value!="{opt.value}") {opt.label}
++elseif('field.type === "references" || field.type === "users"')
+	.check-list
+		+if('(field.options ?? []).length === 0')
+			span.text-sm(class="text-fg-muted") Nothing to choose from yet.
+		+each('field.options ?? [] as opt (opt.value)')
+			label.check-item
+				Checkbox(name!="{field.name}" value!="{String(opt.value)}" checked!="{selected.includes(Number(opt.value))}")
+				span {opt.label}
 +elseif('field.type === "number"')
 	Input(type="number" name!="{field.name}" value!="{value ?? ''}" placeholder!="{field.placeholder}")
 +elseif('field.type === "datetime"')
 	Input(type="datetime-local" name!="{field.name}" value!="{value ?? ''}")
 +elseif('field.type === "tags"')
 	Input(name!="{field.name}" value!="{Array.isArray(value) ? value.join(', ') : (value ?? '')}" placeholder="comma, separated, tags")
++elseif('field.type === "image"')
+	MediaPicker(name!="{field.name}" value!="{value}")
++elseif('field.type === "blocks"')
+	BlocksEditor(name!="{field.name}" value!="{value ?? []}" blocks!="{blocks}")
++elseif('field.type === "repeater"')
+	JsonField(field!="{field}" name!="{field.name}" value!="{value ?? []}" blocks!="{blocks}")
++elseif('field.type === "json"')
+	Textarea(name!="{field.name}" value!="{value == null ? '' : JSON.stringify(value, null, 2)}" rows="6" class="font-mono text-xs")
++elseif('field.type === "email"')
+	Input(type="email" name!="{field.name}" value!="{value ?? ''}" placeholder!="{field.placeholder}")
++elseif('field.type === "url"')
+	Input(name!="{field.name}" value!="{value ?? ''}" placeholder!="{field.placeholder ?? 'https://… or /path'}")
 +else
 	Input(name!="{field.name}" value!="{value ?? ''}" placeholder!="{field.placeholder}" required!="{field.required}")
 
 <script>
-	// One editor per field type. Field-level label/error/help come from the
-	// surrounding <Field>; this only renders the control.
-	{ field, value } := $props()
+	import MarkdownEditor from './MarkdownEditor.n'
+	import BlocksEditor from './BlocksEditor.n'
+	import JsonField from './JsonField.n'
+	import MediaPicker from '../../media/ui/MediaPicker.n'
+
+	// One control per field type, for named (form-posted) fields. Labels,
+	// errors and help come from the surrounding <Field>. Booleans post a
+	// hidden "false" first so unticking survives (see content/server/fields.c).
+	{ field, value, blocks = [] } := $props()
+
+	selected := $derived (Array.isArray(value) ? value : []).map(Number)
 </script>

@@ -1,0 +1,36 @@
+.account-page
+	PageHead(title="Privacy & data" back="/account" backLabel="Your account")
+	Card
+		h2.font-semibold.mb-2 Cookies on this device
+		p.text-sm.mb-3
+			+if('data.state.given')
+				| You chose: preferences {yes(data.state.choice.preferences)}, analytics {yes(data.state.choice.analytics)}, marketing {yes(data.state.choice.marketing)}.
+			+else
+				| You have not made a choice on this device yet.
+		Btn(variant="secondary" icon="lucide:cookie" onclick!="{openConsent}") Change cookie settings
+		+if('data.records.length')
+			details.mt-4
+				summary.text-sm Choices recorded while signed in
+				ul.text-xs.space-y-1.pt-2
+					+each('data.records as r (r.id)')
+						li {new Date(r.created_at).toLocaleString()} — {r.action.replace('_', ' ')} (policy v{r.policy_version})
+	Card
+		h2.font-semibold.mb-2 Download your data
+		p.text-sm.mb-3(class="text-fg-muted") Your profile, active sessions, account activity and consent records, as JSON.
+		Btn(href="/account/export.json" variant="secondary" icon="lucide:download") Download
+	Card
+		h2.font-semibold.mb-2 Delete your account
+		p.text-sm.mb-4(class="text-fg-muted") Your name and email are removed immediately and the account is gone for good after 30 days. This cannot be undone.
+		Form(action="?/delete" form!="{form}")
+			.space-y-4
+				Field(label="Password" name="password" required)
+					Input(type="password" name="password" autocomplete="current-password")
+				Field(label="Type DELETE to confirm" name="confirm" required)
+					Input(name="confirm" autocomplete="off")
+				Btn(type="submit" variant="danger" icon="lucide:trash-2") Delete my account
+
+<script>
+	{ data, form } := $props()
+	yes := (b) => b ? 'yes' : 'no'
+	openConsent := => window.dispatchEvent(new CustomEvent('cms:open-consent'))
+</script>

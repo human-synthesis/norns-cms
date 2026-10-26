@@ -1,0 +1,91 @@
+article.article-view(class!="{res.entry.rendered?.body?.toc?.length >= 3 ? 'has-toc' : ''}")
+	+if('res.entry.status !== "published" || res.entry.published_at > Date.now()')
+		Banner(variant="warning" icon="lucide:eye") Preview — {res.entry.status === 'published' ? 'scheduled, not live yet' : res.entry.status.replace('_', ' ')}, only visible to staff.
+	header.article-header
+		+if('extra.category')
+			a.article-kicker(href!="{extra.category.url}") {extra.category.name}
+		h1.article-title {res.entry.title}
+		.article-meta
+			+if('extra.authors.length')
+				span
+					| By 
+					+each('extra.authors as p, i (p.id)')
+						| {i > 0 ? ', ' : ''}
+						+if('p.url')
+							a(href!="{p.url}") {p.name}
+						+else
+							| {p.name}
+			time(datetime!="{published.toISOString()}") {fmt(published)}
+			+if('updated - published > 86400000')
+				span Updated {fmt(updated)}
+			+if('res.entry.data.readingTime')
+				span {res.entry.data.readingTime} min read
+	+if('cover')
+		figure.article-cover
+			img(src!="{cover.url}" srcset!="{cover.srcset || undefined}" sizes="(min-width: 960px) 960px, 100vw" alt!="{cover.alt}" width!="{cover.width}" height!="{cover.height}" fetchpriority="high" decoding="async")
+			+if('cover.caption')
+				figcaption {cover.caption}
+	+if('res.locked')
+		MembersOnly(summary!="{res.entry.data.summary}")
+	+else
+		+if('res.entry.data.summary')
+			aside.tldr(aria-label="Summary")
+				span.tldr-label TL;DR
+				p {res.entry.data.summary}
+		.article-layout
+			+if('toc.length >= 3')
+				nav.article-toc(aria-label="On this page")
+					p.toc-title On this page
+					ol
+						+each('toc as t (t.id)')
+							li(class!="{'toc-' + t.depth}")
+								a(href!="{'#' + t.id}") {t.text}
+			.article-body
+				.prose
+					| {@html res.html.body ?? ''}
+				+if('res.entry.data.keyFacts?.length')
+					aside.key-facts
+						h2 Key facts
+						ul
+							+each('res.entry.data.keyFacts as f (f)')
+								li {f}
+				+if('extra.sources.length')
+					section.sources
+						h2 Sources
+						ol
+							+each('extra.sources as s, i (i)')
+								li
+									+if('s.url')
+										a(href!="{s.url}" rel="noopener noreferrer") {s.title}
+									+else
+										| {s.title}
+	footer.article-footer
+		+if('extra.tags.length')
+			.flex.flex-wrap(class="gap-1.5")
+				+each('extra.tags as t (t.id)')
+					a.tag-link(href!="{t.url}") {'#' + t.name}
+		+each('extra.authors.filter((p) => p.bio) as p (p.id)')
+			.author-box
+				+if('extra.avatars?.[p.avatar]')
+					img.author-avatar(src!="{extra.avatars[p.avatar].thumb || extra.avatars[p.avatar].url}" alt="" width="56" height="56" loading="lazy")
+				div
+					a.font-semibold(href!="{p.url}") {p.name}
+					p.text-sm(class="text-fg-muted") {p.bio}
+	+if('extra.related.length')
+		section.related
+			h2 Related
+			.article-grid
+				+each('extra.related as a (a.id)')
+					ArticleCard(a!="{a}")
+
+<script>
+	import ArticleCard from './ArticleCard.n'
+	import MembersOnly from './MembersOnly.n'
+	{ res, extra } := $props()
+
+	published := $derived new Date(res.entry.published_at ?? res.entry.updated_at)
+	updated := $derived new Date(res.entry.updated_at)
+	cover := $derived res.media?.[res.entry.data.cover] ?? null
+	toc := $derived res.entry.rendered?.body?.toc ?? []
+	fmt := (d) => d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+</script>

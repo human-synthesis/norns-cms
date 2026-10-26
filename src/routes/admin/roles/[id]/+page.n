@@ -1,0 +1,42 @@
+.space-y-6
+	PageHead(title!="{data.role?.label ?? 'New role'}" back="/admin/roles" backLabel="Roles")
+	+if('page.url.searchParams.has("saved")')
+		Banner(variant="success" icon="lucide:check") Saved.
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	+if('data.role?.builtin')
+		Banner(variant="info" icon="lucide:lock") Built-in roles cannot be changed. Create a custom role to pick capabilities yourself.
+	Form(action="?/save" form!="{form}")
+		fieldset.space-y-6(disabled!="{data.role?.builtin}")
+			Card
+				.space-y-4
+					Field(label="Name" name="label" required)
+						Input(name="label" value!="{form?.values?.label ?? data.role?.label ?? ''}")
+					Field(label="Description" name="description")
+						Input(name="description" value!="{form?.values?.description ?? data.role?.description ?? ''}")
+					Field(label="For" name="kind")
+						Select(name="kind" value!="{data.role?.kind ?? 'staff'}" disabled!="{!data.isNew}")
+							option(value="staff") Staff (admin users)
+							option(value="client") Members (site accounts)
+			+each('data.groups as g (g.name)')
+				Card
+					h2.text-sm.font-semibold.mb-3 {g.name}
+					.grid.gap-2(class="md:grid-cols-2")
+						+each('g.caps as cap (cap.id)')
+							label.check-item
+								Checkbox(name="capabilities" value!="{cap.id}" checked!="{has(cap.id)}")
+								span
+									| {cap.label}
+									code.text-xs.ml-1(class="text-fg-subtle") {cap.id}
+			+if('!data.role?.builtin')
+				Btn(type="submit" variant="primary" icon="lucide:save") Save role
+	+if('data.role && !data.role.builtin')
+		form(method="POST" action="?/remove")
+			Btn(type="submit" variant="danger" icon="lucide:trash-2") Delete role
+
+<script>
+	import { page } from '$app/state'
+	import { capMatches } from '$lib/norns/auth/shared/can'
+	{ data, form } := $props()
+	has := (id) => capMatches(data.role?.capabilities ?? [], id)
+</script>

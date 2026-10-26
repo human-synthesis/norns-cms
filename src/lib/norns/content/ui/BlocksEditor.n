@@ -1,0 +1,83 @@
+.blocks-editor
+	input(type="hidden" name!="{name}" value!="{JSON.stringify(list)}")
+	+if('list.length === 0')
+		.blocks-empty
+			Icon(name="lucide:layout-template" size="size-6")
+			p No blocks yet. Add a hero, some text or an article list below.
+	+each('list as block, i (block.id)')
+		section.block-card(class!="{collapsed[block.id] ? 'block-collapsed' : ''}")
+			header.block-head
+				button.block-toggle(type="button" onclick!="{() => toggle(block.id)}" aria-expanded!="{!collapsed[block.id]}")
+					Icon(name!="{defOf(block.type)?.icon ?? 'lucide:square'}" size="size-4")
+					span.font-semibold {defOf(block.type)?.label ?? block.type}
+					span.block-summary {summary(block)}
+				.flex.items-center.gap-1
+					button.icon-btn(type="button" aria-label="Move up" disabled!="{i === 0}" onclick!="{() => move(i, -1)}")
+						Icon(name="lucide:arrow-up" size="size-3.5")
+					button.icon-btn(type="button" aria-label="Move down" disabled!="{i === list.length - 1}" onclick!="{() => move(i, 1)}")
+						Icon(name="lucide:arrow-down" size="size-3.5")
+					button.icon-btn(type="button" aria-label="Duplicate" onclick!="{() => duplicate(i)}")
+						Icon(name="lucide:copy" size="size-3.5")
+					button.icon-btn(type="button" aria-label="Remove block" onclick!="{() => remove(i)}")
+						Icon(name="lucide:trash-2" size="size-3.5")
+			+if('!collapsed[block.id]')
+				.block-body
+					+if('!defOf(block.type)')
+						Banner(variant="warning") This block type is no longer installed; it will be dropped on save.
+					+else
+						+each('defOf(block.type).fields as f (f.name)')
+							label.json-field
+								span.json-label {f.label}{f.required ? ' *' : ''}
+								JsonField(field!="{f}" bind:value!="{block.props[f.name]}" blocks!="{blocks}")
+	.blocks-add
+		span.text-xs.font-semibold.uppercase.tracking-wide(class="text-fg-subtle") Add block
+		.blocks-palette
+			+each('blocks as def (def.id)')
+				button.palette-item(type="button" onclick!="{() => add(def)}" title!="{def.description ?? ''}")
+					Icon(name!="{def.icon ?? 'lucide:square'}" size="size-4")
+					span {def.label}
+
+<script>
+	import JsonField from './JsonField.n'
+
+	// Ordered list of page blocks, posted as JSON in one hidden input.
+	// Each block's fields come from its registered definition; the server
+	// validates every block again on save (content/server/fields.c).
+	{ name, value = [], blocks = [] } := $props()
+
+	uid := => Math.random().toString(36).slice(2, 10)
+	list .= $state (value ?? []).map((b) => ({ id: b.id || uid(), type: b.type, props: { ...(b.props ?? {}) } }))
+	collapsed .= $state {}
+
+	defOf := (type) => blocks.find((d) => d.id === type)
+
+	blank := (def) =>
+		props := {}
+		for f of def.fields
+			props[f.name] = f.default ?? (f.type === 'boolean' ? false : (f.type === 'repeater' ? [] : ''))
+		props
+
+	add := (def) =>
+		list.push { id: uid(), type: def.id, props: blank(def) }
+
+	remove := (i) =>
+		if confirm('Remove this block?')
+			list.splice i, 1
+
+	duplicate := (i) =>
+		copy := JSON.parse(JSON.stringify(list[i]))
+		copy.id = uid()
+		list.splice i + 1, 0, copy
+
+	move := (i, d) =>
+		[a] := list.splice(i, 1)
+		list.splice i + d, 0, a
+
+	toggle := (id) =>
+		collapsed[id] = !collapsed[id]
+
+	summary := (b) =>
+		p := b.props ?? {}
+		text := p.title || p.question || p.caption || p.url || (typeof p.body === 'string' ? p.body.slice(0, 60) : '')
+		text ? `— ${text}` : ''
+</script>

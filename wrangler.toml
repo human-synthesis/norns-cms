@@ -13,7 +13,7 @@
 # from .wrangler/state/.
 
 name = "norns-cms"
-main = ".svelte-kit/cloudflare/_worker.js"
+main = "worker/index.js"
 compatibility_date = "2026-04-01"
 compatibility_flags = ["nodejs_als", "nodejs_compat"]
 
@@ -28,9 +28,23 @@ binding = "ASSETS"
 [observability]
 enabled = true
 
+# Optional config. Secrets are set with `wrangler secret put <NAME>`, never here:
+#   CMS_SECRET      encrypts two-factor secrets at rest (required for 2FA in production)
+#   CRON_SECRET     authenticates the daily maintenance cron (worker/index.js → /api/cron)
+#   RESEND_API_KEY  sends mail through Resend; without it mail is only logged (Admin → Mail log)
 [vars]
-CMS_SITE_TITLE = "Norns CMS"
-CMS_SITE_TAGLINE = "A content management system that is an ordinary Norns app."
+CMS_PUBLIC_URL = "https://norns-cms.humansynthesis.ai"
+MAIL_FROM = "Norns CMS <no-reply@humansynthesis.ai>"
+
+# Daily housekeeping: expired sessions and links, retention purges.
+[triggers]
+crons = ["17 3 * * *"]
+
+# Media library (media/server/storage.js). Locally, `bun run dev` gets an
+# emulated bucket under .wrangler/state through the platform proxy.
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "norns-cms-media"
 
 [[d1_databases]]
 binding = "DB"

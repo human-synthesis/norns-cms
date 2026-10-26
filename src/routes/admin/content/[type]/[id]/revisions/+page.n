@@ -1,0 +1,38 @@
+.space-y-6
+	PageHead(title!="{'History: ' + (data.entry.title || '(untitled)')}" back="/admin/content/{data.ct.id}/{data.entry.id}" backLabel="Back to the editor")
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	.grid.gap-6(class="lg:grid-cols-[18rem_1fr]")
+		ul.revision-list
+			+each('data.revisions as r, i (r.id)')
+				li
+					a.revision-item(href="?rev={r.id}" class!="{data.selected?.id === r.id ? 'revision-active' : ''}")
+						span.font-medium {i === 0 ? 'Current' : r.title || '(untitled)'}
+						span.text-xs(class="text-fg-muted") {new Date(r.created_at).toLocaleString()} · {r.author}
+		div
+			+if('!data.selected')
+				EmptyState(icon="lucide:history" title="Pick a revision") Compare it with the current version and restore it if you want.
+			+else
+				.space-y-4
+					.flex.items-center.justify-between.gap-4
+						div
+							h2.text-lg.font-semibold {data.selected.title || '(untitled)'}
+							p.text-sm(class="text-fg-muted") Saved {new Date(data.selected.created_at).toLocaleString()} · URL {data.selected.slug}
+						+if('data.canRestore && data.selected.changes.length')
+							form(method="POST" action="?/restore")
+								input(type="hidden" name="rev" value!="{data.selected.id}")
+								Btn(type="submit" variant="primary" icon="lucide:rotate-ccw") Restore this version
+					+if('data.selected.changes.length === 0')
+						Banner(variant="info" icon="lucide:check") Same as the current version.
+					+each('data.selected.changes as ch (ch.name)')
+						.diff
+							.diff-label {ch.label}
+							.diff-cols
+								pre.diff-before {ch.before || '—'}
+								pre.diff-after {ch.after || '—'}
+					+if('data.selected.changes.length')
+						p.text-xs(class="text-fg-subtle") Left: this revision · Right: current
+
+<script>
+	{ data, form } := $props()
+</script>

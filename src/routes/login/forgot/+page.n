@@ -1,0 +1,18 @@
+.auth-page
+	Card(class="auth-card")
+		.space-y-5
+			div
+				h1.text-lg.font-bold Reset your password
+				p.text-sm(class="text-fg-muted") We will email you a link that works for one hour.
+			+if('form?.sent')
+				Banner(variant="success" icon="lucide:mail") If an account uses that address, the link is on its way.
+			form.space-y-4(method="POST" action="?/request")
+				Field(label="Email" name="email" required)
+					Input(type="email" name="email" autocomplete="username" required)
+				Btn(type="submit" variant="primary" class="w-full") Send the link
+			.text-sm.text-center
+				a(href="/login") Back to sign in
+
+<script>
+	{ form } := $props()
+</script>
