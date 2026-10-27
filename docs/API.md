@@ -86,6 +86,10 @@ curl -X POST https://your-site.example/api/v1/content/article/12/translations \
   -d '{ "locale": "de", "ai": true }'
 ```
 
+## Forms
+
+`GET /forms` lists the forms (fields, settings, translations, unread counts); `POST /forms` and `PATCH /forms/:id` create and change them. Submissions: `GET /submissions?form=&status=&q=`, `GET /submissions/:id`, `PATCH /submissions/:id` with `{ "status": "read" | "archived" | "spam" | "new" }`, `DELETE /submissions/:id`. `POST /forms/:slug/submissions` submits a form on someone's behalf, validated and notified like a visitor's submission. Visitors' browsers post to `/forms/<slug>` on the site itself (not the API).
+
 ## Media
 
 ```sh

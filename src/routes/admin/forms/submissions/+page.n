@@ -1,0 +1,49 @@
+.space-y-6
+	PageHead(title="Submissions" subtitle="Everything sent through the site's forms.")
+		+snippet('actions')
+			Btn(href="/admin/forms" variant="secondary" icon="lucide:list") Forms
+	nav.filter-tabs
+		+each('data.tabs as tb (tb.id)')
+			a.filter-tab(href!="{link({ status: tb.id || null, page: null })}" class!="{data.status === tb.id ? 'filter-tab-active' : ''}") {tb.label}
+				span.filter-count {tb.count}
+	form.flex.flex-wrap.items-end.gap-2(method="GET")
+		input(type="hidden" name="status" value!="{data.status}")
+		Select(name="form" value!="{data.formId ? String(data.formId) : ''}" class="w-52")
+			option(value="") All forms
+			+each('data.forms as f (f.id)')
+				option(value!="{String(f.id)}") {f.name}
+		Input(name="q" value!="{data.q}" placeholder="Search email and text…" class="w-64")
+		Btn(type="submit" variant="secondary" icon="lucide:filter") Filter
+	DataTable(columns!="{columns}" rows!="{rows}" onrowclick!="{open}" emptyMessage="No submissions yet.")
+	+if('data.pages > 1')
+		.flex.gap-2
+			+if('data.page > 1')
+				Btn(href!="{link({ page: data.page - 1 })}" variant="secondary" size="sm") Newer
+			+if('data.page < data.pages')
+				Btn(href!="{link({ page: data.page + 1 })}" variant="secondary" size="sm") Older
+
+<script>
+	import { goto } from '$app/navigation'
+	import { page } from '$app/state'
+	{ data } := $props()
+	columns := [
+		{ key: 'when', label: 'Received' }
+		{ key: 'form', label: 'Form' }
+		{ key: 'from', label: 'From' }
+		{ key: 'preview', label: 'Message', class: 'text-fg-muted' }
+		{ key: 'status', label: 'Status' }
+	]
+	preview := (d) =>
+		texts := Object.entries(d).filter(([k, v]) => typeof v === 'string' && v && !k.endsWith('__text') && !v.includes('@')).map(([_k, v]) => v)
+		(texts.sort((a, b) => b.length - a.length)[0] ?? '').slice(0, 80)
+	rows := $derived data.rows.map((s) => ({ id: s.id, when: new Date(s.created_at).toLocaleString(), form: s.form_name, from: s.email || '—', preview: preview(s.data), status: (s.status === 'new' ? '● new' : s.status) + (s.notified === -1 ? ' · not emailed' : '') }))
+	open := (row) => goto('/admin/forms/submissions/' + row.id)
+	link := (changes) =>
+		u := new URL(page.url)
+		for [k, v] of Object.entries(changes)
+			if v == null || v === ''
+				u.searchParams.delete k
+			else
+				u.searchParams.set k, String(v)
+		u.pathname + u.search
+</script>

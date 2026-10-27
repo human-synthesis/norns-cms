@@ -19,6 +19,9 @@ a.skip-link(href="#main") {t('nav.skip')}
 	main#main.flex-1.w-full.site-container.py-10
 		slot
 	footer.site-footer
+		+if('data.footerForm')
+			.site-container.pt-8
+				FormView(form!="{data.footerForm}" renderedAt!="{data.renderedAt}" title!="{data.footerForm.name}" compact)
 		.site-container.flex.flex-wrap.items-center.justify-between.gap-3.py-8.text-xs
 			span {data.site.footerText || data.site.title}
 			nav.flex.flex-wrap.items-center.gap-4(aria-label="Footer")
@@ -34,6 +37,7 @@ a.skip-link(href="#main") {t('nav.skip')}
 	import SeoHead from '$lib/norns/seo/ui/SeoHead.n'
 	import CookieBanner from '$lib/norns/consent/ui/CookieBanner.n'
 	import LanguageSwitcher from '$lib/norns/i18n/ui/LanguageSwitcher.n'
+	import FormView from '$lib/norns/forms/ui/FormView.n'
 	import { t } from '$lib/norns/i18n/ui/t.js'
 	{ data } := $props()
 

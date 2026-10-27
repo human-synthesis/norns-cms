@@ -11,4 +11,5 @@ export mail := (c: Container) => {
 	log: (limit?: number) => svc(c).log(limit)
 	lastTo: (email: string) => svc(c).lastTo(email)
 	purge: (before: number) => svc(c).purge(before)
+	notifyTo: async () => ((await (c.resolve('settings.service') as any).get('mail')).notifyTo ?? []) as string[]
 }

@@ -1,0 +1,57 @@
+.fields-editor
+	input(type="hidden" name="fields" value!="{JSON.stringify(list)}")
+	+each('list as f, i (f._key)')
+		.field-row
+			label.json-field
+				span.json-label Label
+				Input(bind:value!="{f.label}" oninput!="{() => autoname(f)}")
+			label.json-field
+				span.json-label Name
+				Input(bind:value!="{f.name}" oninput!="{() => f._named = true}" class="font-mono text-xs")
+			label.json-field
+				span.json-label Type
+				Select(bind:value!="{f.type}")
+					+each('FIELD_TYPES as tp (tp.id)')
+						option(value!="{tp.id}") {tp.label}
+			.flex.items-center.gap-1.pt-6
+				button.icon-btn(type="button" aria-label="Move up" disabled!="{i === 0}" onclick!="{() => move(i, -1)}")
+					Icon(name="lucide:arrow-up" size="size-3.5")
+				button.icon-btn(type="button" aria-label="Move down" disabled!="{i === list.length - 1}" onclick!="{() => move(i, 1)}")
+					Icon(name="lucide:arrow-down" size="size-3.5")
+				button.icon-btn(type="button" aria-label="Remove field" onclick!="{() => list.splice(i, 1)}")
+					Icon(name="lucide:trash-2" size="size-3.5")
+			label.check-item
+				Switch(bind:checked!="{f.required}")
+				span.text-sm Required
+			label.json-field
+				span.json-label Placeholder
+				Input(bind:value!="{f.placeholder}")
+			label.json-field.md-col-span-2
+				span.json-label Help text
+				Input(bind:value!="{f.help}")
+			+if('WITH_OPTIONS.has(f.type)')
+				label.json-field.md-col-span-4
+					span.json-label Options (one per line)
+					Textarea(value!="{(f.options ?? []).map((o) => o.label).join('\\n')}" rows="3" oninput!="{(e) => f.options = e.currentTarget.value.split('\\n').filter((l) => l.trim()).map((l) => ({ value: slug(l), label: l.trim() }))}")
+	Btn(variant="secondary" size="sm" icon="lucide:plus" onclick!="{add}") Add field
+
+<script>
+	import { FIELD_TYPES, WITH_OPTIONS } from '../shared/forms.js'
+	// The fields of a form, edited as a list and posted as JSON. The server
+	// normalises and validates them again (forms/server/service.c).
+	{ fields = [] } := $props()
+
+	uid := => Math.random().toString(36).slice(2, 9)
+	slug := (s) => String(s).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40)
+	list .= $state fields.map((f) => ({ placeholder: '', help: '', required: false, ...f, _key: uid(), _named: true }))
+
+	autoname := (f) =>
+		f.name = slug(f.label) unless f._named
+
+	add := =>
+		list.push { _key: uid(), _named: false, name: '', label: '', type: 'text', required: false, placeholder: '', help: '' }
+
+	move := (i, d) =>
+		[a] := list.splice(i, 1)
+		list.splice i + d, 0, a
+</script>

@@ -21,6 +21,8 @@
 		LocationBlock(props!="{b.props}" data!="{b.data}")
 	+elseif('b.type === "cookieTable"')
 		CookieTableBlock(props!="{b.props}" data!="{b.data}")
+	+elseif('b.type === "form"')
+		FormBlock(props!="{b.props}" data!="{b.data}")
 
 <script>
 	// Block type → component. Blocks contributed by other features render
@@ -37,5 +39,6 @@
 	import ArticleListBlock from '../../articles/ui/ArticleListBlock.n'
 	import LocationBlock from '../../seo/ui/LocationBlock.n'
 	import CookieTableBlock from '../../consent/ui/CookieTableBlock.n'
+	import FormBlock from '../../forms/ui/FormBlock.n'
 	{ blocks = [], media = {} } := $props()
 </script>

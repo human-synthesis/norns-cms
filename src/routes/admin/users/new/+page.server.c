@@ -30,4 +30,4 @@ export actions := page.actions
 				throw redirect 303, `/admin/users/${id}?created=1`
 			r := await auth(container).invite { email: values.email ?? '', name: values.name ?? '', role: values.role ?? '' }, user
 			return err(r.field ?? 'email', r.error, values) unless r.ok
-			{ invited: values.email, link: r.link, mailed: r.mailed, id: r.id }
+			{ invited: values.email, link: r.link, mailed: r.mailed, mailError: r.mailError, id: r.id }

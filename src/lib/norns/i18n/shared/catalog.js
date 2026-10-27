@@ -4,6 +4,17 @@
 // them per language (strings table). A language without its own catalogue
 // falls back to its fallback language, then to English.
 export const en = {
+	"form.tick": "Please tick this box to continue.",
+	"form.send": "Send",
+	"form.sending": "Sending…",
+	"form.sent": "Thank you — your message was sent.",
+	"form.required": "{field} is required",
+	"form.invalidEmail": "Enter a valid email address",
+	"form.invalid": "{field} is not valid",
+	"form.error": "Something went wrong. Please try again.",
+	"form.rate": "Too many submissions. Please try again in a few minutes.",
+	"form.unavailable": "This form is not available.",
+	"form.choose": "Choose…",
 	'nav.skip': 'Skip to content',
 	'nav.admin': 'Admin',
 	'nav.account': 'Account',
@@ -146,6 +157,17 @@ export const en = {
 };
 
 export const de = {
+	"form.tick": "Bitte setzen Sie hier ein Häkchen, um fortzufahren.",
+	"form.send": "Senden",
+	"form.sending": "Wird gesendet…",
+	"form.sent": "Danke — Ihre Nachricht wurde gesendet.",
+	"form.required": "{field} ist erforderlich",
+	"form.invalidEmail": "Geben Sie eine gültige E-Mail-Adresse ein",
+	"form.invalid": "{field} ist ungültig",
+	"form.error": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+	"form.rate": "Zu viele Einsendungen. Bitte versuchen Sie es in einigen Minuten erneut.",
+	"form.unavailable": "Dieses Formular ist nicht verfügbar.",
+	"form.choose": "Bitte wählen…",
 	'nav.skip': 'Zum Inhalt springen', 'nav.admin': 'Admin', 'nav.account': 'Konto', 'nav.signIn': 'Anmelden', 'nav.language': 'Sprache', 'nav.region': 'Region',
 	'footer.rss': 'RSS', 'footer.cookieSettings': 'Cookie-Einstellungen', 'footer.poweredBy': 'Betrieben mit Norns',
 	'type.page.plural': 'Seiten', 'type.article.plural': 'Artikel',
@@ -190,6 +212,17 @@ export const de = {
 };
 
 export const fr = {
+	"form.tick": "Cochez cette case pour continuer.",
+	"form.send": "Envoyer",
+	"form.sending": "Envoi…",
+	"form.sent": "Merci — votre message a été envoyé.",
+	"form.required": "{field} est obligatoire",
+	"form.invalidEmail": "Saisissez une adresse e-mail valide",
+	"form.invalid": "{field} n’est pas valide",
+	"form.error": "Une erreur est survenue. Veuillez réessayer.",
+	"form.rate": "Trop d’envois. Réessayez dans quelques minutes.",
+	"form.unavailable": "Ce formulaire n’est pas disponible.",
+	"form.choose": "Choisir…",
 	'nav.skip': 'Aller au contenu', 'nav.admin': 'Admin', 'nav.account': 'Compte', 'nav.signIn': 'Se connecter', 'nav.language': 'Langue', 'nav.region': 'Région',
 	'footer.rss': 'RSS', 'footer.cookieSettings': 'Paramètres des cookies', 'footer.poweredBy': 'Propulsé par Norns',
 	'type.page.plural': 'Pages', 'type.article.plural': 'Articles',
@@ -234,6 +267,17 @@ export const fr = {
 };
 
 export const es = {
+	"form.tick": "Marca esta casilla para continuar.",
+	"form.send": "Enviar",
+	"form.sending": "Enviando…",
+	"form.sent": "Gracias — tu mensaje se ha enviado.",
+	"form.required": "{field} es obligatorio",
+	"form.invalidEmail": "Introduce un correo electrónico válido",
+	"form.invalid": "{field} no es válido",
+	"form.error": "Algo salió mal. Inténtalo de nuevo.",
+	"form.rate": "Demasiados envíos. Inténtalo de nuevo en unos minutos.",
+	"form.unavailable": "Este formulario no está disponible.",
+	"form.choose": "Elige…",
 	'nav.skip': 'Saltar al contenido', 'nav.admin': 'Admin', 'nav.account': 'Cuenta', 'nav.signIn': 'Iniciar sesión', 'nav.language': 'Idioma', 'nav.region': 'Región',
 	'footer.rss': 'RSS', 'footer.cookieSettings': 'Configuración de cookies', 'footer.poweredBy': 'Funciona con Norns',
 	'type.page.plural': 'Páginas', 'type.article.plural': 'Artículos',
@@ -278,6 +322,17 @@ export const es = {
 };
 
 export const it = {
+	"form.tick": "Seleziona questa casella per continuare.",
+	"form.send": "Invia",
+	"form.sending": "Invio in corso…",
+	"form.sent": "Grazie — il tuo messaggio è stato inviato.",
+	"form.required": "{field} è obbligatorio",
+	"form.invalidEmail": "Inserisci un indirizzo email valido",
+	"form.invalid": "{field} non è valido",
+	"form.error": "Qualcosa è andato storto. Riprova.",
+	"form.rate": "Troppi invii. Riprova tra qualche minuto.",
+	"form.unavailable": "Questo modulo non è disponibile.",
+	"form.choose": "Scegli…",
 	'nav.skip': 'Vai al contenuto', 'nav.admin': 'Admin', 'nav.account': 'Account', 'nav.signIn': 'Accedi', 'nav.language': 'Lingua', 'nav.region': 'Regione',
 	'footer.rss': 'RSS', 'footer.cookieSettings': 'Impostazioni cookie', 'footer.poweredBy': 'Realizzato con Norns',
 	'type.page.plural': 'Pagine', 'type.article.plural': 'Articoli',
@@ -322,6 +377,17 @@ export const it = {
 };
 
 export const ro = {
+	"form.tick": "Bifează această casetă pentru a continua.",
+	"form.send": "Trimite",
+	"form.sending": "Se trimite…",
+	"form.sent": "Mulțumim — mesajul tău a fost trimis.",
+	"form.required": "{field} este obligatoriu",
+	"form.invalidEmail": "Introdu o adresă de e-mail validă",
+	"form.invalid": "{field} nu este valid",
+	"form.error": "Ceva nu a mers bine. Încearcă din nou.",
+	"form.rate": "Prea multe trimiteri. Încearcă din nou peste câteva minute.",
+	"form.unavailable": "Acest formular nu este disponibil.",
+	"form.choose": "Alege…",
 	'nav.skip': 'Sari la conținut', 'nav.admin': 'Admin', 'nav.account': 'Cont', 'nav.signIn': 'Autentificare', 'nav.language': 'Limbă', 'nav.region': 'Regiune',
 	'footer.rss': 'RSS', 'footer.cookieSettings': 'Setări cookie', 'footer.poweredBy': 'Realizat cu Norns',
 	'type.page.plural': 'Pagini', 'type.article.plural': 'Articole',

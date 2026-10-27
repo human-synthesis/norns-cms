@@ -1,0 +1,87 @@
+.space-y-6
+	PageHead(title!="{data.f.name}" subtitle!="{'Posts to /forms/' + data.f.slug}" back="/admin/forms" backLabel="Forms")
+		+snippet('actions')
+			Btn(href="/admin/forms/submissions?form={data.f.id}" variant="secondary" icon="lucide:inbox") Submissions
+	+if('data.created')
+		Banner(variant="success" icon="lucide:check") Form created. Add fields, then put it on a page with the Form block.
+	+if('data.saved')
+		Banner(variant="success" icon="lucide:check") Saved.
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	form.space-y-6(method="POST" action="?/save")
+		Card
+			.settings-grid
+				Field(label="Name" name="name" required)
+					Input(name="name" value!="{data.f.name}")
+				Field(label="URL id" name="slug" help="Used in /forms/<id>; changing it breaks pages that embed the old one only until you re-pick the form there")
+					Input(name="slug" value!="{data.f.slug}")
+				label.check-item
+					input(type="hidden" name="enabled" value="false")
+					Switch(name="enabled" checked!="{data.f.enabled}")
+					span Accept submissions
+		Card
+			h2.font-semibold.mb-3 Fields
+			FieldsEditor(fields!="{data.f.fields}")
+		Card
+			h2.font-semibold.mb-3 After sending
+			.settings-grid
+				Field(label="Button label" name="submitLabel")
+					Input(name="submitLabel" value!="{data.f.settings.submitLabel ?? ''}" placeholder="Send")
+				Field(label="Go to this page instead" name="redirectTo" help="Optional, e.g. /thank-you")
+					Input(name="redirectTo" value!="{data.f.settings.redirectTo ?? ''}")
+				Field(label="Thank-you message" name="successMessage" class="settings-wide")
+					Textarea(name="successMessage" value!="{data.f.settings.successMessage ?? ''}" rows="2")
+				label.check-item.settings-wide
+					input(type="hidden" name="dedupe" value="false")
+					Switch(name="dedupe" checked!="{!!data.f.settings.dedupe}")
+					span One submission per email address (e.g. newsletter signups)
+				Field(label="Message for a repeated email" name="duplicateMessage" class="settings-wide")
+					Input(name="duplicateMessage" value!="{data.f.settings.duplicateMessage ?? ''}")
+		Card
+			h2.font-semibold.mb-1 Notifications
+			p.text-sm.mb-3(class="text-fg-muted")
+				+if('data.provider === "aiosis"')
+					| Sent through Aiosis Emails. It delivers only to addresses verified on the Aiosis account.
+				+else
+					| No mail provider yet (AIOSIS_API_KEY): notifications appear in Logs → Mail log.
+			.settings-grid
+				label.check-item.settings-wide
+					input(type="hidden" name="notify" value="false")
+					Switch(name="notify" checked!="{!!data.f.settings.notify}")
+					span Email each submission (replies go to the person who wrote)
+				Field(label="Send to" name="notifyTo" help!="{'Empty: ' + (data.defaultNotify.length ? data.defaultNotify.join(', ') : 'Settings → Email → Notification address (not set)')}")
+					Input(name="notifyTo" value!="{(data.f.settings.notifyTo ?? []).join(', ')}" placeholder="team@example.com")
+				Field(label="Subject" name="notifySubject" help!="{'{field} inserts a value, e.g. New message from {name}'}")
+					Input(name="notifySubject" value!="{data.f.settings.notifySubject ?? ''}")
+		+each('data.languages as l (l.code)')
+			Card
+				details
+					summary.font-semibold.cursor-pointer {l.name}
+					.space-y-4.pt-4
+						.settings-grid
+							Field(label="Name" name!="{'tr_' + l.code + '_name'}")
+								Input(name!="{'tr_' + l.code + '_name'}" value!="{tr(l.code).name ?? ''}" placeholder!="{data.f.name}")
+							Field(label="Button label" name!="{'tr_' + l.code + '_submitLabel'}")
+								Input(name!="{'tr_' + l.code + '_submitLabel'}" value!="{tr(l.code).submitLabel ?? ''}" placeholder!="{data.f.settings.submitLabel ?? ''}")
+							Field(label="Thank-you message" name!="{'tr_' + l.code + '_successMessage'}" class="settings-wide")
+								Input(name!="{'tr_' + l.code + '_successMessage'}" value!="{tr(l.code).successMessage ?? ''}" placeholder!="{data.f.settings.successMessage ?? ''}")
+							Field(label="Message for a repeated email" name!="{'tr_' + l.code + '_duplicateMessage'}" class="settings-wide")
+								Input(name!="{'tr_' + l.code + '_duplicateMessage'}" value!="{tr(l.code).duplicateMessage ?? ''}" placeholder!="{data.f.settings.duplicateMessage ?? ''}")
+						+each('data.f.fields as fld (fld.name)')
+							.settings-grid
+								Field(label!="{fld.label}" name!="{'tr_' + l.code + '_field_' + fld.name + '_label'}")
+									Input(name!="{'tr_' + l.code + '_field_' + fld.name + '_label'}" value!="{tr(l.code).fields?.[fld.name]?.label ?? ''}" placeholder!="{fld.label}")
+								Field(label="Placeholder" name!="{'tr_' + l.code + '_field_' + fld.name + '_placeholder'}")
+									Input(name!="{'tr_' + l.code + '_field_' + fld.name + '_placeholder'}" value!="{tr(l.code).fields?.[fld.name]?.placeholder ?? ''}" placeholder!="{fld.placeholder ?? ''}")
+		Btn(type="submit" variant="primary" icon="lucide:save") Save form
+	+if('data.f.kind === "custom"')
+		form(method="POST" action="?/remove" onsubmit!="{confirmRemove}")
+			Btn(type="submit" variant="danger" icon="lucide:trash-2") Delete form and its submissions
+
+<script>
+	import FieldsEditor from '$lib/norns/forms/ui/FieldsEditor.n'
+	{ data, form } := $props()
+	tr := (code) => data.f.translations?.[code] ?? {}
+	confirmRemove := (e) =>
+		e.preventDefault() unless confirm('Delete this form and all its submissions?')
+</script>

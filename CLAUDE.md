@@ -18,6 +18,7 @@ src/
                         media, taxonomy/[taxonomy], users, roles, audit, profile, settings/[group], seo,
                         consent (stats, scripts, log), mail, maintenance; api/ (preview, media JSON)
     login/ reset/ invite/ verify/    sign-in, two-factor step, one-time links
+    forms/[slug]        public form submissions (POST; not localised by URL — the form posts its _locale)
     api/v1/[...path]   management API (bearer API keys); api/consent, api/content (public read), api/cron
     media/[...key]      media files. Crawl outputs (/robots.txt, /sitemap.xml per host; {base}/feed.xml,
                         {base}/llms.txt, {base}/llms-full.txt, {base}/sitemap-<type>.xml, *.md twins)
@@ -41,7 +42,8 @@ Features:
 | `pages` | the page type (Markdown or blocks layout) and the general blocks (hero, text, columns, CTA, image, gallery, FAQ, embed) |
 | `articles` | the article type, categories and tags (`terms`), authors, review notifications, article-list block |
 | `media` | uploads (sniffed type, size limit) to R2 (`MEDIA`) or `data/media`, usage tracking, `/media/*` |
-| `mail` | Resend over HTTP when `RESEND_API_KEY` is set; otherwise logged to `mail_log` (dev "inbox") |
+| `mail` | Aiosis Emails (`POST https://emails.aiosis.com/api/v1/messages`) when `AIOSIS_API_KEY` is set (scope `messages:send`); otherwise logged to `mail_log` (dev "inbox"). Sender and notification addresses in Settings → Email. Aiosis delivers only to addresses verified on its account, so it is for notifications to the team; failures are logged with the provider's message |
+| `forms` | admin-defined forms (fields, delivery options, translations; contact and newsletter seeded), public `POST /forms/<slug>` (honeypot, minimum fill time, link count, rate limit; JSON or redirect), submissions inbox with statuses and CSV, notifications, the Form block and the optional footer form |
 | `seo` | SEO field group and settings, head tags, JSON-LD, sitemaps, robots (AI crawler toggles), llms.txt, Markdown twins, feeds, redirects, 404 log, editor checks, location block |
 | `consent` | banner settings, regional rules, GPC, script presets, consent records, injection + loader, cookie table block |
 | `i18n` | languages (fallback, direction, URL words), localisations (sub-folder / sub-domain / domain hosting, languages, countries, content fallback), the URL builder and resolver (`shared/urls.js`), `localeHandle`, interface texts (`shared/catalog.js` + overrides), machine translation with Claude (`server/translator.js`) |
@@ -55,7 +57,7 @@ Features:
 
 **Permissions.** Routes check capabilities with `requireCap(user, 'content.publish')`; the admin nav hides what the user lacks. Owners and admins hold `*`; editor, author, viewer and member are built-in rows in `roles`; custom roles pick from the capabilities features declare. Only owners manage owners, the last active owner cannot be removed, nobody changes their own role or status.
 
-**Secrets** (`wrangler secret put`, `.dev.vars` locally — never in `wrangler.toml`): `CMS_SECRET` (encrypts 2FA secrets), `CRON_SECRET` (daily maintenance), `RESEND_API_KEY` (mail), `ANTHROPIC_API_KEY` (optional: AI translation; `ANTHROPIC_MODEL` overrides the default `claude-opus-5-5`). Vars: `CMS_PUBLIC_URL` (the primary localisation's host), `MAIL_FROM`.
+**Secrets** (`wrangler secret put`, `.dev.vars` locally — never in `wrangler.toml`): `CMS_SECRET` (encrypts 2FA secrets), `CRON_SECRET` (daily maintenance), `AIOSIS_API_KEY` (mail through Aiosis Emails), `ANTHROPIC_API_KEY` (optional: AI translation; `ANTHROPIC_MODEL` overrides the default `claude-opus-5-5`). Vars: `CMS_PUBLIC_URL` (the primary localisation's host); `AIOSIS_API_URL` overrides the Aiosis base URL.
 
 **Sub-domain and domain localisations** need their host attached to the Worker: `bun run domains` lists them, `bun run domains -- --remote --apply` attaches missing ones as Workers custom domains (Cloudflare token required).
 

@@ -24,7 +24,7 @@ export consent := (c: Container) => {
 
 // Public pages only: no third-party code in the admin, the account area or
 // sign-in pages.
-SKIP := /^\/(admin|account|login|reset|invite|verify|api)(\/|$)/
+SKIP := /^\/(admin|account|login|reset|invite|verify|api|forms)(\/|$)/
 
 // Works out the visitor's consent state (cookie, region, GPC) into
 // event.locals.consent, and injects the consented scripts plus the loader

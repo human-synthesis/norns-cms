@@ -324,7 +324,7 @@ export class AuthService
 			text: `${actor?.name || actor?.email || 'An administrator'} invited you to ${site.title} as ${role.label}.\n\nChoose your password here (the link works for 7 days):\n${link}\n\nIf you did not expect this, ignore this email.`
 		}
 		await @audit actor?.id ?? null, actor?.email ?? '', 'user.invite', addr, { role: role.id }
-		{ ok: true, id, link: sent.provider === 'log' ? link : null, mailed: sent.ok }
+		{ ok: true, id, link: (sent.provider === 'log' || !sent.ok) ? link : null, mailed: sent.ok, mailError: sent.ok ? null : sent.error }
 
 	async acceptInvite(raw: string, name: string, password: string)
 		found := await @peekToken raw, 'invite'

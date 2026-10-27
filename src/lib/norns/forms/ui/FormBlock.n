@@ -1,0 +1,6 @@
+FormView(form!="{data?.form}" renderedAt!="{data?.renderedAt}" title!="{props.title}" text!="{props.text}")
+
+<script>
+	import FormView from './FormView.n'
+	{ props = {}, data = null } := $props()
+</script>

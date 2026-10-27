@@ -1,0 +1,110 @@
++if('form')
+	section.form-view(id!="{'form-' + form.slug}" class!="{compact ? 'form-compact' : ''}")
+		+if('title')
+			h2.form-title {title}
+		+if('text')
+			p.form-text {text}
+		+if('done')
+			.form-done(role="status")
+				Icon(name="lucide:check-circle-2" size="size-5")
+				p {done}
+		+else
+			form(method="POST" action!="{'/forms/' + form.slug}" onsubmit!="{submit}" novalidate!="{enhanced}")
+				input(type="hidden" name="_locale" value!="{lang()}")
+				input(type="hidden" name="_page" value!="{pagePath}")
+				input(type="hidden" name="_t" value!="{String(renderedAt ?? 0)}")
+				.form-hp(aria-hidden="true")
+					label
+						| Leave this empty
+						input(type="text" name="_hp" tabindex="-1" autocomplete="off")
+				+if('serverError')
+					p.form-error(role="alert") {serverError}
+				.form-fields
+					+each('form.fields as f (f.name)')
+						.form-field(class!="{'form-field-' + f.type}")
+							+if('f.type === "checkbox" || f.type === "consent"')
+								label.check-item
+									input(type="checkbox" name!="{f.name}" value="on" required!="{f.required}" aria-invalid!="{errors[f.name] ? 'true' : undefined}" aria-describedby!="{errors[f.name] ? id(f, 'err') : undefined}")
+									span {f.label}{f.required && f.type !== 'consent' ? ' *' : ''}
+							+elseif('f.type === "radio" || f.type === "checkboxes"')
+								fieldset
+									legend.form-label {f.label}{f.required ? ' *' : ''}
+									+each('f.options as o (o.value)')
+										label.check-item
+											input(type!="{f.type === 'radio' ? 'radio' : 'checkbox'}" name!="{f.name}" value!="{o.value}" required!="{f.required && f.type === 'radio'}")
+											span {o.label}
+							+else
+								label.form-label(for!="{id(f)}") {f.label}{f.required ? ' *' : ''}
+								+if('f.type === "textarea"')
+									textarea.textarea(id!="{id(f)}" name!="{f.name}" rows="5" required!="{f.required}" placeholder!="{f.placeholder || undefined}" aria-invalid!="{errors[f.name] ? 'true' : undefined}" aria-describedby!="{errors[f.name] ? id(f, 'err') : undefined}")
+								+elseif('f.type === "select"')
+									select.select(id!="{id(f)}" name!="{f.name}" required!="{f.required}" aria-invalid!="{errors[f.name] ? 'true' : undefined}")
+										option(value="") {t('form.choose')}
+										+each('f.options as o (o.value)')
+											option(value!="{o.value}") {o.label}
+								+else
+									input.input(id!="{id(f)}" type!="{f.type}" name!="{f.name}" required!="{f.required}" placeholder!="{f.placeholder || undefined}" autocomplete!="{f.autocomplete || undefined}" aria-invalid!="{errors[f.name] ? 'true' : undefined}" aria-describedby!="{errors[f.name] ? id(f, 'err') : undefined}")
+							+if('f.help')
+								p.form-help {f.help}
+							+if('errors[f.name]')
+								p.form-error(id!="{id(f, 'err')}") {errors[f.name]}
+				Btn(type="submit" variant="primary" disabled!="{sending}") {sending ? t('form.sending') : (form.submitLabel || t('form.send'))}
+
+<script>
+	import { page } from '$app/state'
+	import { onMount } from 'svelte'
+	import { t, lang } from '../../i18n/ui/t.js'
+
+	// A form from Forms, already in the page's language. Plain POST to
+	// /forms/<slug> without JavaScript (the server redirects back with
+	// ?form=<slug>&sent=1 or &error=…); with JavaScript it answers in place.
+	{ form, renderedAt = 0, title = '', text = '', compact = false } := $props()
+
+	errors .= $state({})
+	serverError .= $state('')
+	done .= $state('')
+	sending .= $state(false)
+	enhanced .= $state(false)
+
+	pagePath := $derived.by =>
+		u := new URL(page.url)
+		u.searchParams.delete 'form'
+		u.searchParams.delete 'sent'
+		u.searchParams.delete 'error'
+		u.pathname + u.search
+
+	id := (f, suffix = '') => `f-${form.slug}-${f.name}${suffix ? '-' + suffix : ''}`
+
+	onMount =>
+		enhanced = true
+		if page.url.searchParams.get('form') === form?.slug
+			if page.url.searchParams.has('sent')
+				done = form.successMessage || t('form.sent')
+			else if page.url.searchParams.get('error')
+				serverError = page.url.searchParams.get('error')
+
+	submit := async (e) =>
+		e.preventDefault()
+		formEl := e.currentTarget
+		errors = {}
+		serverError = ''
+		sending = true
+		try
+			res := await fetch(formEl.action, { method: 'POST', body: new FormData(formEl), headers: { accept: 'application/json' } })
+			body := await res.json().catch(=> ({}))
+			if body.ok
+				if body.redirectTo
+					location.href = body.redirectTo
+				else
+					done = body.message || t('form.sent')
+			else if body.errors
+				errors = body.errors
+				first := formEl.querySelector('[aria-invalid="true"]')
+				queueMicrotask => formEl.querySelector('[aria-invalid="true"]')?.focus()
+			else
+				serverError = body.error || t('form.error')
+		catch
+			serverError = t('form.error')
+		finally
+			sending = false
+</script>

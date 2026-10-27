@@ -1,5 +1,5 @@
 .space-y-6
-	PageHead(title="Mail log" subtitle!="{data.provider === 'resend' ? 'Sending through Resend.' : 'No mail provider configured: messages are logged here instead of sent. Set RESEND_API_KEY and MAIL_FROM to send.'}")
+	PageHead(title="Mail log" subtitle!="{data.provider === 'aiosis' ? 'Sending through Aiosis Emails. It delivers only to addresses verified on the Aiosis account.' : 'No mail provider configured: messages are logged here instead of sent. Set the AIOSIS_API_KEY secret (a key with the messages:send scope) to send.'}")
 	+if('data.log.length === 0')
 		EmptyState(icon="lucide:mail" title="No mail yet")
 	+else

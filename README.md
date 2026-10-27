@@ -39,8 +39,9 @@ Migrations live in `migrations/<feature>/`; `bun run d1:sync` mirrors them into 
 | **Consent** | cookie banner with equal Accept / Reject / Customise, per-category choices, regional rules (EU/EEA, UK, CH, rest: opt-in / opt-out / notice) from Cloudflare's country, Global Privacy Control, script presets (GA4, GTM, Plausible, Matomo, Clarity, Hotjar, Meta Pixel, LinkedIn) and custom code, Google Consent Mode v2, scripts inert until consent and activated in place, withdrawal clears cookies, consent log without IPs + CSV export, policy versions, cookie declaration |
 | **SEO & GEO** | per-entry meta, canonical, robots, social image, schema type; title template; Open Graph / X cards; JSON-LD (Organization or LocalBusiness, WebSite, BlogPosting with authors, citations and abstract, BreadcrumbList, FAQPage); sitemaps with images; robots.txt with per-bot AI crawler switches; `llms.txt`, `llms-full.txt` and a Markdown twin of every page (`/<path>.md`); automatic 301s on URL changes, redirect manager with CSV import, 404 log; live editor checks and a site report; local business address, hours and coordinates |
 | **Localisation** | localisations (markets) on sub-folders (`/en/…`, `/ch/de/…`), sub-domains or their own domains, each with several languages; content per language linked as translations, with "source changed" tracking and optional AI translation (Claude); translated URL words, categories and tags; interface texts built in for en, de, fr, es, it, ro and editable per language; translatable settings; language and region switchers; hreflang, per-locale sitemaps, feeds and llms.txt; member emails in the member's language |
+| **Forms** | contact and newsletter forms built in, any number of custom forms with a field builder (text, email, phone, choices, consent …), translated labels, spam protection without captchas, an inbox with new / read / archived / spam and CSV export, email notifications, a Form page block and an optional footer form |
 | **API** | management API at `/api/v1` for everything in the admin, with API keys limited by capability, OpenAPI 3.1 at `/api/v1/openapi.json`, docs in the admin and in [`docs/API.md`](docs/API.md) |
-| **Platform** | Cloudflare Workers + D1 + R2, nonce-based CSP with `strict-dynamic`, security headers, daily maintenance cron, mail through Resend (or a log in dev), read API as JSON or TRON |
+| **Platform** | Cloudflare Workers + D1 + R2, nonce-based CSP with `strict-dynamic`, security headers, daily maintenance cron, mail through Aiosis Emails (or a log in dev), read API as JSON or TRON |
 
 ## Add a content type
 
@@ -82,7 +83,7 @@ migrations/                 per-feature SQL, mirrored into migrations/d1/ for wr
 
 `CLAUDE.md` describes each feature, the extension points and the conventions.
 
-Production secrets (`wrangler secret put`): `CMS_SECRET` (2FA encryption), `CRON_SECRET` (maintenance cron), `RESEND_API_KEY` (mail). The R2 bucket `norns-cms-media` must exist before deploying (`bunx wrangler r2 bucket create norns-cms-media`).
+Production secrets (`wrangler secret put`): `CMS_SECRET` (2FA encryption), `CRON_SECRET` (maintenance cron), `AIOSIS_API_KEY` (mail through Aiosis Emails). The R2 bucket `norns-cms-media` must exist before deploying (`bunx wrangler r2 bucket create norns-cms-media`).
 
 ## License
 

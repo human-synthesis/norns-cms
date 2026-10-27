@@ -6,7 +6,7 @@
 		+if('form.link')
 			Card
 				.space-y-2
-					p.text-sm No mail provider is configured (RESEND_API_KEY), so send this link yourself:
+					p.text-sm {form.mailed ? 'Here is the link as well:' : (form.mailError ? 'The email could not be delivered (' + form.mailError + '), so send this link yourself:' : 'No mail provider is configured (AIOSIS_API_KEY), so send this link yourself:')}
 					.flex.items-center.gap-2
 						code.text-xs.break-all {form.link}
 						CopyButton(value!="{form.link}" size="sm")

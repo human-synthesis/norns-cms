@@ -33,7 +33,7 @@ export seo := (c: Container) => {
 	purge: () => svc(c).purge()
 }
 
-SKIP := /^\/(admin|api|account|login|media|_app|cdn-cgi|reset|invite|verify)(\/|$)/
+SKIP := /^\/(admin|api|account|login|media|_app|cdn-cgi|reset|invite|verify|forms)(\/|$)/
 ASSET := /\.(js|css|map|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|txt|xml|json)$/i
 
 text := (body: string, type: string, extra: Record<string, string> = {}) =>

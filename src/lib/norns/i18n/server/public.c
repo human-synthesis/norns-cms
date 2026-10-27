@@ -62,7 +62,7 @@ export tFor := async (c: Container, code: string) =>
 	strings := await svc(c).strings code
 	(key: string, vars?: Record<string, any>) => translate(strings, key, vars)
 
-SYSTEM := /^\/(admin|api|account|login|media|_app|cdn-cgi|reset|invite|verify|favicon)(\/|$|\.)/
+SYSTEM := /^\/(admin|api|account|login|media|_app|cdn-cgi|reset|invite|verify|forms|favicon)(\/|$|\.)/
 ROOT_FILES := new Set(['/robots.txt', '/sitemap.xml'])
 LANG_COOKIE := 'cms_lang'
 

@@ -5,6 +5,7 @@ import { seo } from '$lib/norns/seo/server/public'
 import { consent } from '$lib/norns/consent/server/public'
 import { i18n } from '$lib/norns/i18n/server/public'
 import { isStaff } from '$lib/norns/auth/server/public'
+import { forms } from '$lib/norns/forms/server/public'
 
 // Site chrome for every public page, in the request's language
 // (locals.locale from localeHandle): localized settings, navigation, the
@@ -32,7 +33,11 @@ export load := page.load
 				l := i18n(c).link code, m.code
 				{ code: m.code, name: m.name, href: `${l.origin}${l.base}/` }
 		}
+		formsCfg := await settings(c).get 'forms'
+		footerForm := formsCfg.footerForm ? await forms(c).localized(String(formsCfg.footerForm), loc.language) : null
 		{
+			footerForm
+			renderedAt: Date.now()
 			site: { title: site.title, tagline: site.tagline, footerText: site.footerText, registration: site.registration }
 			nav: await cms(c).nav()
 			user: user ? { name: user.name || user.email, staff: isStaff(user) } : null

@@ -1,0 +1,33 @@
+.space-y-6
+	PageHead(title="Forms" subtitle="Collect messages and signups. Put a form on any page with the Form block, or in the footer under Settings.")
+		+snippet('actions')
+			Btn(href="/admin/forms/submissions" variant="secondary" icon="lucide:inbox") Submissions
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	.grid.gap-4(class="md:grid-cols-2")
+		+each('data.forms as f (f.id)')
+			Card
+				.flex.items-start.justify-between.gap-3
+					div
+						a.font-semibold.no-underline(href="/admin/forms/{f.id}" class="text-fg hover:underline") {f.name}
+						p.text-xs(class="text-fg-subtle") {f.fields.length} fields · /forms/{f.slug}
+					.flex.gap-1
+						+if('f.kind !== "custom"')
+							Badge(size="sm" variant="info") default
+						+if('!f.enabled')
+							Badge(size="sm" variant="warning") off
+				.flex.flex-wrap.items-center.gap-2.mt-4
+					Btn(href="/admin/forms/submissions?form={f.id}" variant="secondary" size="sm" icon="lucide:inbox") {f.total} submissions{f.unread ? ' · ' + f.unread + ' new' : ''}
+					+if('data.canManage')
+						Btn(href="/admin/forms/{f.id}" variant="ghost" size="sm" icon="lucide:pencil") Edit
+					Btn(href="/admin/forms/{f.id}/export.csv" variant="ghost" size="sm" icon="lucide:download") CSV
+	+if('data.canManage')
+		Card
+			form.flex.flex-wrap.items-end.gap-3(method="POST" action="?/create")
+				Field(label="New form" name="name")
+					Input(name="name" placeholder="e.g. Quote request" class="w-72")
+				Btn(type="submit" variant="primary" icon="lucide:plus") Create
+
+<script>
+	{ data, form } := $props()
+</script>

@@ -1,0 +1,37 @@
+.space-y-6
+	PageHead(title!="{data.s.form_name + ' — ' + (data.s.email || '#' + data.s.id)}" subtitle!="{new Date(data.s.created_at).toLocaleString() + (data.s.locale ? ' · ' + data.s.locale : '') + (data.s.page ? ' · from ' + data.s.page : '')}" back="/admin/forms/submissions" backLabel="Submissions")
+		+snippet('actions')
+			+if('data.s.email')
+				Btn(href!="{'mailto:' + data.s.email}" variant="primary" icon="lucide:reply") Reply by email
+	+if('form?.saved')
+		Banner(variant="success" icon="lucide:check") Marked as {form.saved}.
+	+if('data.s.status === "spam"')
+		Banner(variant="warning" icon="lucide:shield-alert") Marked as spam (filled the hidden field, sent too fast, or too many links). No notification was sent.
+	+if('data.s.notified === -1')
+		Banner(variant="warning" icon="lucide:mail-x") The notification email was not delivered: {data.s.notify_error}
+	Card
+		dl.submission-data
+			+each('fields as f (f.name)')
+				dt {f.label}
+				dd {show(data.s.data[f.name])}
+			+each('extra as [k, v] (k)')
+				dt {k}
+				dd {show(v)}
+	+if('data.canManage')
+		.flex.flex-wrap.items-center.gap-2
+			+each('STATUSES.filter((x) => x !== data.s.status) as st (st)')
+				form(method="POST" action="?/status")
+					input(type="hidden" name="status" value!="{st}")
+					Btn(type="submit" variant="secondary" size="sm") Mark as {st}
+			form(method="POST" action="?/remove" onsubmit!="{confirmRemove}")
+				Btn(type="submit" variant="danger" size="sm" icon="lucide:trash-2") Delete
+
+<script>
+	{ data, form } := $props()
+	STATUSES := ['read', 'new', 'archived', 'spam']
+	fields := $derived data.f?.fields ?? []
+	extra := $derived Object.entries(data.s.data).filter(([k]) => !fields.some((f) => f.name === k) && !k.endsWith('__text'))
+	show := (v) => Array.isArray(v) ? v.join(', ') : (typeof v === 'boolean' ? (v ? 'yes' : 'no') : String(v ?? '—'))
+	confirmRemove := (e) =>
+		e.preventDefault() unless confirm('Delete this submission?')
+</script>

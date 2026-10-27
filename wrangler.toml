@@ -31,10 +31,10 @@ enabled = true
 # Optional config. Secrets are set with `wrangler secret put <NAME>`, never here:
 #   CMS_SECRET      encrypts two-factor secrets at rest (required for 2FA in production)
 #   CRON_SECRET     authenticates the daily maintenance cron (worker/index.js → /api/cron)
-#   RESEND_API_KEY  sends mail through Resend; without it mail is only logged (Admin → Mail log)
+#   AIOSIS_API_KEY  sends mail through Aiosis Emails (scope messages:send); without it mail is only logged
+#   ANTHROPIC_API_KEY  optional: AI translation
 [vars]
 CMS_PUBLIC_URL = "https://norns-cms.humansynthesis.ai"
-MAIL_FROM = "Norns CMS <no-reply@humansynthesis.ai>"
 
 # Daily housekeeping: expired sessions and links, retention purges.
 [triggers]
