@@ -1,0 +1,99 @@
++if('data.kind === "page"')
+	PageView(res!="{data.res}")
++elseif('data.kind === "latest"')
+	section.home-intro
+		h1.text-5xl.font-bold.tracking-tight.leading-none {page.data.site.title}
+		+if('page.data.site.tagline')
+			p.text-lg.max-w-prose(class="text-fg-muted") {page.data.site.tagline}
+	section.pt-10.space-y-6
+		h2.text-xl.font-semibold {t('home.latest')}
+		+if('data.articles.length === 0')
+			p(class="text-fg-muted") {t('home.noArticles')}
+		+else
+			.article-grid
+				+each('data.articles as a (a.id)')
+					ArticleCard(a!="{a}")
+			+if('data.more')
+				a(href!="{data.more}") {t('home.allArticles')}
++elseif('data.kind === "articles"')
+	.space-y-10
+		header.space-y-3
+			h1.text-4xl.font-bold.tracking-tight {t('type.article.plural')}
+			+if('data.categories.length')
+				nav.flex.flex-wrap.gap-2(aria-label!="{t('list.categories')}")
+					+each('data.categories as cat (cat.id)')
+						a.tag-link(href!="{cat.url}") {cat.name}
+		+if('data.featured.length')
+			section.space-y-4
+				h2.text-sm.font-semibold.uppercase.tracking-wide(class="text-fg-subtle") {t('list.featured')}
+				.article-grid
+					+each('data.featured as a (a.id)')
+						ArticleCard(a!="{a}")
+		+if('data.entries.length === 0 && data.featured.length === 0')
+			p(class="text-fg-muted") {t('list.nothing')}
+		+else
+			.article-grid
+				+each('data.entries as a (a.id)')
+					ArticleCard(a!="{a}")
+		Pager(page!="{data.page}" pages!="{data.pages}" base!="{data.path}")
++elseif('data.kind === "archive"')
+	.space-y-8
+		header.space-y-2
+			p.article-kicker {data.label}
+			h1.text-4xl.font-bold.tracking-tight {data.term.name}
+			+if('data.term.description')
+				p.text-lg.max-w-prose(class="text-fg-muted") {data.term.description}
+		+if('data.list.entries.length === 0')
+			p(class="text-fg-muted") {t('list.nothing')}
+		+else
+			.article-grid
+				+each('data.list.entries as a (a.id)')
+					ArticleCard(a!="{a}")
+		Pager(page!="{data.list.page}" pages!="{data.list.pages}" base!="{data.path}")
++elseif('data.kind === "author"')
+	.space-y-8
+		header.author-header
+			+if('data.avatar')
+				img.author-avatar-lg(src!="{data.avatar.thumb || data.avatar.url}" alt="" width="96" height="96")
+			div
+				p.article-kicker {t('archive.author')}
+				h1.text-4xl.font-bold.tracking-tight {data.author.name}
+				+if('data.author.bio')
+					p.text-lg.max-w-prose(class="text-fg-muted") {data.author.bio}
+		+if('data.list.entries.length === 0')
+			p(class="text-fg-muted") {t('list.nothing')}
+		+else
+			.article-grid
+				+each('data.list.entries as a (a.id)')
+					ArticleCard(a!="{a}")
+		Pager(page!="{data.list.page}" pages!="{data.list.pages}" base!="{data.path}")
++elseif('data.kind === "list"')
+	.space-y-8
+		h1.text-4xl.font-bold.tracking-tight {t('type.' + data.ct.id + '.plural')}
+		+if('data.entries.length === 0')
+			p(class="text-fg-muted") {t('list.nothing')}
+		.space-y-4
+			+each('data.entries as e (e.id)')
+				Card(href!="{page.data.i18n.base + '/' + e.slug}")
+					.font-semibold.text-lg {e.title}
+					+if('e.data.summary')
+						p.text-sm.mt-1(class="text-fg-muted") {e.data.summary}
++elseif('data.kind === "cookies"')
+	article.page-view
+		h1.page-title {t('cookies.title')}
+		CookieTableBlock(props!="{{ title: '', showButton: true }}" data!="{{ declaration: data.declaration }}")
++elseif('data.res.ct.id === "article"')
+	ArticleView(res!="{data.res}" extra!="{data.extra}" fallbackName!="{data.fallbackName}")
++else
+	PageView(res!="{data.res}" fallbackName!="{data.fallbackName}")
+
+<script>
+	import { page } from '$app/state'
+	import PageView from '$lib/norns/pages/ui/PageView.n'
+	import ArticleView from '$lib/norns/articles/ui/ArticleView.n'
+	import ArticleCard from '$lib/norns/articles/ui/ArticleCard.n'
+	import Pager from '$lib/norns/articles/ui/Pager.n'
+	import CookieTableBlock from '$lib/norns/consent/ui/CookieTableBlock.n'
+	import { t } from '$lib/norns/i18n/ui/t.js'
+	{ data } := $props()
+</script>

@@ -76,6 +76,16 @@ curl -X PATCH https://your-site.example/api/v1/content/article/12 \
 
 The same rules as the admin apply: authors (`content.edit_own`) change only their own unpublished entries, publishing needs `content.publish`, and renaming a published entry's slug adds a 301 redirect.
 
+## Languages and localisations
+
+Entries are per language (`locale`). `POST /content/:type` takes `locale` (default: the primary localisation's default language) and `markets` (localisation codes; empty = everywhere the language is offered). `GET /content/:type?locale=de` lists one language. `GET /content/:type/:id/translations` shows every language's version (and whether it is behind its source); `POST /content/:type/:id/translations` with `{ "locale": "de" }` creates a linked draft copied from the source, with `data` to supply translated values or `"ai": true` to have Claude translate it (needs the `ANTHROPIC_API_KEY` secret). `/localisations`, `/languages` and `/texts/:code` manage the localisation setup and the interface texts; `PATCH /settings/:group?lang=de` sets a group's translations.
+
+```sh
+curl -X POST https://your-site.example/api/v1/content/article/12/translations \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{ "locale": "de", "ai": true }'
+```
+
 ## Media
 
 ```sh

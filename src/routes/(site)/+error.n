@@ -1,0 +1,13 @@
+svelte:head
+	title {heading}
+.not-found
+	p.not-found-code {page.status}
+	h1.text-4xl.font-bold.tracking-tight {heading}
+	p.text-lg(class="text-fg-muted") {page.status === 404 ? t('notFound.text') : t('error.text')}
+	Btn(href!="{(page.data?.i18n?.base || '') + '/'}" variant="primary") {t('notFound.home')}
+
+<script>
+	import { page } from '$app/state'
+	import { t } from '$lib/norns/i18n/ui/t.js'
+	heading := $derived page.status === 404 ? t('notFound.title') : t('error.title')
+</script>

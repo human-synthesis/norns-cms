@@ -1,0 +1,39 @@
+.space-y-6
+	PageHead(title="Languages" subtitle="Content is written per language. Localisations decide where each language is shown." back="/admin/localisation" backLabel="Localisations")
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	Card
+		form.flex.flex-wrap.items-end.gap-3(method="POST" action="?/add")
+			Field(label="Add a language" name="code")
+				Select(name="code")
+					+each('data.known as k (k.code)')
+						option(value!="{k.code}") {k.name} — {k.native} ({k.code})
+			Field(label="…or a code" name="custom" help="Any BCP 47 code, e.g. gsw or es-419")
+				Input(name="custom" class="w-32")
+			Btn(type="submit" variant="primary" icon="lucide:plus") Add
+	.table-wrap
+		table.audit-table
+			thead
+				tr
+					th Language
+					th Code
+					th Fallback
+					th Direction
+					th Interface texts
+					th Entries
+			tbody
+				+each('data.languages as l (l.code)')
+					tr
+						td
+							a(href="/admin/localisation/languages/{encodeURIComponent(l.code)}") {l.native || l.name}
+							span.text-xs(class="text-fg-subtle")  {l.name}
+						td
+							code {l.code}
+						td {l.fallback || '—'}
+						td {l.dir}
+						td {l.builtIn ? 'built in' : 'falls back'}
+						td {l.entries}
+
+<script>
+	{ data, form } := $props()
+</script>

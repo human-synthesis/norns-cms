@@ -1,5 +1,5 @@
 +if('visible && !dialogOpen')
-	section.cookie-banner(role="region" aria-label="Cookie consent")
+	section.cookie-banner(role="region" aria-label!="{t('consent.region')}")
 		.cookie-banner-inner
 			.min-w-0
 				h2.cookie-title {banner.title}
@@ -13,26 +13,26 @@
 					form(method="POST" action="/api/consent" onsubmit!="{(e) => submit(e, 'acknowledge')}")
 						input(type="hidden" name="action" value="acknowledge")
 						input(type="hidden" name="back" value!="{back}")
-						Btn(type="submit" variant="primary") OK
-					Btn(variant="ghost" onclick!="{openDialog}") Settings
+						Btn(type="submit" variant="primary") {t('consent.ok')}
+					Btn(variant="ghost" onclick!="{openDialog}") {t('consent.settings')}
 			+else
 				.cookie-actions
 					form(method="POST" action="/api/consent" onsubmit!="{(e) => submit(e, 'reject_all')}")
 						input(type="hidden" name="action" value="reject_all")
 						input(type="hidden" name="back" value!="{back}")
-						Btn(type="submit" variant="secondary") Reject all
+						Btn(type="submit" variant="secondary") {t('consent.rejectAll')}
 					form(method="POST" action="/api/consent" onsubmit!="{(e) => submit(e, 'accept_all')}")
 						input(type="hidden" name="action" value="accept_all")
 						input(type="hidden" name="back" value!="{back}")
-						Btn(type="submit" variant="secondary") Accept all
-					Btn(variant="ghost" onclick!="{openDialog}") Customise
-Dialog(bind:open!="{dialogOpen}" title="Cookie settings" class="cookie-dialog")
+						Btn(type="submit" variant="secondary") {t('consent.acceptAll')}
+					Btn(variant="ghost" onclick!="{openDialog}") {t('consent.customise')}
+Dialog(bind:open!="{dialogOpen}" title!="{t('consent.dialogTitle')}" class="cookie-dialog")
 	form.space-y-4(method="POST" action="/api/consent" onsubmit!="{(e) => submit(e, 'custom')}")
 		input(type="hidden" name="action" value="custom")
 		input(type="hidden" name="back" value!="{back}")
 		p.text-sm(class="text-fg-muted") {banner.text}
 		+if('banner.gpc')
-			Banner(variant="info" icon="lucide:shield") Your browser sends a Global Privacy Control signal, so marketing starts switched off.
+			Banner(variant="info" icon="lucide:shield") {t('consent.gpc')}
 		+each('banner.groups as g (g.id)')
 			.cookie-group
 				.flex.items-start.justify-between.gap-4
@@ -40,19 +40,19 @@ Dialog(bind:open!="{dialogOpen}" title="Cookie settings" class="cookie-dialog")
 						.font-semibold {g.label}
 						p.text-sm(class="text-fg-muted") {g.text}
 					+if('g.required')
-						span.text-xs.font-semibold(class="text-fg-subtle") Always on
+						span.text-xs.font-semibold(class="text-fg-subtle") {t('consent.alwaysOn')}
 					+else
 						Switch(name!="{g.id}" bind:checked!="{choice[g.id]}")
 				+if('g.services.length || g.cookies.length')
 					details.cookie-details
-						summary {g.services.length ? g.services.join(', ') : 'Details'}
+						summary {g.services.length ? g.services.join(', ') : t('consent.details')}
 						+if('g.cookies.length')
 							table.cookie-table
 								thead
 									tr
-										th Cookie
-										th Lasts
-										th Purpose
+										th {t('cookies.cookie')}
+										th {t('cookies.lasts')}
+										th {t('cookies.purpose')}
 								tbody
 									+each('g.cookies as ck, i (i)')
 										tr
@@ -61,17 +61,18 @@ Dialog(bind:open!="{dialogOpen}" title="Cookie settings" class="cookie-dialog")
 											td {ck.duration}
 											td {ck.purpose}
 		.flex.flex-wrap.items-center.gap-2.pt-2
-			Btn(type="submit" variant="primary") Save choices
-			Btn(variant="secondary" onclick!="{() => choose('accept_all')}") Accept all
-			Btn(variant="secondary" onclick!="{() => choose('reject_all')}") Reject all
+			Btn(type="submit" variant="primary") {t('consent.save')}
+			Btn(variant="secondary" onclick!="{() => choose('accept_all')}") {t('consent.acceptAll')}
+			Btn(variant="secondary" onclick!="{() => choose('reject_all')}") {t('consent.rejectAll')}
 		+if('consentId')
-			p.text-xs(class="text-fg-subtle") Your consent ID: 
+			p.text-xs(class="text-fg-subtle") {t('consent.yourId')} 
 				code {consentId}
 		+if('banner.policyUrl')
 			p.text-xs
 				a(href!="{banner.policyUrl}") {banner.policyLabel}
 
 <script>
+	import { t } from '../../i18n/ui/t.js'
 	import { page } from '$app/state'
 
 	// The cookie banner and the settings dialog. Works without JavaScript

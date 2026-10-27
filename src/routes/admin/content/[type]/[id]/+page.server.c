@@ -3,6 +3,7 @@ import { error, fail, redirect } from '@sveltejs/kit'
 import { cms, canEditEntry, formToObject, typeOrRedirect } from '$lib/norns/content/server/public'
 import { requireCap, can, auth, audit } from '$lib/norns/auth/server/public'
 import { settings } from '$lib/norns/settings/server/public'
+import { i18n, aiAvailable, aiTranslateData } from '$lib/norns/i18n/server/public'
 
 typeOr404 := (container: any, id: string) =>
 	ct := cms(container).getType id
@@ -34,7 +35,13 @@ export load := page.load
 		ct := typeOrRedirect container, params.type, url
 		entry := await entryOr404 container, ct, params.id
 		form := await cms(container).form ct.id
-		values := entry ? { ...entry.data, slug: entry.slug, visibility: entry.visibility } : {}
+		values := entry ? { ...entry.data, slug: entry.slug, visibility: entry.visibility, markets: entry.markets } : {}
+		codes := cms(container).languages()
+		languageOf := (code: string) =>
+			l := i18n(container).language code
+			{ code, name: l.native || l.name || code }
+		locale := entry?.locale ?? (codes.includes(url.searchParams.get('lang') ?? '') ? url.searchParams.get('lang') : cms(container).defaultLanguage())
+		translations := entry ? await cms(container).translations(entry) : []
 		unless entry
 			for f of form.fields
 				values[f.name] = f.default if f.default !== undefined
@@ -49,6 +56,11 @@ export load := page.load
 			saved: url.searchParams.get('saved') ?? ''
 			publicUrl: entry ? cms(container).urlFor(ct, entry) : null
 			author: author ? (author.name || author.email) : null
+			locale
+			languages: codes.map(languageOf)
+			translations
+			ai: aiAvailable()
+			markets: i18n(container).markets().filter((m) => m.languages.some((l) => l.code === locale)).map((m) => ({ code: m.code, name: m.name }))
 			revisions: entry ? (await cms(container).revisions(entry.id)).length : 0
 			seoContext: { siteTitle: site.title, template: seoCfg.titleTemplate }
 			perms: {
@@ -117,6 +129,37 @@ export actions := page.actions
 			await cms(container).setStatus ct.id, result.id, 'published', { publishAt: scheduled ? at : (at ?? null), user }
 			await audit(container).log user, (scheduled ? 'content.schedule' : 'content.publish'), `${ct.id}#${result.id}`, { title: result.entry.title, at }
 			throw redirect 303, `/admin/content/${ct.id}/${result.id}?saved=${scheduled ? 'scheduled' : 'published'}`
+
+	// Create the entry in another language (a linked draft copied from this
+	// one) and open it.
+	translate:
+		run: async ({ container, event, user }) =>
+			ct := typeOr404 container, event.params.type
+			entry := await entryOr404 container, ct, event.params.id
+			unless entry && canEditEntry(user, null)
+				throw error 403, 'You cannot create entries'
+			fd := await event.request.formData()
+			locale := String(fd.get('locale') ?? '')
+			data .= null as any
+			if fd.get('ai') === '1' && aiAvailable()
+				try
+					data = await aiTranslateData container, cms(container).fields(ct), entry.data, cms(container).blockLookup, entry.locale, locale
+				catch e
+					return fail 400, { error: `AI translation failed: ${e.message}` }
+			r := await cms(container).translate ct.id, entry.id, locale, user, data
+			throw redirect(303, `/admin/content/${ct.id}/${r.existing}`) if !r.ok && r.existing
+			return fail(400, { error: r.issues?.[0]?.message ?? 'Could not create the translation' }) unless r.ok
+			await audit(container).log user, 'content.translate', `${ct.id}#${entry.id}`, { locale, id: r.id }
+			throw redirect 303, `/admin/content/${ct.id}/${r.id}?saved=${data ? 'aitranslated' : 'translated'}`
+
+	current:
+		run: async ({ container, event, user }) =>
+			ct := typeOr404 container, event.params.type
+			entry := await entryOr404 container, ct, event.params.id
+			unless entry && canEditEntry(user, entry)
+				throw error 403, 'You cannot edit this entry'
+			await cms(container).markCurrent entry
+			throw redirect 303, `/admin/content/${ct.id}/${entry.id}?saved=current`
 
 	unpublish:
 		run: async ({ container, event, user }) =>

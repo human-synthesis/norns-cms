@@ -1,30 +1,31 @@
 SeoHead(site!="{data.seoSite}" head!="{page.data.seo ?? {}}")
-a.skip-link(href="#main") Skip to content
+a.skip-link(href="#main") {t('nav.skip')}
 .min-h-screen.flex.flex-col
 	header.site-header
 		.site-container.flex.items-center.justify-between.gap-4.py-4
-			a.flex.items-center.gap-3.no-underline(href="/" class="text-fg")
+			a.flex.items-center.gap-3.no-underline(href!="{(data.i18n.base || '') + '/'}" class="text-fg")
 				.logo-mark {data.site.title.slice(0, 1)}
 				span.font-extrabold.tracking-tight.text-lg {data.site.title}
 			nav.site-nav(aria-label="Main")
 				+each('data.nav as item (item.href)')
-					a.nav-link(href!="{item.href}" aria-current!="{current(item.href) ? 'page' : undefined}") {item.label}
+					a.nav-link(href!="{item.href}" aria-current!="{current(item.href) ? 'page' : undefined}") {item.typeId ? t('type.' + item.typeId + '.plural') : item.label}
 				+if('data.user?.staff')
-					a.nav-link(href="/admin") Admin
+					a.nav-link(href="/admin") {t('nav.admin')}
 				+elseif('data.user')
-					a.nav-link(href="/account") Account
+					a.nav-link(href="/account") {t('nav.account')}
 				+elseif('data.site.registration !== "off"')
-					a.nav-link(href="/account/login") Sign in
+					a.nav-link(href="/account/login") {t('nav.signIn')}
+				LanguageSwitcher(switcher!="{switcher}")
 	main#main.flex-1.w-full.site-container.py-10
 		slot
 	footer.site-footer
 		.site-container.flex.flex-wrap.items-center.justify-between.gap-3.py-8.text-xs
 			span {data.site.footerText || data.site.title}
 			nav.flex.flex-wrap.items-center.gap-4(aria-label="Footer")
-				a(href="/feed.xml") RSS
+				a(href!="{(data.i18n.base || '') + '/feed.xml'}") {t('footer.rss')}
 				+if('data.banner')
-					button.link-button(type="button" onclick!="{openConsent}") Cookie settings
-				span(class="text-fg-subtle") Powered by Norns
+					button.link-button(type="button" onclick!="{openConsent}") {t('footer.cookieSettings')}
+				span(class="text-fg-subtle") {t('footer.poweredBy')}
 	+if('data.banner')
 		CookieBanner(banner!="{data.banner}" consent!="{data.consent}")
 
@@ -32,8 +33,17 @@ a.skip-link(href="#main") Skip to content
 	import { page } from '$app/state'
 	import SeoHead from '$lib/norns/seo/ui/SeoHead.n'
 	import CookieBanner from '$lib/norns/consent/ui/CookieBanner.n'
+	import LanguageSwitcher from '$lib/norns/i18n/ui/LanguageSwitcher.n'
+	import { t } from '$lib/norns/i18n/ui/t.js'
 	{ data } := $props()
 
-	current := (href) => page.url.pathname === href || (href !== '/' && page.url.pathname.startsWith(href + '/'))
+	switcher := $derived page.data.switcher ?? data.homes
+	current := (href) => page.url.pathname === href || (href.length > 1 && page.url.pathname.startsWith(href + '/'))
 	openConsent := => window.dispatchEvent(new CustomEvent('cms:open-consent'))
+
+	// The server sets <html lang dir>; client-side navigation into another
+	// language has to keep them in step.
+	$effect =>
+		document.documentElement.lang = data.i18n.locale
+		document.documentElement.dir = data.i18n.dir
 </script>

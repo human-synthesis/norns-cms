@@ -3,15 +3,16 @@ section.block-articles
 		+if('props.title')
 			h2 {props.title}
 		+if('props.showMore && data?.moreHref')
-			a.text-sm(href!="{data.moreHref}") All articles →
+			a.text-sm(href!="{data.moreHref}") {t('home.allArticles')}
 	+if('!data?.entries?.length')
-		p(class="text-fg-muted") No articles yet.
+		p(class="text-fg-muted") {t('home.noArticles')}
 	+else
 		div(class!="{props.layout === 'list' ? 'article-list' : 'article-grid'}")
 			+each('data.entries as a (a.id)')
 				ArticleCard(a!="{a}" compact!="{props.layout === 'list'}")
 
 <script>
+	import { t } from '../../i18n/ui/t.js'
 	import ArticleCard from './ArticleCard.n'
 	{ props = {}, data = null } := $props()
 </script>

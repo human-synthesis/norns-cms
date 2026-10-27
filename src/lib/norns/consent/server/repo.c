@@ -24,7 +24,7 @@ export class ConsentRepo
 		return
 
 	async record(r: Record<string, any>): Promise<void>
-		await @db.run 'INSERT INTO consent_records (consent_id, user_id, policy_version, action, categories, country, region_mode, gpc, banner_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [r.consentId, r.userId ?? null, r.version, r.action, JSON.stringify(r.choice), r.country ?? '', r.mode ?? '', r.gpc ? 1 : 0, r.bannerHash ?? '', Date.now()]
+		await @db.run 'INSERT INTO consent_records (consent_id, user_id, policy_version, action, categories, country, region_mode, gpc, banner_hash, locale, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [r.consentId, r.userId ?? null, r.version, r.action, JSON.stringify(r.choice), r.country ?? '', r.mode ?? '', r.gpc ? 1 : 0, r.bannerHash ?? '', r.locale ?? '', Date.now()]
 		return
 
 	async records(q: { consentId?: string, userId?: number, action?: string, limit?: number, offset?: number } = {}): Promise<any[]>

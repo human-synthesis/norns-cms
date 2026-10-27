@@ -4,7 +4,8 @@ import { registerCapabilities } from '../../auth/server/public'
 import { TermsRepo } from './repo'
 import { ArticlesService } from './service'
 import { articleType, articleListBlock, readingMinutes } from '../shared/types'
-import { renderMarkdown } from '../../content/server/public'
+import { renderMarkdown, cms } from '../../content/server/public'
+import { i18n } from '../../i18n/server/public'
 import { registerArticlesApi } from './api'
 
 svc := (c: Container) => c.resolve('articles.service') as ArticlesService
@@ -47,16 +48,19 @@ export default (app: Container) =>
 
 	registerBlock app, {
 		...articleListBlock
-		resolve: async (props: any, { c, viewer }: any) =>
+		resolve: async (props: any, { c, viewer, entry }: any) =>
 			s := svc(c)
 			count := Math.min(24, Math.max(1, Number(props.count) || 3))
 			termId .= undefined as number | undefined
 			if props.source === 'category' && props.category
 				termId = Number(props.category)
 			else if props.source === 'tag' && props.tag
-				t := await s.termBySlug 'tag', String(props.tag).toLowerCase().replace(/[^a-z0-9]+/g, '-')
+				t := await s.termByLocalSlug 'tag', String(props.tag).toLowerCase().replace(/[^a-z0-9]+/g, '-'), (entry?.locale ?? 'en')
 				termId = t?.id ?? -1
 			list := await s.list { perPage: count, termId, featured: props.source === 'featured', member: !!viewer?.member }
-			{ entries: list.entries, moreHref: termId && termId > 0 ? null : '/articles' }
+			ct := cms(c).getType 'article'
+			lang := entry?.locale ?? 'en'
+			more := ct ? i18n(c).link(lang).base + cms(c).sectionPath(ct, lang) : '/articles'
+			{ entries: list.entries, moreHref: termId && termId > 0 ? null : more }
 	}
 	registerArticlesApi app

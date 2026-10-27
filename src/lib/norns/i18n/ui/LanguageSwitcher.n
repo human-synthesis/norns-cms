@@ -1,0 +1,29 @@
++if('switcher && (switcher.languages.length > 1 || switcher.regions.length)')
+	details.lang-switch
+		summary(aria-label!="{t('nav.language')}")
+			Icon(name="lucide:globe" size="size-4")
+			span {active?.code?.split('-')[0]?.toUpperCase() ?? ''}
+		.lang-menu
+			+if('switcher.languages.length > 1')
+				p.lang-heading {t('nav.language')}
+				ul
+					+each('switcher.languages as l (l.code)')
+						li
+							a(href!="{l.href}" hreflang!="{l.code}" lang!="{l.code}" aria-current!="{l.current ? 'true' : undefined}" class!="{l.current ? 'lang-current' : ''}")
+								span {l.name}
+								+if('!l.exists')
+									span.lang-missing ·
+			+if('switcher.regions.length')
+				p.lang-heading {t('nav.region')}
+				ul
+					+each('switcher.regions as r (r.code)')
+						li
+							a(href!="{r.href}") {r.name}
+
+<script>
+	import { t } from './t.js'
+	// Language and region links for the current page (its translations,
+	// else the language's home page; other localisations).
+	{ switcher } := $props()
+	active := $derived switcher?.languages?.find((l) => l.current)
+</script>

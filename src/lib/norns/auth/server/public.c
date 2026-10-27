@@ -147,7 +147,7 @@ LOGIN_ERRORS := {
 // Shared by /login, /login/2fa and /account/login: set the session cookie
 // and redirect (staff to the admin, members to their account), go to the
 // second step, or return the form error.
-export finishLogin := (event: any, r: any, next: any, email = '') =>
+export finishLogin := (event: any, r: any, next: any, email = '', t: ((key: string) => string) | null = null) =>
 	if r.ok
 		setSessionCookie event, r.session
 		event.cookies.delete MFA_COOKIE, { path: '/' }
@@ -159,7 +159,7 @@ export finishLogin := (event: any, r: any, next: any, email = '') =>
 		event.cookies.set MFA_COOKIE, r.mfa, { path: '/', httpOnly: true, sameSite: 'lax', secure: event.url.protocol === 'https:', maxAge: 300 }
 		throw redirect 303, `/login/2fa?next=${encodeURIComponent(safeNext(next, '/admin'))}`
 	fail 400, {
-		errors: [{ path: [{ key: 'password' }], message: LOGIN_ERRORS[r.error] ?? LOGIN_ERRORS.invalid }]
+		errors: [{ path: [{ key: 'password' }], message: t ? t(`login.${['rate', 'unverified'].includes(r.error) ? r.error : 'invalid'}`) : (LOGIN_ERRORS[r.error] ?? LOGIN_ERRORS.invalid) }]
 		values: { email }
 		unverified: r.error === 'unverified'
 	}

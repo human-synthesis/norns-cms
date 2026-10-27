@@ -1,34 +1,38 @@
+svelte:head
+	title {t('account.title')} · {page.data.site.title}
 .account-page
 	.flex.flex-wrap.items-center.justify-between.gap-3
-		h1.text-3xl.font-bold.tracking-tight Your account
+		h1.text-3xl.font-bold.tracking-tight {t('account.title')}
 		.flex.gap-2
-			Btn(href="/account/privacy" variant="secondary" icon="lucide:shield") Privacy & data
+			Btn(href="/account/privacy" variant="secondary" icon="lucide:shield") {t('account.privacy')}
 			form(method="POST" action="?/logout")
-				Btn(type="submit" variant="ghost" icon="lucide:log-out") Sign out
+				Btn(type="submit" variant="ghost" icon="lucide:log-out") {t('account.signOut')}
 	+if('form?.saved')
 		Banner(variant="success" icon="lucide:check") {form.saved}
 	.grid.gap-6(class="md:grid-cols-2")
 		Card
-			h2.font-semibold.mb-4 Details
+			h2.font-semibold.mb-4 {t('account.details')}
 			Form(action="?/profile" form!="{form?.values ? form : null}")
 				.space-y-4
-					Field(label="Name" name="name")
+					Field(label!="{t('register.name')}" name="name")
 						Input(name="name" value!="{form?.values?.name ?? data.u.name}" autocomplete="name")
-					Field(label="Email" name="email")
+					Field(label!="{t('login.email')}" name="email")
 						Input(type="email" name="email" value!="{form?.values?.email ?? data.u.email}" autocomplete="email")
-					Btn(type="submit" variant="primary") Save
+					Btn(type="submit" variant="primary") {t('account.save')}
 		Card
-			h2.font-semibold.mb-4 Password
+			h2.font-semibold.mb-4 {t('account.password')}
 			Form(action="?/password" form!="{form?.values ? null : form}")
 				.space-y-4
-					Field(label="Current password" name="current")
+					Field(label!="{t('account.current')}" name="current")
 						Input(type="password" name="current" autocomplete="current-password")
-					Field(label="New password" name="next" help="At least 12 characters")
+					Field(label!="{t('account.new')}" name="next" help!="{t('register.passwordHelp')}")
 						Input(type="password" name="next" autocomplete="new-password")
-					Field(label="New password again" name="confirm")
+					Field(label!="{t('account.newAgain')}" name="confirm")
 						Input(type="password" name="confirm" autocomplete="new-password")
-					Btn(type="submit" variant="primary") Change password
+					Btn(type="submit" variant="primary") {t('account.change')}
 
 <script>
+	import { page } from '$app/state'
+	import { t } from '$lib/norns/i18n/ui/t.js'
 	{ data, form } := $props()
 </script>

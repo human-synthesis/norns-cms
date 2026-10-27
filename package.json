@@ -20,7 +20,8 @@
     "d1:sync": "bun tools/d1-sync.js",
     "migrate": "norns migrate",
     "cms:seed": "bun tools/seed.js",
-    "deploy": "bun run build && wrangler d1 migrations apply norns-cms --remote && wrangler deploy"
+    "deploy": "bun run build && wrangler d1 migrations apply norns-cms --remote && wrangler deploy",
+    "domains": "bun tools/domains.js"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5",
@@ -39,6 +40,7 @@
   },
   "packageManager": "bun@1.3.14",
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
     "@human-synthesis/norns-tron": "^0.0.3",
     "highlight.js": "^11.12.0",
     "marked": "^15.0.0",

@@ -13,6 +13,9 @@ export settings := (c: Container) => {
 	groups: () => svc(c).groups()
 	group: (id: string) => svc(c).group(id)
 	get: (id: string) => svc(c).get(id)
+	localized: (id: string, locale?: string | null) => svc(c).localized(id, locale ?? null)
+	saveTranslation: (id: string, locale: string, raw: Record<string, any>, userId: number | null) => svc(c).saveTranslation(id, locale, raw, userId)
+	translatable: (group: any) => svc(c).translatable(group)
 	save: (id: string, raw: Record<string, any>, userId: number | null) => svc(c).save(id, raw, userId)
 	patch: (id: string, values: Record<string, any>, userId: number | null) => svc(c).patch(id, values, userId)
 }

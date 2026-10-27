@@ -1,12 +1,13 @@
 +if('pages > 1')
-	nav.pager(aria-label="Pagination")
+	nav.pager(aria-label!="{t('pager.label')}")
 		+if('page > 1')
-			a(href!="{href(page - 1)}" rel="prev") ← Newer
+			a(href!="{href(page - 1)}" rel="prev") {t('pager.newer')}
 		span {page} / {pages}
 		+if('page < pages')
-			a(href!="{href(page + 1)}" rel="next") Older →
+			a(href!="{href(page + 1)}" rel="next") {t('pager.older')}
 
 <script>
+	import { t } from '../../i18n/ui/t.js'
 	{ page = 1, pages = 1, base = '' } := $props()
 	href := (n) => n === 1 ? base : `${base}?page=${n}`
 </script>

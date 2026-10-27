@@ -53,8 +53,8 @@ export seoSettings := {
 	capability: 'seo.manage'
 	description: 'Search defaults, structured data about the organisation, AI crawlers, llms.txt and local business details.'
 	fields: [
-		{ name: 'titleTemplate', label: 'Title template', type: 'text', default: '%s · %site', help: '%s is the page title, %site the site title' }
-		{ name: 'defaultDescription', label: 'Default description', type: 'textarea' }
+		{ name: 'titleTemplate', label: 'Title template', type: 'text', default: '%s · %site', help: '%s is the page title, %site the site title', translatable: true }
+		{ name: 'defaultDescription', label: 'Default description', type: 'textarea', translatable: true }
 		{ name: 'defaultImage', label: 'Default social image', type: 'image' }
 		{ name: 'locale', label: 'Locale', type: 'text', default: 'en_US', help: 'Open Graph locale, e.g. en_GB, de_DE' }
 		{ name: 'twitter', label: 'X / Twitter handle', type: 'text', placeholder: '@example' }
@@ -63,13 +63,13 @@ export seoSettings := {
 			{ value: 'Person', label: 'Person' }
 			{ value: 'LocalBusiness', label: 'Local business' }
 		] }
-		{ name: 'orgName', label: 'Organisation name', type: 'text', help: 'Defaults to the site title' }
+		{ name: 'orgName', label: 'Organisation name', type: 'text', help: 'Defaults to the site title', translatable: true }
 		{ name: 'orgLogo', label: 'Logo', type: 'image' }
 		{ name: 'orgSameAs', label: 'Profiles', type: 'lines', help: 'One URL per line (LinkedIn, GitHub, Wikipedia …); used as sameAs' }
 		{ name: 'googleVerification', label: 'Google Search Console token', type: 'text' }
 		{ name: 'bingVerification', label: 'Bing Webmaster token', type: 'text' }
 		{ name: 'robotsExtra', label: 'Extra robots.txt rules', type: 'code', help: 'Appended as is' }
-		{ name: 'llmsSummary', label: 'llms.txt summary', type: 'textarea', help: 'What the site is about, for AI assistants. Defaults to the tagline' }
+		{ name: 'llmsSummary', label: 'llms.txt summary', type: 'textarea', help: 'What the site is about, for AI assistants. Defaults to the tagline', translatable: true }
 		{ name: 'llmsFull', label: 'Publish llms-full.txt', type: 'boolean', default: true, help: 'All public content as one Markdown file' }
 		...AI_BOTS.map((b) => ({ name: botField(b.id), label: b.label, type: 'boolean', default: true, help: `Allow ${b.id} in robots.txt` }))
 		{ name: 'bizType', label: 'Business type', type: 'text', default: 'LocalBusiness', help: 'schema.org type, e.g. Restaurant, Dentist, ProfessionalService' }

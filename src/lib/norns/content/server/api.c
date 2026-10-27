@@ -2,6 +2,7 @@ import type { Container } from '@human-synthesis/norns/server'
 import { registerEndpoint, apiError, validationError, paging, need, allow } from '../../api/server/public'
 import { cms, canEditEntry, canRemoveEntry, renderMarkdown, collectRefs } from './public'
 import { can, audit } from '../../auth/server/public'
+import { aiAvailable, aiTranslateData } from '../../i18n/server/public'
 
 // Entries as API objects: data plus URL, without the cached render tree.
 present := (c: Container, ct: any, e: any) =>
@@ -51,6 +52,7 @@ export registerContentApi := (app: Container) =>
 			{ name: 'status', description: 'draft | in_review | scheduled | published (live)' }
 			{ name: 'q', description: 'Search titles and slugs' }
 			{ name: 'author', description: 'A user id, or "me"' }
+			{ name: 'locale', description: 'Only entries in this language' }
 			{ name: 'limit', description: '1–100, default 50' }
 			{ name: 'offset', description: 'Default 0' }
 		]
@@ -58,17 +60,17 @@ export registerContentApi := (app: Container) =>
 			ct := typeOf c, params.type
 			{ limit, offset } := paging query
 			author := query.author === 'me' ? user.id : (Number(query.author) || undefined)
-			opts := { status: query.status || undefined, q: query.q || undefined, authorId: author }
+			opts := { status: query.status || undefined, q: query.q || undefined, authorId: author, locale: query.locale || undefined }
 			entries := await cms(c).list ct.id, { ...opts, limit, offset }
 			{ data: entries.map((e) => present(c, ct, e)), meta: { total: await cms(c).count(ct.id, opts), limit, offset } }
 	}
 	registerEndpoint app, {
 		method: 'POST', path: '/content/:type', capability: 'content.create', tag: 'Content', created: true
 		summary: 'Create an entry (a draft unless status says otherwise)'
-		body: { description: 'data: field values by field name (see GET /types). Optional slug, visibility (public | members), status, publishAt (ISO).', example: { data: { title: 'Hello', summary: 'One line.', body: '## Hi\n\nText', tags: ['news'] }, visibility: 'public', status: 'draft' } }
+		body: { description: 'data: field values by field name (see GET /types). Optional locale (default: the primary language), slug, visibility (public | members), markets (localisation codes), status, publishAt (ISO).', example: { locale: 'en', data: { title: 'Hello', summary: 'One line.', body: '## Hi\n\nText', tags: ['news'] }, visibility: 'public', status: 'draft' } }
 		handler: async ({ c, params, body, user }) =>
 			ct := typeOf c, params.type
-			r := await cms(c).save ct.id, null, { ...(body.data ?? {}), slug: body.slug ?? '', visibility: body.visibility ?? 'public' }, user
+			r := await cms(c).save ct.id, null, { ...(body.data ?? {}), slug: body.slug ?? '', visibility: body.visibility ?? 'public', markets: body.markets, locale: body.locale }, user
 			throw validationError(r.issues) unless r.ok
 			await audit(c).log user, 'content.create', `${ct.id}#${r.id}`, { via: 'api', title: r.entry.title }
 			entry .= r.entry
@@ -93,7 +95,7 @@ export registerContentApi := (app: Container) =>
 			ct := typeOf c, params.type
 			e := await entryOf c, ct, params.id
 			allow canEditEntry(user, e), 'This key cannot edit this entry'
-			raw := { ...e.data, ...(body.data ?? {}), slug: body.slug ?? e.slug, visibility: body.visibility ?? e.visibility }
+			raw := { ...cms(c).rawFrom(ct, e.data), ...(body.data ?? {}), slug: body.slug ?? e.slug, visibility: body.visibility ?? e.visibility, markets: body.markets ?? e.markets }
 			r := await cms(c).save ct.id, e.id, raw, user
 			throw validationError(r.issues) unless r.ok
 			await audit(c).log user, 'content.update', `${ct.id}#${e.id}`, { via: 'api', fields: Object.keys(body.data ?? {}) }
@@ -139,6 +141,44 @@ export registerContentApi := (app: Container) =>
 			throw validationError(r.issues) unless r.ok
 			await audit(c).log user, 'content.restore', `${ct.id}#${e.id}`, { via: 'api', revision: Number(params.rev) }
 			present c, ct, r.entry
+	}
+	registerEndpoint app, {
+		method: 'GET', path: '/content/:type/:id/translations', capability: 'content.view', tag: 'Content'
+		summary: 'The entry in every language: state, and whether it is behind its source'
+		handler: async ({ c, params }) =>
+			ct := typeOf c, params.type
+			e := await entryOf c, ct, params.id
+			await cms(c).translations e
+	}
+	registerEndpoint app, {
+		method: 'POST', path: '/content/:type/:id/translations', capability: 'content.create', tag: 'Content', created: true
+		summary: 'Create the entry in another language (a linked draft; data replaces the copied values)'
+		body: { description: 'locale, data? (translated field values; omitted fields are copied from the source), ai? (true: machine-translate the copied texts with Claude; needs ANTHROPIC_API_KEY)', example: { locale: 'de', ai: true } }
+		handler: async ({ c, params, body, user }) =>
+			ct := typeOf c, params.type
+			e := await entryOf c, ct, params.id
+			merged .= body.data ? { ...e.data, ...body.data } : null
+			if body.ai
+				throw apiError(400, 'AI translation needs the ANTHROPIC_API_KEY secret') unless aiAvailable()
+				try
+					merged = await aiTranslateData c, cms(c).fields(ct), (merged ?? e.data), cms(c).blockLookup, e.locale, String(body.locale ?? '')
+				catch err
+					throw apiError(502, `AI translation failed: ${err.message}`)
+			r := await cms(c).translate ct.id, e.id, String(body.locale ?? ''), user, merged
+			throw apiError(409, 'That translation exists already', { id: r.existing }) if !r.ok && r.existing
+			throw validationError(r.issues) unless r.ok
+			await audit(c).log user, 'content.translate', `${ct.id}#${e.id}`, { locale: body.locale, id: r.id, via: 'api' }
+			present c, ct, r.entry
+	}
+	registerEndpoint app, {
+		method: 'POST', path: '/content/:type/:id/translations/current', capability: 'content.view', tag: 'Content'
+		summary: 'Mark a translation as up to date with its source'
+		handler: async ({ c, params, user }) =>
+			ct := typeOf c, params.type
+			e := await entryOf c, ct, params.id
+			allow canEditEntry(user, e), 'This key cannot edit this entry'
+			await cms(c).markCurrent e
+			{ current: true }
 	}
 	registerEndpoint app, {
 		method: 'POST', path: '/render', capability: 'content.view', tag: 'Content'

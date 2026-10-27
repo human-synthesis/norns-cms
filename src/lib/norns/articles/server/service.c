@@ -4,6 +4,7 @@ import { cms, slugify } from '../../content/server/public'
 import { auth } from '../../auth/server/public'
 import { mail } from '../../mail/server/public'
 import { siteOrigin, settings } from '../../settings/server/public'
+import { i18n } from '../../i18n/server/public'
 import { readingMinutes, parseSources } from '../shared/types'
 
 export TAXONOMIES := {
@@ -30,8 +31,27 @@ export class ArticlesService
 	termBySlug(taxonomy: string, slug: string)
 		@repo.bySlug taxonomy, slug
 
-	termUrl(t: Term)
-		`${TAXONOMIES[t.taxonomy]?.base ?? ''}/${t.slug}`
+	// A term in a language: translated name / slug / description where set.
+	localized(t: Term, locale: string)
+		tr := t.translations?.[locale] ?? {}
+		{ id: t.id, taxonomy: t.taxonomy, name: tr.name || t.name, slug: tr.slug || t.slug, description: tr.description || t.description, url: @termUrl(t, locale) }
+
+	// Archive URL: locale base + articles section + category word + slug, in
+	// the term's language (default: the request's).
+	termUrl(t: Term, locale?: string)
+		code := locale ?? cms(@c).currentLocale().language
+		ct := cms(@c).getType 'article'
+		section := ct ? cms(@c).sectionPath(ct, code) : '/articles'
+		base := i18n(@c).link(code).base
+		word := i18n(@c).word(code, t.taxonomy === 'tag' ? 'tag' : 'category')
+		slug := t.translations?.[code]?.slug || t.slug
+		`${base}${section}/${word}/${slug}`
+
+	authorUrl(slug: string, locale: string)
+		`${i18n(@c).link(locale).base}/${i18n(@c).word(locale, 'authors')}/${slug}`
+
+	termByLocalSlug(taxonomy: string, slug: string, locale: string)
+		@repo.byLocalSlug taxonomy, slug, locale
 
 	async saveTerm(taxonomy: string, id: number | null, input: Record<string, any>)
 		return { ok: false, error: 'Unknown taxonomy' } unless TAXONOMIES[taxonomy]
@@ -45,7 +65,12 @@ export class ArticlesService
 			slug = `${base}-${n}`
 			n++
 		parent := Number(input.parent_id) || null
-		values := { slug, name, description: String(input.description ?? ''), parent_id: parent === id ? null : parent, sort: Number(input.sort) || 0 }
+		translations := {} as Record<string, any>
+		for [code, tr] of Object.entries((input.translations ?? prev?.translations ?? {}) as Record<string, any>)
+			nm := String(tr?.name ?? '').trim()
+			continue unless nm || tr?.slug || tr?.description
+			translations[code] = { name: nm, slug: termSlug(String(tr.slug || nm || '')), description: String(tr.description ?? '') }
+		values := { slug, name, description: String(input.description ?? ''), parent_id: parent === id ? null : parent, sort: Number(input.sort) || 0, translations }
 		if id
 			await @repo.update id, values
 			return { ok: true, id, prev, term: await @repo.get(id) }
@@ -120,9 +145,9 @@ export class ArticlesService
 			{
 				...e
 				url: ct ? cms(@c).urlFor(ct, e) : `/articles/${e.slug}`
-				category: terms.filter((t: any) => t.taxonomy === 'category').map((t: any) => ({ id: t.id, name: t.name, slug: t.slug, url: @termUrl(t) }))[0] ?? null
-				tagTerms: terms.filter((t: any) => t.taxonomy === 'tag').map((t: any) => ({ id: t.id, name: t.name, slug: t.slug, url: @termUrl(t) }))
-				authors: profiles.filter((p) => ids.includes(p.id)).map((p) => ({ ...p, url: p.slug ? `/authors/${p.slug}` : null }))
+				category: terms.filter((t: any) => t.taxonomy === 'category').map((t: any) => @localized(t, e.locale))[0] ?? null
+				tagTerms: terms.filter((t: any) => t.taxonomy === 'tag').map((t: any) => @localized(t, e.locale))
+				authors: profiles.filter((p) => ids.includes(p.id)).map((p) => ({ ...p, url: p.slug ? @authorUrl(p.slug, e.locale) : null }))
 				coverMedia: media[e.data.cover] ?? null
 				readingTime: e.data.readingTime ?? null
 			}

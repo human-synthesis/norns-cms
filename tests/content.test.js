@@ -147,7 +147,7 @@ describe('publishing', () => {
 		expect(await cms(c).nav()).toEqual([
 			{ label: 'Say hi', href: '/contact' },
 			{ label: 'About', href: '/about' },
-			{ label: 'Articles', href: '/articles' }
+			{ label: 'Articles', href: '/articles', typeId: 'article' }
 		]);
 	});
 });

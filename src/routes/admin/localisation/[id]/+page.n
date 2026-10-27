@@ -1,0 +1,87 @@
+.space-y-6
+	PageHead(title!="{data.m?.name ?? 'New localisation'}" back="/admin/localisation" backLabel="Localisations")
+	+if('data.saved')
+		Banner(variant="success" icon="lucide:check") Saved. The site follows within a few seconds.
+	+if('form?.errors')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.errors[0].message}
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	Form(action="?/save" form!="{form}")
+		.space-y-6
+			Card
+				.settings-grid
+					Field(label="Name" name="name" required help="Shown in the region switcher, e.g. Switzerland")
+						Input(name="name" value!="{v.name ?? ''}")
+					Field(label="Code" name="code" required help="Short id, e.g. ch")
+						Input(name="code" value!="{v.code ?? ''}")
+					Field(label="Hosting" name="mode" class="settings-wide")
+						.flex.flex-wrap.gap-4
+							+each('MODES as mode (mode.value)')
+								label.check-item
+									input(type="radio" name="mode" value!="{mode.value}" checked!="{hosting === mode.value}" onchange!="{() => hosting = mode.value}")
+									span {mode.label}
+					+if('hosting === "path"')
+						Field(label="Folder prefix" name="prefix" help!="{'Empty: at the root of ' + data.primaryHost + '. e.g. ch → ' + data.primaryHost + '/ch/de/…'}")
+							Input(name="prefix" value!="{v.prefix ?? ''}" placeholder="ch")
+					+else
+						Field(label="Host" name="host" help!="{hosting === 'subdomain' ? 'e.g. de.' + data.primaryHost : 'e.g. example.de'}")
+							Input(name="host" value!="{v.host ?? ''}" placeholder!="{hosting === 'subdomain' ? 'de.' + data.primaryHost : 'example.de'}")
+					Field(label="Countries" name="countries" help="ISO codes, comma separated (CH, LI). Used for hreflang regions and to suggest this site to visitors")
+						Input(name="countries" value!="{Array.isArray(v.countries) ? v.countries.join(', ') : (v.countries ?? '')}" placeholder="CH")
+			Card
+				h2.font-semibold.mb-1 Languages
+				p.text-sm.mb-4(class="text-fg-muted") Tick the languages of this localisation, set the URL segment of each and pick the default.
+				+if('data.languages.length === 0')
+					p.text-sm Add languages first under Languages.
+				.lang-table
+					+each('data.languages as l (l.code)')
+						.lang-row
+							label.check-item
+								Checkbox(name="languages" value!="{l.code}" checked!="{chosen.includes(l.code)}")
+								span {l.native || l.name}
+								code.text-xs(class="text-fg-subtle") {l.code}
+							Input(name!="{'seg_' + l.code}" value!="{segment(l.code)}" class="w-28" placeholder!="{l.code.toLowerCase()}")
+							label.check-item
+								input(type="radio" name="defaultLanguage" value!="{l.code}" checked!="{(v.defaultLanguage ?? data.languages[0]?.code) === l.code}")
+								span.text-sm default
+				.pt-4.space-y-2
+					label.check-item
+						input(type="hidden" name="prefixDefault" value="false")
+						Switch(name="prefixDefault" checked!="{!!v.prefixDefault}")
+						span Prefix the default language too (/en/… as well as /de/…)
+					label.check-item
+						input(type="hidden" name="contentFallback" value="false")
+						Switch(name="contentFallback" checked!="{!!v.contentFallback}")
+						span Show the fallback language's version when a translation is missing (e.g. de-CH → de)
+					label.check-item
+						input(type="hidden" name="isPrimary" value="false")
+						Switch(name="isPrimary" checked!="{!!v.isPrimary}")
+						span Primary localisation (x-default for search engines; the admin lives on its host)
+					label.check-item
+						input(type="hidden" name="enabled" value="false")
+						Switch(name="enabled" checked!="{v.enabled ?? true}")
+						span Enabled
+			+if('hosting !== "path"')
+				Banner(variant="info" icon="lucide:globe") A {hosting === 'subdomain' ? 'sub-domain' : 'domain'} must point at this site: add it as a custom domain of the Worker (Cloudflare dashboard → Workers → norns-cms → Domains), or run `bun run domains -- --apply` with a Cloudflare token. Sign-ins and cookie consent are per host.
+			Btn(type="submit" variant="primary" icon="lucide:save") Save
+	+if('data.m && !data.m.isPrimary')
+		form(method="POST" action="?/remove" onsubmit!="{confirmRemove}")
+			Btn(type="submit" variant="danger" icon="lucide:trash-2") Delete localisation
+
+<script>
+	{ data, form } := $props()
+	v := $derived form?.values ?? data.m ?? { mode: 'path', enabled: true }
+	hosting .= $state(form?.values?.mode ?? data.m?.mode ?? 'path')
+	MODES := [
+		{ value: 'path', label: 'Sub-folder of the main site' }
+		{ value: 'subdomain', label: 'Sub-domain' }
+		{ value: 'domain', label: 'Own domain' }
+	]
+	chosen := $derived.by =>
+		raw := form?.values?.languages
+		return (Array.isArray(raw) ? raw : (raw ? [raw] : [])) if form?.values
+		(data.m?.languages ?? []).map((l) => l.code)
+	segment := (code) => form?.values?.['seg_' + code] ?? data.m?.languages?.find((l) => l.code === code)?.segment ?? code.toLowerCase()
+	confirmRemove := (e) =>
+		e.preventDefault() unless confirm('Delete this localisation? Its URLs stop working; the content stays.')
+</script>

@@ -12,13 +12,14 @@ article.article-card(class!="{compact ? 'article-card-compact' : ''}")
 		.article-meta
 			+if('a.authors.length')
 				span {a.authors.map((p) => p.name).join(', ')}
-			time(datetime!="{new Date(a.published_at ?? a.updated_at).toISOString()}") {new Date(a.published_at ?? a.updated_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+			time(datetime!="{new Date(a.published_at ?? a.updated_at).toISOString()}") {fmtDate(a.published_at ?? a.updated_at, { year: 'numeric', month: 'short', day: 'numeric' })}
 			+if('a.readingTime')
-				span {a.readingTime} min read
+				span {t('article.readingTime', { n: a.readingTime })}
 			+if('a.visibility === "members"')
-				span.members-badge Members
+				span.members-badge {t('article.members')}
 
 <script>
+	import { t, fmtDate } from '../../i18n/ui/t.js'
 	// One article in a list, from articles(c).decorate().
 	{ a, compact = false } := $props()
 </script>

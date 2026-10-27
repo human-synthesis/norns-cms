@@ -5,6 +5,32 @@
 				StatusBadge(entry!="{data.entry}")
 				+if('data.publicUrl')
 					Btn(href!="{data.publicUrl}" target="_blank" rel="noopener" variant="ghost" size="sm" icon!="{data.entry.status === 'published' ? 'lucide:external-link' : 'lucide:eye'}") {data.entry.status === 'published' ? 'View' : 'Preview'}
+	+if('data.languages.length > 1')
+		.lang-bar
+			span.text-sm.font-semibold {languageName(data.locale)}
+			+if('data.entry')
+				+each('data.languages.filter((l) => l.code !== data.locale) as l (l.code)')
+					+if('translation(l.code)')
+						a.lang-chip(href="/admin/content/{data.ct.id}/{translation(l.code).id}" class!="{translation(l.code).outdated ? 'lang-chip-outdated' : ''}" title!="{translation(l.code).outdated ? 'The source changed since this translation' : translation(l.code).status}")
+							span {l.name}
+							span.lang-chip-state {translation(l.code).outdated ? 'outdated' : (translation(l.code).isSource ? 'source' : translation(l.code).status.replace('_', ' '))}
+					+else
+						form.flex.items-center.gap-1(method="POST" action="?/translate" onsubmit!="{busy}")
+							input(type="hidden" name="locale" value!="{l.code}")
+							button.lang-chip.lang-chip-add(type="submit" title!="{'Create the ' + l.name + ' version, copied from this one'}")
+								Icon(name="lucide:plus" size="size-3")
+								span {l.name}
+							+if('data.ai')
+								button.lang-chip.lang-chip-add(type="submit" name="ai" value="1" title!="{'Create the ' + l.name + ' version, translated by AI (a draft to review)'}")
+									Icon(name="lucide:sparkles" size="size-3")
+									span AI
+			+if('current?.outdated')
+				span.text-xs(class="text-warning-fg") The source changed since this was translated.
+				a.text-xs(href="/admin/content/{data.ct.id}/{source?.id}/revisions") See its history
+				form(method="POST" action="?/current")
+					Btn(type="submit" variant="ghost" size="sm") Mark as up to date
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
 	+if('data.saved')
 		Banner(variant="success" icon="lucide:check") {savedMessage}
 	+if('form?.errors')
@@ -44,6 +70,15 @@
 								Badge(size="sm") new
 						+if('autosaved')
 							p.text-xs(class="text-fg-subtle") Draft autosaved {autosaved}
+						+if('!data.entry')
+							input(type="hidden" name="locale" value!="{data.locale}")
+						+if('data.markets.length > 1')
+							Field(label="Show in localisations" name="markets" help="None ticked: everywhere this language is offered")
+								.flex.flex-col.gap-1
+									+each('data.markets as m (m.code)')
+										label.check-item
+											Checkbox(name="markets" value!="{m.code}" checked!="{(values.markets ?? []).includes(m.code)}")
+											span {m.name}
 						Field(label="Visibility" name="visibility")
 							Select(name="visibility" value!="{values.visibility ?? 'public'}")
 								+each('VISIBILITIES as v (v.value)')
@@ -104,7 +139,16 @@
 	autosaved .= $state ''
 	tzOffset .= $state 0
 
-	MESSAGES := { saved: 'Saved.', submitted: 'Saved and submitted for review. Editors have been notified.', published: 'Published.', scheduled: 'Scheduled.', unpublished: 'Unpublished; it is a draft again.' } as Record<string, string>
+	MESSAGES := { saved: 'Saved.', submitted: 'Saved and submitted for review. Editors have been notified.', published: 'Published.', scheduled: 'Scheduled.', unpublished: 'Unpublished; it is a draft again.', translated: 'Translation created as a draft, copied from the source. Translate the fields, then publish.', aitranslated: 'Translated by AI as a draft. Read it through, fix what needs fixing, then publish.', current: 'Marked as up to date with its source.' } as Record<string, string>
+	translation := (code) => data.translations.find((x) => x.locale === code)
+	current := $derived data.translations.find((x) => x.id === data.entry?.id)
+	source := $derived data.translations.find((x) => x.isSource)
+	languageName := (code) => data.languages.find((l) => l.code === code)?.name ?? code
+	busy := (e) =>
+		btn := e.submitter
+		if btn?.name === 'ai'
+			btn.disabled = true
+			btn.querySelector('span').textContent = 'Translating…'
 	savedMessage := $derived MESSAGES[data.saved] ?? 'Saved.'
 
 	fieldsOn := (tabId) => data.form.fields.filter((f) => (f.tab ?? 'content') === tabId)

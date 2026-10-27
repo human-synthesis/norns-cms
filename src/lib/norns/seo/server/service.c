@@ -5,10 +5,20 @@ import { settings, siteOrigin } from '../../settings/server/public'
 import { articles } from '../../articles/server/public'
 import { AI_BOTS, botField, seoChecks } from '../shared/fields'
 import { xmlEscape, iso, rfc822, ldJson, plain } from './xml.js'
+import { i18n } from '../../i18n/server/public'
+import { getScope } from '@human-synthesis/norns/server'
 
+// Absolute URL on the current request's host (its localisation's origin).
 abs := (path: string) =>
 	return path if /^https?:\/\//.test(path)
-	`${siteOrigin()}${path.startsWith('/') ? path : '/' + path}`
+	origin := getScope()?.event?.locals?.locale?.origin ?? siteOrigin()
+	`${origin}${path.startsWith('/') ? path : '/' + path}`
+
+locale := => getScope()?.event?.locals?.locale ?? { language: 'en', base: '', market: null, chain: ['en'] }
+ogLocale := (code: string, countries: string[] = []) =>
+	[l, r] := code.split('-')
+	region := r ?? (countries.length === 1 ? countries[0] : '')
+	region ? `${l}_${region.toUpperCase()}` : l
 
 DAY := 24 * 60 * 60 * 1000
 
@@ -18,8 +28,8 @@ export class SeoService
 	constructor(@repo: SeoRepo, @c: Container)
 
 	async config()
-		site := await settings(@c).get 'site'
-		seo := await settings(@c).get 'seo'
+		site := await settings(@c).localized 'site'
+		seo := await settings(@c).localized 'seo'
 		{ site, seo }
 
 	// --- head tags -----------------------------------------------------------
@@ -85,14 +95,15 @@ export class SeoService
 		org := @organization site, seo, logo
 		website := { '@type': 'WebSite', '@id': abs('/#website'), name: site.title, url: abs('/'), publisher: { '@id': org['@id'] } } as Record<string, any>
 		website.description = site.tagline if site.tagline
-		website.inLanguage = String(seo.locale || 'en_US').replace('_', '-')
+		loc := locale()
+		website.inLanguage = loc.language
 		{
 			siteName: site.title
-			locale: seo.locale || 'en_US'
+			locale: ogLocale(loc.language, loc.market?.countries ?? [])
 			twitter: seo.twitter || ''
 			google: seo.googleVerification || ''
 			bing: seo.bingVerification || ''
-			feed: abs('/feed.xml')
+			feed: abs(`${loc.base}/feed.xml`)
 			jsonLd: ldJson({ '@context': 'https://schema.org', '@graph': [org, website] })
 		}
 
@@ -102,12 +113,13 @@ export class SeoService
 		{ ct, entry } := res
 		d := entry.data
 		path := cms(@c).urlFor ct, entry
+		alternates := await @alternates(ct, entry, res.alternates ?? [])
 		title := d.seoTitle || entry.title
 		description := plain(d.seoDescription || d.summary || d.excerpt || (res.html?.body ?? '') || seo.defaultDescription || site.tagline, 160)
 		image := (await @mediaUrl(d.seoImage)) ?? (await @mediaUrl(d.cover)) ?? (await @mediaUrl(seo.defaultImage))
 		noindex := !!d.seoNoindex || entry.status !== 'published' || (entry.published_at ?? 0) > Date.now()
 		robots := [noindex ? 'noindex' : 'index', d.seoNofollow ? 'nofollow' : 'follow', 'max-image-preview:large'].join(', ')
-		canonical := d.seoCanonical ? abs(d.seoCanonical) : abs(path)
+		canonical := d.seoCanonical ? abs(d.seoCanonical) : (res.fallbackFrom ? cms(@c).absoluteUrlFor(ct, entry) : abs(path))
 		isArticle := ct.id === 'article'
 		schemaType := d.seoSchema || ct.schemaType || (isArticle ? 'BlogPosting' : 'WebPage')
 		graph := [] as any[]
@@ -125,7 +137,7 @@ export class SeoService
 			name: title
 			headline: title.slice(0, 110)
 			description
-			inLanguage: String(seo.locale || 'en_US').replace('_', '-')
+			inLanguage: entry.locale ?? locale().language
 			isPartOf: { '@id': abs('/#website') }
 			datePublished: entry.published_at ? iso(entry.published_at) : undefined
 			dateModified: iso(entry.updated_at)
@@ -156,7 +168,8 @@ export class SeoService
 		hasLocation := (res.blocks ?? []).some((b: any) => b.type === 'location')
 		if hasLocation && @hasBusiness(seo) && seo.orgType !== 'LocalBusiness'
 			graph.push { '@type': seo.bizType || 'LocalBusiness', name: seo.orgName || site.title, url: abs('/'), ...@businessFields(seo) }
-		twin := !d.seoNoLlms && !noindex && entry.visibility === 'public' ? abs(`${path === '/' ? '/index' : path}.md`) : null
+		twin := !d.seoNoLlms && !noindex && entry.visibility === 'public' && !res.fallbackFrom ? abs(`${path === '/' ? '/index' : path}.md`) : null
+		main.workTranslation = alternates.filter((a) => a.locale !== entry.locale && a.hreflang !== 'x-default').map((a) => ({ '@id': `${a.href}#main`, inLanguage: a.locale })) if alternates.length > 1
 		{
 			title: @formatTitle(title, site, seo)
 			description
@@ -169,11 +182,38 @@ export class SeoService
 			section: extra.category?.name ?? null
 			tags: d.tags ?? []
 			markdown: twin
+			alternates: res.fallbackFrom ? [] : alternates
+			ogLocale: ogLocale(entry.locale ?? locale().language, locale().market?.countries ?? [])
+			ogAlternates: [...new Set(alternates.filter((a) => a.hreflang !== 'x-default' && a.locale !== entry.locale).map((a) => ogLocale(a.locale)))]
 			jsonLd: ldJson({ '@context': 'https://schema.org', '@graph': graph })
 		}
 
+	// hreflang alternates: every published translation × every localisation
+	// offering its language (and where the entry is available), plus
+	// x-default → the primary localisation's default language (else the
+	// entry itself). Only emitted when there is more than one.
+	async alternates(ct: any, entry: any, translations: any[])
+		list := translations.filter((t) => t.visibility === 'public')
+		out := [] as { hreflang: string, href: string, locale: string }[]
+		for t of list
+			for place of i18n(@c).placesOf(t.locale)
+				continue if t.markets?.length && place.market && !t.markets.includes(place.market.code)
+				for code of place.hreflang
+					out.push { hreflang: code, href: `${place.origin}${place.base}${t.path}`, locale: t.locale }
+		return [] unless out.length > 1
+		primary := i18n(@c).primary()
+		def := out.find((a) => a.locale === primary?.defaultLanguage && a.href.startsWith(i18n(@c).link(a.locale, primary.code).origin)) ?? out[0]
+		seen := new Set<string>()
+		uniq := [] as any[]
+		for a of out
+			k := a.hreflang + a.href
+			continue if seen.has k
+			seen.add k
+			uniq.push a
+		[...uniq, { hreflang: 'x-default', href: def.href, locale: def.locale }]
+
 	// Head for archive / listing / utility pages.
-	async forPage(input: { title?: string, description?: string, path: string, noindex?: boolean, crumbs?: { name: string, url: string }[] })
+	async forPage(input: { title?: string, description?: string, path: string, noindex?: boolean, crumbs?: { name: string, url: string }[], alternates?: any[] })
 		{ site, seo } := await @config()
 		image := await @mediaUrl seo.defaultImage
 		canonical := abs input.path
@@ -189,8 +229,23 @@ export class SeoService
 			robots: input.noindex ? 'noindex, follow' : 'index, follow, max-image-preview:large'
 			type: 'website'
 			image
+			alternates: input.alternates ?? []
+			ogLocale: ogLocale(locale().language, locale().market?.countries ?? [])
 			jsonLd: ldJson({ '@context': 'https://schema.org', '@graph': graph })
 		}
+
+	// Language homes as alternates (home page, list pages): one per language
+	// base, with the same path inside.
+	languageAlternates(rest: string = '/')
+		out := [] as any[]
+		for code of i18n(@c).contentLanguages()
+			for place of i18n(@c).placesOf(code)
+				for h of place.hreflang
+					out.push { hreflang: h, href: `${place.origin}${place.base}${rest === '/' ? '/' : rest}`, locale: code }
+		return [] unless out.length > 1
+		p := i18n(@c).primary()
+		def := out.find((a) => a.locale === p?.defaultLanguage) ?? out[0]
+		[...out, { hreflang: 'x-default', href: def.href, locale: def.locale }]
 
 	// --- crawl surface ---------------------------------------------------------
 
@@ -199,31 +254,52 @@ export class SeoService
 		{ entries } := await cms(@c).query typeId, { limit }
 		entries.filter((e) => !e.data.seoNoindex && !e.data.seoCanonical)
 
+	// The locale bases served by this host (path localisations live on the
+	// primary host; sub-domain / domain localisations on their own).
+	basesOnHost()
+		host := (getScope()?.event?.url?.host ?? '').toLowerCase()
+		out := [] as any[]
+		for code of i18n(@c).contentLanguages()
+			for place of i18n(@c).placesOf(code)
+				placeHost := place.origin.replace(/^https?:\/\//, '').toLowerCase()
+				isPathMarket := place.market?.mode === 'path' || !place.market?.host
+				there := placeHost === host || (isPathMarket && !i18n(@c).markets().some((m: any) => m.mode !== 'path' && m.host === host))
+				out.push { code, base: place.base, origin: place.origin, market: place.market } if there
+		out
+
 	async sitemapIndex()
 		parts := [] as string[]
-		for ct of cms(@c).types()
-			parts.push `<sitemap><loc>${xmlEscape(abs(`/sitemap-${ct.id}.xml`))}</loc></sitemap>`
-		parts.push `<sitemap><loc>${xmlEscape(abs('/sitemap-archives.xml'))}</loc></sitemap>`
+		for b of @basesOnHost()
+			for ct of cms(@c).types()
+				parts.push `<sitemap><loc>${xmlEscape(abs(`${b.base}/sitemap-${ct.id}.xml`))}</loc></sitemap>`
+			parts.push `<sitemap><loc>${xmlEscape(abs(`${b.base}/sitemap-archives.xml`))}</loc></sitemap>`
 		`<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${parts.join('')}</sitemapindex>\n`
 
-	urlset(urls: { loc: string, lastmod?: string, image?: string | null }[])
-		body := urls.map((u) => `<url><loc>${xmlEscape(u.loc)}</loc>${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ''}${u.image ? `<image:image><image:loc>${xmlEscape(u.image)}</image:loc></image:image>` : ''}</url>`).join('')
-		`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">${body}</urlset>\n`
+	urlset(urls: { loc: string, lastmod?: string, image?: string | null, alternates?: any[] }[])
+		body := urls.map((u) => `<url><loc>${xmlEscape(u.loc)}</loc>${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ''}${(u.alternates ?? []).map((a) => `<xhtml:link rel="alternate" hreflang="${xmlEscape(a.hreflang)}" href="${xmlEscape(a.href)}"/>`).join('')}${u.image ? `<image:image><image:loc>${xmlEscape(u.image)}</image:loc></image:image>` : ''}</url>`).join('')
+		`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">${body}</urlset>\n`
 
+	// One locale's sitemap of a type (the request's locale).
 	async sitemapFor(typeId: string)
+		loc := locale()
 		if typeId === 'archives'
-			urls := [{ loc: abs('/') }] as any[]
+			urls := [{ loc: abs(`${loc.base}/`), alternates: @languageAlternates('/') }] as any[]
 			for ct of cms(@c).types()
-				urls.push { loc: abs(ct.basePath) } if ct.basePath && ct.listable
+				section := cms(@c).sectionPath ct, loc.language
+				urls.push { loc: abs(`${loc.base}${section}`) } if section && ct.listable
 			for tax of ['category', 'tag']
 				for t of await articles(@c).terms(tax)
-					urls.push { loc: abs(articles(@c).termUrl(t)) } if t.count > 0
+					urls.push { loc: abs(articles(@c).termUrl(t, loc.language)) } if t.count > 0
 			return @urlset urls
 		ct := cms(@c).getType typeId
 		return null unless ct
 		entries := await @indexable typeId
 		covers := await cms(@c).lookupMedia entries.map((e) => Number(e.data.cover)).filter((n) => n > 0)
-		@urlset entries.map (e) => ({ loc: abs(cms(@c).urlFor(ct, e)), lastmod: iso(e.updated_at), image: covers[e.data.cover] ? abs(covers[e.data.cover].url) : null })
+		urls := [] as any[]
+		for e of entries
+			alts := await @alternates ct, e, await cms(@c).alternatesOf(ct, e)
+			urls.push { loc: abs(cms(@c).urlFor(ct, e)), lastmod: iso(e.updated_at), image: covers[e.data.cover] ? abs(covers[e.data.cover].url) : null, alternates: alts }
+		@urlset urls
 
 	async robots()
 		{ seo } := await @config()
@@ -240,7 +316,15 @@ export class SeoService
 
 	async llms()
 		{ site, seo } := await @config()
+		loc := locale()
 		out := [`# ${site.title}`, '', `> ${plain(seo.llmsSummary || site.tagline || seo.defaultDescription || site.title, 400)}`, '']
+		others := [] as string[]
+		for code of i18n(@c).contentLanguages()
+			continue if code === loc.language
+			l := i18n(@c).link(code)
+			others.push `- [${i18n(@c).language(code).native || code}](${l.origin}${l.base}/llms.txt)`
+		if others.length
+			out.push `This file covers the ${i18n(@c).language(loc.language).name || loc.language} site. Other languages:`, '', ...others, ''
 		for ct of cms(@c).types()
 			entries := (await @indexable(ct.id, 500)).filter((e) => @twinable(e))
 			continue unless entries.length
@@ -251,7 +335,7 @@ export class SeoService
 				out.push `- [${e.title}](${abs(path + '.md')})${desc ? ': ' + desc : ''}`
 			out.push ''
 		if seo.llmsFull !== false
-			out.push '## Optional', '', `- [Everything in one file](${abs('/llms-full.txt')})`, ''
+			out.push '## Optional', '', `- [Everything in one file](${abs(`${loc.base}/llms-full.txt`)})`, ''
 		out.join('\n')
 
 	async llmsFull()
@@ -305,19 +389,33 @@ export class SeoService
 			body.push '## Sources', '', ...articles(@c).sources(e).map((s: any) => s.url ? `- [${s.title}](${s.url})` : `- ${s.title}`), ''
 		[...front, ...body].join('\n').replace(/media:(\d+)/g, (_m: string, id: string) => abs(`/media/by-id/${id}`))
 
+	// `path` is inside the request's locale base.
 	async twin(path: string)
 		p .= path
 		if p === '/'
-			{ site } := await @config()
-			home := site.homePage ? await cms(@c).byId(Number(site.homePage)) : undefined
+			home := await @homeEntry()
 			return null unless home
 			p = `/${home.slug}`
 		res := await cms(@c).resolve p, {}
 		return null unless res && res.kind === 'entry' && !res.locked && @twinable(res.entry)
 		await @markdownFor res.ct, res.entry
 
+	// The home page of the request's language: the chosen page's
+	// translation.
+	async homeEntry()
+		{ site } := await @config()
+		return null unless site.homePage
+		home := await cms(@c).byId Number(site.homePage)
+		return null unless home
+		lang := locale().language
+		return home if home.locale === lang
+		alts := await cms(@c).alternatesOf cms(@c).getType(home.type), home
+		hit := alts.find((a) => a.locale === lang)
+		hit ? { ...home, slug: hit.slug, locale: lang } : null
+
 	async feed(opts: { termId?: number, title?: string, path?: string } = {})
 		{ site } := await @config()
+		loc := locale()
 		list := await articles(@c).list { perPage: 30, termId: opts.termId }
 		items := list.entries.map (e: any) =>
 			html := e.rendered?.body?.html ?? ''
@@ -333,14 +431,15 @@ export class SeoService
 				`<content:encoded><![CDATA[${html.replace(/]]>/g, ']]]]><![CDATA[>')}]]></content:encoded>`
 				'</item>'
 			].join('')
-		self := abs(opts.path ?? '/feed.xml')
+		self := abs(opts.path ?? `${loc.base}/feed.xml`)
 		[
 			'<?xml version="1.0" encoding="UTF-8"?>'
 			'<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">'
 			'<channel>'
 			`<title>${xmlEscape(opts.title ? `${opts.title} · ${site.title}` : site.title)}</title>`
-			`<link>${xmlEscape(abs('/articles'))}</link>`
+			`<link>${xmlEscape(abs(`${loc.base}${cms(@c).sectionPath(cms(@c).getType('article'), loc.language)}`))}</link>`
 			`<description>${xmlEscape(site.tagline || site.title)}</description>`
+			`<language>${xmlEscape(loc.language)}</language>`
 			`<atom:link href="${xmlEscape(self)}" rel="self" type="application/rss+xml"/>`
 			`<lastBuildDate>${rfc822(Date.now())}</lastBuildDate>`
 			...items

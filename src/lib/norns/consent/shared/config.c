@@ -64,10 +64,10 @@ export consentSettings := {
 	description: 'Banner wording, categories, regional rules and retention. Scripts are managed under Consent → Scripts.'
 	fields: [
 		{ name: 'enabled', label: 'Show the cookie banner', type: 'boolean', default: true, help: 'Turn off only if the site sets no optional cookies at all' }
-		{ name: 'bannerTitle', label: 'Banner title', type: 'text', default: 'We value your privacy' }
-		{ name: 'bannerText', label: 'Banner text', type: 'textarea', default: 'We use cookies to run this site and, with your permission, to understand how it is used and to show embedded media. You can change your choice at any time from "Cookie settings" at the bottom of every page.' }
-		{ name: 'policyUrl', label: 'Privacy policy link', type: 'url', default: '/privacy' }
-		{ name: 'policyLabel', label: 'Privacy policy link text', type: 'text', default: 'Privacy policy' }
+		{ name: 'bannerTitle', label: 'Banner title', type: 'text', default: 'We value your privacy', translatable: true }
+		{ name: 'bannerText', label: 'Banner text', type: 'textarea', default: 'We use cookies to run this site and, with your permission, to understand how it is used and to show embedded media. You can change your choice at any time from "Cookie settings" at the bottom of every page.', translatable: true }
+		{ name: 'policyUrl', label: 'Privacy policy link', type: 'url', default: '/privacy', translatable: true }
+		{ name: 'policyLabel', label: 'Privacy policy link text', type: 'text', default: 'Privacy policy', translatable: true }
 		{ name: 'policyVersion', label: 'Policy version', type: 'number', default: 1, required: true, help: 'Raising it asks every visitor again (e.g. after adding a marketing script)' }
 		{ name: 'cookieDays', label: 'Remember the choice for (days)', type: 'number', default: 180, required: true, help: 'At most 395 days (13 months)' }
 		{ name: 'retentionMonths', label: 'Keep consent records for (months)', type: 'number', default: 24, required: true }
@@ -75,13 +75,13 @@ export consentSettings := {
 		{ name: 'modeUk', label: 'United Kingdom', type: 'select', default: 'opt-in', required: true, options: MODES }
 		{ name: 'modeCh', label: 'Switzerland', type: 'select', default: 'opt-in', required: true, options: MODES }
 		{ name: 'modeOther', label: 'Everywhere else', type: 'select', default: 'opt-in', required: true, options: MODES }
-		{ name: 'necessaryText', label: 'Necessary — description', type: 'textarea', default: 'Required for the site to work: signing in, security, and remembering your cookie choice. Always on.' }
-		{ name: 'preferencesLabel', label: 'Preferences — name', type: 'text', default: 'Preferences' }
-		{ name: 'preferencesText', label: 'Preferences — description', type: 'textarea', default: 'Remember settings such as theme or language.' }
-		{ name: 'analyticsLabel', label: 'Analytics — name', type: 'text', default: 'Analytics' }
-		{ name: 'analyticsText', label: 'Analytics — description', type: 'textarea', default: 'Help us understand which pages are useful, with aggregated statistics.' }
-		{ name: 'marketingLabel', label: 'Marketing — name', type: 'text', default: 'Marketing & embedded media' }
-		{ name: 'marketingText', label: 'Marketing — description', type: 'textarea', default: 'Measure campaigns and load content from other sites such as YouTube videos, which may track you.' }
+		{ name: 'necessaryText', label: 'Necessary — description', type: 'textarea', default: 'Required for the site to work: signing in, security, and remembering your cookie choice. Always on.', translatable: true }
+		{ name: 'preferencesLabel', label: 'Preferences — name', type: 'text', default: 'Preferences', translatable: true }
+		{ name: 'preferencesText', label: 'Preferences — description', type: 'textarea', default: 'Remember settings such as theme or language.', translatable: true }
+		{ name: 'analyticsLabel', label: 'Analytics — name', type: 'text', default: 'Analytics', translatable: true }
+		{ name: 'analyticsText', label: 'Analytics — description', type: 'textarea', default: 'Help us understand which pages are useful, with aggregated statistics.', translatable: true }
+		{ name: 'marketingLabel', label: 'Marketing — name', type: 'text', default: 'Marketing & embedded media', translatable: true }
+		{ name: 'marketingText', label: 'Marketing — description', type: 'textarea', default: 'Measure campaigns and load content from other sites such as YouTube videos, which may track you.', translatable: true }
 	]
 }
 

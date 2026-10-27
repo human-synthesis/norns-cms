@@ -96,6 +96,19 @@ if (EMAIL && PASSWORD) {
 	check((await page.content()).includes('Added in the <strong>browser</strong>.'), 'new block renders on the site');
 }
 
+// --- languages (when the site has more than one) ---------------------------------
+await page.goto(BASE + ARTICLE);
+await page.waitForLoadState('networkidle');
+if (await page.locator('.lang-switch').count()) {
+	await page.locator('.lang-switch summary').click();
+	const other = page.locator('.lang-menu a:not(.lang-current)').first();
+	const target = await other.getAttribute('href');
+	await Promise.all([page.waitForURL((u) => u.pathname === target), other.click()]);
+	const lang = await page.evaluate(() => document.documentElement.lang);
+	check(lang && lang !== 'en', `language switcher opens the translation (${target}, lang=${lang})`);
+	check((await page.locator('link[rel="alternate"][hreflang="x-default"]').count()) === 1, 'hreflang alternates in the head');
+}
+
 check(errors.length === 0, `no console or page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
 await browser.close();
 console.log(failures ? `\n${failures} check(s) failed` : '\nall browser checks passed');

@@ -1,6 +1,8 @@
 article.article-view(class!="{res.entry.rendered?.body?.toc?.length >= 3 ? 'has-toc' : ''}")
 	+if('res.entry.status !== "published" || res.entry.published_at > Date.now()')
-		Banner(variant="warning" icon="lucide:eye") Preview — {res.entry.status === 'published' ? 'scheduled, not live yet' : res.entry.status.replace('_', ' ')}, only visible to staff.
+		Banner(variant="warning" icon="lucide:eye") {t(res.entry.status === 'published' ? 'preview.scheduled' : (res.entry.status === 'in_review' ? 'preview.review' : 'preview.draft'))}
+	+if('fallbackName')
+		Banner(variant="info" icon="lucide:languages") {t('preview.fallback', { language: fallbackName })}
 	header.article-header
 		+if('extra.category')
 			a.article-kicker(href!="{extra.category.url}") {extra.category.name}
@@ -8,7 +10,7 @@ article.article-view(class!="{res.entry.rendered?.body?.toc?.length >= 3 ? 'has-
 		.article-meta
 			+if('extra.authors.length')
 				span
-					| By 
+					| {t('article.by')} 
 					+each('extra.authors as p, i (p.id)')
 						| {i > 0 ? ', ' : ''}
 						+if('p.url')
@@ -17,9 +19,9 @@ article.article-view(class!="{res.entry.rendered?.body?.toc?.length >= 3 ? 'has-
 							| {p.name}
 			time(datetime!="{published.toISOString()}") {fmt(published)}
 			+if('updated - published > 86400000')
-				span Updated {fmt(updated)}
+				span {t('article.updated', { date: fmt(updated) })}
 			+if('res.entry.data.readingTime')
-				span {res.entry.data.readingTime} min read
+				span {t('article.readingTime', { n: res.entry.data.readingTime })}
 	+if('cover')
 		figure.article-cover
 			img(src!="{cover.url}" srcset!="{cover.srcset || undefined}" sizes="(min-width: 960px) 960px, 100vw" alt!="{cover.alt}" width!="{cover.width}" height!="{cover.height}" fetchpriority="high" decoding="async")
@@ -29,13 +31,13 @@ article.article-view(class!="{res.entry.rendered?.body?.toc?.length >= 3 ? 'has-
 		MembersOnly(summary!="{res.entry.data.summary}")
 	+else
 		+if('res.entry.data.summary')
-			aside.tldr(aria-label="Summary")
-				span.tldr-label TL;DR
+			aside.tldr(aria-label!="{t('article.summary')}")
+				span.tldr-label {t('article.tldr')}
 				p {res.entry.data.summary}
 		.article-layout
 			+if('toc.length >= 3')
-				nav.article-toc(aria-label="On this page")
-					p.toc-title On this page
+				nav.article-toc(aria-label!="{t('article.onThisPage')}")
+					p.toc-title {t('article.onThisPage')}
 					ol
 						+each('toc as t (t.id)')
 							li(class!="{'toc-' + t.depth}")
@@ -45,13 +47,13 @@ article.article-view(class!="{res.entry.rendered?.body?.toc?.length >= 3 ? 'has-
 					| {@html res.html.body ?? ''}
 				+if('res.entry.data.keyFacts?.length')
 					aside.key-facts
-						h2 Key facts
+						h2 {t('article.keyFacts')}
 						ul
 							+each('res.entry.data.keyFacts as f (f)')
 								li {f}
 				+if('extra.sources.length')
 					section.sources
-						h2 Sources
+						h2 {t('article.sources')}
 						ol
 							+each('extra.sources as s, i (i)')
 								li
@@ -73,19 +75,20 @@ article.article-view(class!="{res.entry.rendered?.body?.toc?.length >= 3 ? 'has-
 					p.text-sm(class="text-fg-muted") {p.bio}
 	+if('extra.related.length')
 		section.related
-			h2 Related
+			h2 {t('article.related')}
 			.article-grid
 				+each('extra.related as a (a.id)')
 					ArticleCard(a!="{a}")
 
 <script>
+	import { t, fmtDate } from '../../i18n/ui/t.js'
 	import ArticleCard from './ArticleCard.n'
 	import MembersOnly from './MembersOnly.n'
-	{ res, extra } := $props()
+	{ res, extra, fallbackName = null } := $props()
 
 	published := $derived new Date(res.entry.published_at ?? res.entry.updated_at)
 	updated := $derived new Date(res.entry.updated_at)
 	cover := $derived res.media?.[res.entry.data.cover] ?? null
 	toc := $derived res.entry.rendered?.body?.toc ?? []
-	fmt := (d) => d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+	fmt := (d) => fmtDate(d)
 </script>

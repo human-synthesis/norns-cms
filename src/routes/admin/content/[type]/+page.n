@@ -2,7 +2,7 @@
 	PageHead(title!="{data.ct.labelPlural}" subtitle!="{data.tabs[0].count + ' total'}")
 		+snippet('actions')
 			+if('data.canCreate')
-				Btn(href="/admin/content/{data.ct.id}/new" variant="primary" icon="lucide:plus") New {data.ct.label}
+				Btn(href!="{'/admin/content/' + data.ct.id + '/new' + (data.lang ? '?lang=' + data.lang : '')}" variant="primary" icon="lucide:plus") New {data.ct.label}{data.lang ? ' (' + data.lang + ')' : ''}
 	nav.filter-tabs(aria-label="Status")
 		+each('data.tabs as t (t.id)')
 			a.filter-tab(href!="{tabHref(t.id)}" class!="{data.status === t.id ? 'filter-tab-active' : ''}") {t.label}
@@ -10,6 +10,11 @@
 	form.flex.flex-wrap.items-end.gap-2(method="GET")
 		input(type="hidden" name="status" value!="{data.status}")
 		Input(name="q" value!="{data.q}" placeholder="Search titles and slugs…" class="w-64")
+		+if('data.languages.length > 1')
+			Select(name="lang" value!="{data.lang}" class="w-40")
+				option(value="") All languages
+				+each('data.languages as l (l)')
+					option(value!="{l}") {l}
 		label.check-item
 			Checkbox(name="mine" value="1" checked!="{data.mine}")
 			span Only mine
@@ -30,8 +35,9 @@
 	import { displayStatus } from '$lib/norns/content/shared/types'
 	{ data } := $props()
 
-	columns := [
+	columns := $derived [
 		{ key: 'title', label: 'Title' }
+		...(data.languages.length > 1 ? [{ key: 'locale', label: 'Language' }, { key: 'coverage', label: 'Translations' }] : [])
 		{ key: 'slug', label: 'URL', class: 'text-fg-muted' }
 		{ key: 'status', label: 'Status' }
 		{ key: 'updated', label: 'Updated' }
@@ -41,6 +47,8 @@
 		data.entries.map (e) => ({
 			id: e.id
 			title: e.title || '(untitled)'
+			locale: e.locale
+			coverage: data.languages.map((l) => ((data.coverage[e.translation_group] ?? []).includes(l) ? '● ' : '○ ') + l).join('  ')
 			slug: (data.ct.basePath || '') + '/' + e.slug
 			status: displayStatus(e).replace('_', ' ') + (e.visibility === 'members' ? ' · members' : '')
 			updated: new Date(e.updated_at).toLocaleString()

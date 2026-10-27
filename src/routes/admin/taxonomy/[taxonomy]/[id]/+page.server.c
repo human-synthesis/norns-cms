@@ -3,7 +3,8 @@ import { error, fail, redirect } from '@sveltejs/kit'
 import { articles } from '$lib/norns/articles/server/public'
 import { seo } from '$lib/norns/seo/server/public'
 import { requireCap, audit } from '$lib/norns/auth/server/public'
-import { formToObject } from '$lib/norns/content/server/public'
+import { formToObject, cms } from '$lib/norns/content/server/public'
+import { i18n } from '$lib/norns/i18n/server/public'
 
 termOr404 := async (container: any, params: any) =>
 	tax := articles(container).taxonomy params.taxonomy
@@ -17,7 +18,11 @@ export load := page.load
 		requireCap user, 'taxonomy.manage'
 		{ tax, term } := await termOr404 container, params
 		terms := await articles(container).terms tax.id
-		{ tax, term, others: terms.filter((t) => t.id !== term.id), url: articles(container).termUrl(term) }
+		def := cms(container).defaultLanguage()
+		languages := cms(container).languages().filter((code) => code !== def).map (code) =>
+			l := i18n(container).language code
+			{ code, name: l.native || l.name || code, url: articles(container).termUrl(term, code) }
+		{ tax, term, others: terms.filter((t) => t.id !== term.id), url: articles(container).termUrl(term, def), languages }
 
 export actions := page.actions
 	save:
@@ -25,10 +30,16 @@ export actions := page.actions
 			requireCap user, 'taxonomy.manage'
 			{ tax, term } := await termOr404 container, event.params
 			raw := formToObject await event.request.formData()
-			r := await articles(container).saveTerm tax.id, term.id, raw
+			translations := {} as Record<string, any>
+			for code of cms(container).languages()
+				continue unless raw[`tr_${code}_name`] !== undefined
+				translations[code] = { name: raw[`tr_${code}_name`], slug: raw[`tr_${code}_slug`], description: raw[`tr_${code}_description`] }
+			r := await articles(container).saveTerm tax.id, term.id, { ...raw, translations }
 			return fail(400, { errors: [{ path: [{ key: r.field ?? 'name' }], message: r.error }], values: raw }) unless r.ok
-			if r.term.slug !== term.slug
-				await seo(container).saveRedirect null, { from: articles(container).termUrl(term), to: articles(container).termUrl(r.term), status: 301 }
+			for code of cms(container).languages()
+				before := articles(container).termUrl term, code
+				after := articles(container).termUrl r.term, code
+				await seo(container).saveRedirect(null, { from: before, to: after, status: 301 }) if before !== after
 			await audit(container).log user, 'taxonomy.update', `${tax.id}:${r.term.slug}`, {}
 			{ saved: true }
 	merge:

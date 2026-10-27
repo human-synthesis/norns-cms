@@ -1,0 +1,44 @@
+.space-y-6
+	PageHead(title="Interface texts" subtitle="Everything around the content: navigation, buttons, the cookie banner, members' pages and their emails." back="/admin/localisation" backLabel="Localisations")
+	+if('form?.ai !== undefined')
+		Banner(variant="success" icon="lucide:sparkles") Translated {form.ai} texts with AI. Review them below.
+	+elseif('form?.saved !== undefined')
+		Banner(variant="success" icon="lucide:check") Saved. Pages pick it up within a few seconds.
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	+if('data.ai && data.rows.some((r) => !r.override && !r.builtIn)')
+		form(method="POST" action="?/ai")
+			input(type="hidden" name="lang" value!="{data.lang}")
+			Btn(type="submit" variant="secondary" icon="lucide:sparkles") Fill the {data.rows.filter((r) => !r.override && !r.builtIn).length} missing texts with AI
+	form.flex.flex-wrap.items-end.gap-2(method="GET")
+		Select(name="lang" value!="{data.lang}" class="w-56")
+			+each('data.languages as l (l.code)')
+				option(value!="{l.code}") {l.native || l.name} ({l.code})
+		Input(name="q" value!="{data.q}" placeholder="Search…" class="w-56")
+		label.check-item
+			Checkbox(name="missing" value="1" checked!="{data.missing}")
+			span Only texts without a translation
+		Btn(type="submit" variant="secondary" icon="lucide:filter") Show
+	form(method="POST" action="?/save")
+		input(type="hidden" name="lang" value!="{data.lang}")
+		.texts-table
+			+each('rows as r (r.key)')
+				.texts-row
+					.min-w-0
+						code.text-xs {r.key}
+						p.text-sm(class="text-fg-muted") {r.english}
+					div
+						+if('r.english.length > 80 || r.english.includes("\\n")')
+							Textarea(name!="{'k:' + r.key}" value!="{r.override ?? ''}" rows="3" placeholder!="{r.builtIn ?? r.inherited}")
+						+else
+							Input(name!="{'k:' + r.key}" value!="{r.override ?? ''}" placeholder!="{r.builtIn ?? r.inherited}")
+						+if('!r.override && !r.builtIn')
+							span.text-xs.text-danger Not translated — shows: {r.inherited}
+		.sticky.bottom-0.py-3(class="bg-bg-subtle")
+			Btn(type="submit" variant="primary" icon="lucide:save") Save {rows.length} texts
+		p.text-xs(class="text-fg-subtle") Empty fields use the built-in text (shown greyed). Placeholders like {'{name}'} are filled in by the site.
+
+<script>
+	{ data, form } := $props()
+	rows := $derived data.rows.filter((r) => (!data.missing || (!r.override && !r.builtIn)) && (!data.q || (r.key + ' ' + r.english + ' ' + (r.value ?? '')).toLowerCase().includes(data.q.toLowerCase())))
+</script>

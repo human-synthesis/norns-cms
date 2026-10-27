@@ -1,15 +1,27 @@
 .space-y-6
 	PageHead(title!="{data.group.label}" subtitle!="{data.group.description ?? ''}" back="/admin/settings" backLabel="Settings")
+	+if('data.languages.length > 1')
+		nav.filter-tabs(aria-label="Language")
+			+each('data.languages as l (l.code)')
+				a.filter-tab(href!="{'?lang=' + encodeURIComponent(l.code)}" class!="{data.lang === l.code ? 'filter-tab-active' : ''}") {l.name}{l.code === data.def ? ' (default)' : ''}
+	+if('data.translating')
+		Banner(variant="info" icon="lucide:languages") Translations of the texts in this group. Empty fields use the default language's value (shown greyed).
 	+if('form?.saved')
 		Banner(variant="success" icon="lucide:check") Saved. Changes reach every page within a few seconds.
 	+if('form?.errors')
 		Banner(variant="danger" icon="lucide:alert-triangle") Please fix the highlighted fields.
 	Card
-		Form(action="?/save" form!="{form}")
+		Form(action!="{data.translating ? '?/save&lang=' + encodeURIComponent(data.lang) : '?/save'}" form!="{form}")
 			.settings-grid
 				+each('data.group.fields as field (field.name)')
-					Field(label!="{field.label}" name!="{field.name}" required!="{field.required}" help!="{field.type === 'boolean' ? undefined : field.help}" class!="{wide(field) ? 'settings-wide' : ''}")
-						FieldEditor(field!="{field}" value!="{values[field.name]}")
+					Field(label!="{field.label}" name!="{field.name}" required!="{field.required && !data.translating}" help!="{field.type === 'boolean' ? undefined : field.help}" class!="{wide(field) ? 'settings-wide' : ''}")
+						+if('data.translating')
+							+if('field.type === "textarea"')
+								Textarea(name!="{field.name}" value!="{values[field.name] ?? ''}" rows="3" placeholder!="{data.base[field.name] ?? ''}")
+							+else
+								Input(name!="{field.name}" value!="{values[field.name] ?? ''}" placeholder!="{String(data.base[field.name] ?? '')}")
+						+else
+							FieldEditor(field!="{field}" value!="{values[field.name]}")
 			.pt-4
 				Btn(type="submit" variant="primary" icon="lucide:save") Save
 

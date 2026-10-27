@@ -1,36 +1,40 @@
+svelte:head
+	title {t('privacy.title')} · {page.data.site.title}
 .account-page
-	PageHead(title="Privacy & data" back="/account" backLabel="Your account")
+	PageHead(title!="{t('privacy.title')}" back="/account" backLabel!="{t('privacy.back')}")
 	Card
-		h2.font-semibold.mb-2 Cookies on this device
+		h2.font-semibold.mb-2 {t('privacy.cookies')}
 		p.text-sm.mb-3
 			+if('data.state.given')
-				| You chose: preferences {yes(data.state.choice.preferences)}, analytics {yes(data.state.choice.analytics)}, marketing {yes(data.state.choice.marketing)}.
+				| {t('privacy.chose', { p: yes(data.state.choice.preferences), a: yes(data.state.choice.analytics), m: yes(data.state.choice.marketing) })}
 			+else
-				| You have not made a choice on this device yet.
-		Btn(variant="secondary" icon="lucide:cookie" onclick!="{openConsent}") Change cookie settings
+				| {t('privacy.noChoice')}
+		Btn(variant="secondary" icon="lucide:cookie" onclick!="{openConsent}") {t('privacy.change')}
 		+if('data.records.length')
 			details.mt-4
-				summary.text-sm Choices recorded while signed in
+				summary.text-sm {t('privacy.recorded')}
 				ul.text-xs.space-y-1.pt-2
 					+each('data.records as r (r.id)')
-						li {new Date(r.created_at).toLocaleString()} — {r.action.replace('_', ' ')} (policy v{r.policy_version})
+						li {fmtDate(r.created_at, { dateStyle: 'medium' })} — {r.action.replace('_', ' ')} (v{r.policy_version})
 	Card
-		h2.font-semibold.mb-2 Download your data
-		p.text-sm.mb-3(class="text-fg-muted") Your profile, active sessions, account activity and consent records, as JSON.
-		Btn(href="/account/export.json" variant="secondary" icon="lucide:download") Download
+		h2.font-semibold.mb-2 {t('privacy.download')}
+		p.text-sm.mb-3(class="text-fg-muted") {t('privacy.downloadText')}
+		Btn(href="/account/export.json" variant="secondary" icon="lucide:download") {t('privacy.downloadButton')}
 	Card
-		h2.font-semibold.mb-2 Delete your account
-		p.text-sm.mb-4(class="text-fg-muted") Your name and email are removed immediately and the account is gone for good after 30 days. This cannot be undone.
+		h2.font-semibold.mb-2 {t('privacy.delete')}
+		p.text-sm.mb-4(class="text-fg-muted") {t('privacy.deleteText')}
 		Form(action="?/delete" form!="{form}")
 			.space-y-4
-				Field(label="Password" name="password" required)
+				Field(label!="{t('login.password')}" name="password" required)
 					Input(type="password" name="password" autocomplete="current-password")
-				Field(label="Type DELETE to confirm" name="confirm" required)
+				Field(label!="{t('privacy.typeDelete')}" name="confirm" required)
 					Input(name="confirm" autocomplete="off")
-				Btn(type="submit" variant="danger" icon="lucide:trash-2") Delete my account
+				Btn(type="submit" variant="danger" icon="lucide:trash-2") {t('privacy.deleteButton')}
 
 <script>
+	import { page } from '$app/state'
+	import { t, fmtDate } from '$lib/norns/i18n/ui/t.js'
 	{ data, form } := $props()
-	yes := (b) => b ? 'yes' : 'no'
+	yes := (b) => b ? t('privacy.yes') : t('privacy.no')
 	openConsent := => window.dispatchEvent(new CustomEvent('cms:open-consent'))
 </script>

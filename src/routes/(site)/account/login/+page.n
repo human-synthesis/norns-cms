@@ -1,30 +1,33 @@
+svelte:head
+	title {t('login.title')} · {page.data.site.title}
 .account-narrow
-	h1.text-3xl.font-bold.tracking-tight Sign in
+	h1.text-3xl.font-bold.tracking-tight {t('login.title')}
 	+if('data.verified')
-		Banner(variant="success" icon="lucide:check") Email confirmed. You can sign in now.
+		Banner(variant="success" icon="lucide:check") {t('login.verified')}
 	+if('data.reset')
-		Banner(variant="success" icon="lucide:check") Password changed. Sign in with the new one.
+		Banner(variant="success" icon="lucide:check") {t('login.reset')}
 	+if('form?.resent')
-		Banner(variant="info" icon="lucide:mail") If that account is waiting for confirmation, a new link is on its way.
+		Banner(variant="info" icon="lucide:mail") {t('login.resent')}
 	Card
 		Form(action="?/login" form!="{form}")
 			.space-y-4
 				input(type="hidden" name="next" value!="{data.next}")
-				Field(label="Email" name="email" required)
+				Field(label!="{t('login.email')}" name="email" required)
 					Input(type="email" name="email" value!="{form?.values?.email ?? ''}" autocomplete="username" required)
-				Field(label="Password" name="password" required)
+				Field(label!="{t('login.password')}" name="password" required)
 					Input(type="password" name="password" autocomplete="current-password" required)
-				Btn(type="submit" variant="primary" class="w-full") Sign in
+				Btn(type="submit" variant="primary" class="w-full") {t('login.submit')}
 		+if('form?.unverified')
 			form.pt-3(method="POST" action="?/resend")
 				input(type="hidden" name="email" value!="{form.values?.email ?? ''}")
-				Btn(type="submit" variant="ghost" size="sm") Send the confirmation link again
+				Btn(type="submit" variant="ghost" size="sm") {t('login.resend')}
 	.text-sm.flex.justify-between
-		a(href="/account/forgot") Forgot your password?
+		a(href="/account/forgot") {t('login.forgot')}
 		+if('page.data.site?.registration === "open"')
-			a(href="/account/register") Create an account
+			a(href="/account/register") {t('login.register')}
 
 <script>
 	import { page } from '$app/state'
+	import { t } from '$lib/norns/i18n/ui/t.js'
 	{ data, form } := $props()
 </script>

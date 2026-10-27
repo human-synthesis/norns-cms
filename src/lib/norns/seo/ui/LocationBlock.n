@@ -13,16 +13,17 @@
 				+if('data.location.email')
 					a(href!="{'mailto:' + data.location.email}") {data.location.email}
 				+if('data.location.area')
-					span(class="text-fg-muted") Serving {data.location.area}
+					span(class="text-fg-muted") {t('block.serving', { area: data.location.area })}
 			+if('data.location.hours.length')
 				div
-					strong Opening hours
+					strong {t('block.openingHours')}
 					ul
 						+each('data.location.hours as h (h)')
 							li {h}
 		+if('props.showMap && data.location.map')
-			Btn(href!="{data.location.map}" target="_blank" rel="noopener" variant="secondary" icon="lucide:map-pin") Open map
+			Btn(href!="{data.location.map}" target="_blank" rel="noopener" variant="secondary" icon="lucide:map-pin") {t('block.openMap')}
 
 <script>
+	import { t } from '../../i18n/ui/t.js'
 	{ props = {}, data = null } := $props()
 </script>

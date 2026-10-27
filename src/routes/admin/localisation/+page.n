@@ -1,0 +1,29 @@
+.space-y-6
+	PageHead(title="Localisations" subtitle="Each localisation is a site for a market, with one or more languages, on a sub-folder, a sub-domain or its own domain.")
+		+snippet('actions')
+			Btn(href="/admin/localisation/languages" variant="secondary" icon="lucide:languages") Languages
+			Btn(href="/admin/localisation/new" variant="primary" icon="lucide:plus") New localisation
+	+each('data.markets as m (m.id)')
+		Card(href="/admin/localisation/{m.id}")
+			.flex.flex-wrap.items-start.justify-between.gap-3
+				div
+					.flex.items-center.gap-2
+						span.font-semibold {m.name}
+						code.text-xs(class="text-fg-subtle") {m.code}
+						+if('m.isPrimary')
+							Badge(size="sm" variant="info") primary
+						+if('!m.enabled')
+							Badge(size="sm" variant="warning") off
+					p.text-sm(class="text-fg-muted") {MODES[m.mode]}{m.mode === 'path' ? (m.prefix ? ' /' + m.prefix : ' at the root') : ' ' + m.host}{m.countries.length ? ' · ' + m.countries.join(', ') : ''}{m.contentFallback ? ' · falls back to fallback languages' : ''}
+				.flex.flex-col.gap-1.text-sm.text-right
+					+each('m.urls as u (u.code)')
+						span
+							code.text-xs {u.code}
+							|  {u.url}
+	+if('data.languages.length < 2')
+		Banner(variant="info" icon="lucide:info") Add languages under Languages, then list them in a localisation. With more than one language, turn on "Prefix the default language" so every language has its own folder (/en/…, /de/…).
+
+<script>
+	{ data } := $props()
+	MODES := { path: 'Sub-folder', subdomain: 'Sub-domain', domain: 'Own domain' }
+</script>

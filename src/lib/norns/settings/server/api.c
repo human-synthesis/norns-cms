@@ -34,10 +34,15 @@ export registerSettingsApi := (app: Container) =>
 	}
 	registerEndpoint app, {
 		method: 'PATCH', path: '/settings/:group', capability: null, tag: 'Settings'
-		summary: 'Change settings: given values are merged into the current ones and validated'
+		summary: 'Change settings: given values are merged into the current ones and validated; ?lang= sets the translation of translatable fields'
+		query: [{ name: 'lang', description: 'A language: only translatable fields, stored as that language\'s translation' }]
 		body: { description: 'Values by field name', example: { title: 'My site', registration: 'invite' } }
-		handler: async ({ c, params, body, user }) =>
+		handler: async ({ c, params, body, user, query }) =>
 			g := groupFor c, params.group, user
+			if query.lang
+				r := await settings(c).saveTranslation g.id, String(query.lang), body, user.id
+				await audit(c).log user, 'settings.save', g.id, { via: 'api', language: query.lang }
+				return r.values
 			unknown := Object.keys(body).filter((k) => !g.fields.some((f: any) => f.name === k))
 			throw apiError(400, `Unknown settings: ${unknown.join(', ')}`) if unknown.length
 			r := await settings(c).save g.id, { ...(await settings(c).get g.id), ...body }, user.id

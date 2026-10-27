@@ -1,27 +1,30 @@
+svelte:head
+	title {t('register.title')} · {page.data.site.title}
 .account-narrow
-	h1.text-3xl.font-bold.tracking-tight Create an account
+	h1.text-3xl.font-bold.tracking-tight {t('register.title')}
 	+if('form?.registered')
-		Banner(variant="success" icon="lucide:mail") Almost done: we sent a confirmation link to {form.registered}. Open it to finish.
+		Banner(variant="success" icon="lucide:mail") {t('register.done', { email: form.registered })}
 	+else
 		Card
 			Form(action="?/register" form!="{form}")
 				.space-y-4
-					Field(label="Name" name="name")
+					Field(label!="{t('register.name')}" name="name")
 						Input(name="name" value!="{form?.values?.name ?? ''}" autocomplete="name")
-					Field(label="Email" name="email" required)
+					Field(label!="{t('login.email')}" name="email" required)
 						Input(type="email" name="email" value!="{form?.values?.email ?? ''}" autocomplete="email" required)
-					Field(label="Password" name="password" required help="At least 12 characters")
+					Field(label!="{t('login.password')}" name="password" required help!="{t('register.passwordHelp')}")
 						Input(type="password" name="password" autocomplete="new-password" required)
 					Field(name="terms")
 						label.check-item
 							Checkbox(name="terms" value="1")
-							span I agree to the terms and have read the 
-								a(href!="{page.data.banner?.policyUrl ?? '/privacy'}") privacy policy
-					Btn(type="submit" variant="primary" class="w-full") Create account
+							span {t('register.terms')} 
+								a(href!="{page.data.banner?.policyUrl ?? '/privacy'}") {t('register.policy')}
+					Btn(type="submit" variant="primary" class="w-full") {t('register.submit')}
 	.text-sm
-		a(href="/account/login") Already have an account? Sign in
+		a(href="/account/login") {t('register.haveAccount')}
 
 <script>
 	import { page } from '$app/state'
+	import { t } from '$lib/norns/i18n/ui/t.js'
 	{ form } := $props()
 </script>

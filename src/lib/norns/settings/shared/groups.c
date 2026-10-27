@@ -7,10 +7,10 @@ export siteSettings := {
 	order: 1
 	description: 'Name, home page and who may create an account.'
 	fields: [
-		{ name: 'title', label: 'Site title', type: 'text', required: true, default: 'Norns CMS' }
-		{ name: 'tagline', label: 'Tagline', type: 'text', default: '' }
+		{ name: 'title', label: 'Site title', type: 'text', required: true, default: 'Norns CMS', translatable: true }
+		{ name: 'tagline', label: 'Tagline', type: 'text', default: '', translatable: true }
 		{ name: 'homePage', label: 'Home page', type: 'reference', to: 'page', help: 'A page to show at /. Leave empty for the latest articles.' }
-		{ name: 'footerText', label: 'Footer text', type: 'text', default: '' }
+		{ name: 'footerText', label: 'Footer text', type: 'text', default: '', translatable: true }
 		{ name: 'registration', label: 'Member registration', type: 'select', default: 'off', required: true, options: [
 			{ value: 'off', label: 'Off — no client sign-up' }
 			{ value: 'invite', label: 'Invite only — staff create client accounts' }

@@ -1,4 +1,5 @@
 import { randomBytes, createHash } from 'node:crypto'
+import { getScope } from '@human-synthesis/norns/server'
 import type { Container } from '@human-synthesis/norns/server'
 import type { ConsentRepo } from './repo'
 import { PROVIDERS, validateConfig, parseCookieLines, GOOGLE_CONSENT_DEFAULT } from './providers.js'
@@ -6,6 +7,7 @@ import { LOADER } from './loader.js'
 import { CATEGORIES, encodeConsent, decodeConsent, defaultsFor, regionOf, modeFor } from '../shared/config'
 import type { Choice } from '../shared/config'
 import { settings } from '../../settings/server/public'
+import { tFor } from '../../i18n/server/public'
 
 ACTIONS := ['accept_all', 'reject_all', 'custom', 'withdraw', 'acknowledge']
 MONTH := 30 * 24 * 60 * 60 * 1000
@@ -27,7 +29,7 @@ export class ConsentService
 	constructor(@repo: ConsentRepo, @db: any, @c: Container)
 
 	async config()
-		await settings(@c).get 'consent'
+		await settings(@c).localized 'consent'
 
 	// --- per request ---------------------------------------------------------
 
@@ -110,8 +112,9 @@ export class ConsentService
 		else
 			{ preferences: yes(input.preferences), analytics: yes(input.analytics), marketing: yes(input.marketing) }
 		consentId := state.consentId ?? randomBytes(16).toString('hex')
-		bannerHash := createHash('sha256').update(`${cfg.bannerTitle}\n${cfg.bannerText}\n${state.version}`).digest('hex').slice(0, 16)
-		await @repo.record { consentId, userId: user?.kind === 'client' ? user.id : null, version: state.version, action, choice, country: state.country, mode: state.mode, gpc: state.gpc, bannerHash }
+		bannerHash := createHash('sha256').update(`${cfg.bannerTitle}\n${cfg.bannerText}\n${state.version}\n${event.locals?.locale?.language ?? ''}`).digest('hex').slice(0, 16)
+		locale := event.locals?.locale?.language ?? ''
+		await @repo.record { consentId, userId: user?.kind === 'client' ? user.id : null, version: state.version, action, choice, country: state.country, mode: state.mode, gpc: state.gpc, bannerHash, locale }
 		days := Math.min(395, Math.max(1, Number(cfg.cookieDays) || 180))
 		{ consentId, choice, cookie: encodeConsent(consentId, state.version, choice as Choice), maxAge: days * 24 * 60 * 60 }
 
@@ -120,8 +123,9 @@ export class ConsentService
 	async declaration()
 		cfg := await @config()
 		scripts := await @enabledScripts()
+		t := await tFor @c, (getScope()?.event?.locals?.locale?.language ?? 'en')
 		groups := [
-			{ id: 'necessary', label: 'Necessary', text: cfg.necessaryText, required: true, cookies: [...NECESSARY_COOKIES], services: [] as string[] }
+			{ id: 'necessary', label: t('consent.necessary'), text: cfg.necessaryText, required: true, cookies: [...NECESSARY_COOKIES], services: [] as string[] }
 			{ id: 'preferences', label: cfg.preferencesLabel, text: cfg.preferencesText, required: false, cookies: [] as any[], services: [] as string[] }
 			{ id: 'analytics', label: cfg.analyticsLabel, text: cfg.analyticsText, required: false, cookies: [] as any[], services: [] as string[] }
 			{ id: 'marketing', label: cfg.marketingLabel, text: cfg.marketingText, required: false, cookies: [] as any[], services: [] as string[] }
@@ -135,7 +139,7 @@ export class ConsentService
 			for ck of cookies
 				g.cookies.push { ...ck, service: s.name || p?.label }
 		marketing := groups.find((x) => x.id === 'marketing')
-		marketing?.services.push 'Embedded media (YouTube, Vimeo, other sites)'
+		marketing?.services.push t('consent.embedded')
 		patterns := {} as Record<string, string[]>
 		for cat of CATEGORIES
 			patterns[cat] = scripts.filter((s) => s.category === cat).flatMap((s) => (PROVIDERS as any)[s.provider]?.patterns ?? [])

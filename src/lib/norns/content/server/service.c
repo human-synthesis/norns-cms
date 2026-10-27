@@ -8,6 +8,7 @@ import { compileFields } from './compile'
 import { renderMarkdown, collectRefs } from './markdown.js'
 import { markdownSources, mediaIds, renderFields } from './walk.js'
 import { can } from '../../auth/shared/can'
+import { getScope } from '@human-synthesis/norns/server'
 
 export slugify := (s: string) =>
 	s.toLowerCase()
@@ -63,6 +64,31 @@ export class ContentService
 
 	compile(fields: FieldDef[])
 		compileFields fields, { block: @blockLookup }
+
+	// --- languages -----------------------------------------------------------
+
+	i18n(): any
+		@c.has('i18n.service') ? @c.resolve('i18n.service') : null
+
+	languages(): string[]
+		@i18n()?.contentLanguages() ?? ['en']
+
+	defaultLanguage(): string
+		@i18n()?.defaultLanguage() ?? 'en'
+
+	// The request's locale (public pages), else the default language.
+	current()
+		loc := getScope()?.event?.locals?.locale
+		{ language: loc?.language ?? @defaultLanguage(), market: loc?.market?.code ?? null, contentFallback: !!loc?.market?.contentFallback, chain: loc?.chain ?? [loc?.language ?? @defaultLanguage()] }
+
+	marketCodes(): string[]
+		(@i18n()?.markets() ?? []).map((m: any) => m.code)
+
+	normalizeMarkets(raw: any, prev: string[] | undefined): string[]
+		return prev ?? [] if raw === undefined
+		list := Array.isArray(raw) ? raw : String(raw ?? '').split(',')
+		known := @marketCodes()
+		[...new Set(list.map((x: any) => String(x).trim()).filter((x: string) => x && known.includes(x)))]
 
 	// Option lists for fields whose choices live in the database:
 	// `reference` (entries of `to`), `term` (a taxonomy), `users`, or any
@@ -135,7 +161,9 @@ export class ContentService
 				ctx.data = result
 		ctx
 
-	async save(typeId: string, id: number | null, raw: Record<string, any>, user: any): Promise<SaveResult>
+	// extra (translations): { locale, group, translationOf, sourceUpdatedAt }.
+	// An entry's language is fixed when it is created.
+	async save(typeId: string, id: number | null, raw: Record<string, any>, user: any, extra: Record<string, any> = {}): Promise<SaveResult>
 		ct := @mustType typeId
 		{ schema, titleField } := @compiled ct
 		result := v.safeParse schema, raw
@@ -144,30 +172,93 @@ export class ContentService
 		prev := id ? await @repo.get(ct.id, id) : undefined
 		if id && !prev
 			return { ok: false, issues: [{ message: 'Entry not found', path: [{ key: 'title' }] }] }
-		hookCtx := await @runHooks 'beforeSave', { ct, data: result.output, prev, user, raw }
+		locale := prev?.locale ?? (String(extra.locale ?? raw.locale ?? '') || @defaultLanguage())
+		unless prev || @languages().includes(locale)
+			return { ok: false, issues: [{ message: `No localisation offers the language "${locale}"`, path: [{ key: 'locale' }] }] }
+		hookCtx := await @runHooks 'beforeSave', { ct, data: result.output, prev, user, raw, locale }
 		data := hookCtx.data as Record<string, any>
 		title := String(data[titleField] ?? '')
 		requested := String(raw.slug ?? '').trim()
-		slug := await @uniqueSlug ct.id, slugify(requested || title) || 'untitled', id
+		slug := await @uniqueSlug ct.id, locale, slugify(requested || title) || 'untitled', id
 		visibility := raw.visibility === 'members' ? 'members' : (raw.visibility === 'public' ? 'public' : (prev?.visibility ?? 'public'))
-		rendered := await @renderData ct, data
+		markets := @normalizeMarkets raw.markets, prev?.markets
+		rendered := await @renderData ct, data, locale
 		userId := user?.id ?? null
 		entryId .= id ?? 0
 		if id
-			await @repo.update id, { title, slug, data, rendered, visibility }
+			await @repo.update id, { title, slug, data, rendered, visibility, markets }
 		else
-			entryId = await @repo.insert { type: ct.id, title, slug, data, rendered, visibility, authorId: userId }
+			entryId = await @repo.insert { type: ct.id, locale, title, slug, data, rendered, visibility, markets, authorId: userId, group: extra.group ?? null, translationOf: extra.translationOf ?? null, sourceUpdatedAt: extra.sourceUpdatedAt ?? null }
 		await @repo.addRevision entryId, title, slug, data, userId
 		entry := (await @repo.get ct.id, entryId) as Entry
 		await @runHooks 'afterSave', { ct, entry, prev, user }
 		if prev && prev.slug !== slug && prev.status === 'published'
-			await @runHooks 'slug', { ct, entry, fromUrl: @urlFor(ct, prev), toUrl: @urlFor(ct, entry), user }
+			for place of @placesOf(prev.locale)
+				await @runHooks 'slug', { ct, entry, fromUrl: place.base + @pathIn(ct, prev), toUrl: place.base + @pathIn(ct, entry), user }
 		{ ok: true, id: entryId, entry }
 
-	async uniqueSlug(typeId: string, base: string, excludeId: number | null): Promise<string>
+	// Raw form values from stored data, for re-saving through the normal path.
+	rawFrom(ct: ContentType, data: Record<string, any>)
+		raw := { ...data } as Record<string, any>
+		for f of @fields(ct)
+			if f.type === 'blocks' || f.type === 'repeater' || f.type === 'json'
+				raw[f.name] = JSON.stringify(data[f.name] ?? (f.type === 'json' ? null : []))
+		raw
+
+	// A new entry in another language, linked to the source's group and
+	// stamped with the source's version. `data` overrides the copied
+	// values (e.g. a machine translation); the result is always a draft.
+	async translate(typeId: string, sourceId: number, locale: string, user: any, data: Record<string, any> | null = null): Promise<SaveResult>
+		ct := @mustType typeId
+		source := await @repo.get ct.id, sourceId
+		return { ok: false, issues: [{ message: 'Entry not found' }] } unless source
+		return { ok: false, issues: [{ message: `No localisation offers "${locale}"` }] } unless @languages().includes(locale)
+		siblings := await @repo.group(source.translation_group ?? source.id)
+		existing := siblings.find((e) => e.locale === locale)
+		return { ok: false, issues: [{ message: 'That translation exists already' }], existing: existing.id } if existing
+		root := siblings.find((e) => !e.translation_of) ?? source
+		raw := { ...@rawFrom(ct, data ?? source.data), slug: source.slug, visibility: source.visibility, markets: source.markets }
+		@save ct.id, null, raw, user, { locale, group: source.translation_group ?? source.id, translationOf: root.id, sourceUpdatedAt: root.updated_at }
+
+	// The other languages of an entry, with their state.
+	async translations(entry: Entry)
+		group := await @repo.group(entry.translation_group ?? entry.id)
+		root := group.find((e) => !e.translation_of) ?? group[0]
+		group.map (e) => ({
+			id: e.id
+			locale: e.locale
+			title: e.title
+			slug: e.slug
+			status: e.status
+			published_at: e.published_at
+			updated_at: e.updated_at
+			isSource: e.id === root?.id
+			outdated: !!(e.translation_of && root && e.id !== root.id && (e.source_updated_at ?? 0) < root.updated_at)
+		})
+
+	// "I have brought this translation up to date with its source."
+	async markCurrent(entry: Entry)
+		group := await @repo.group(entry.translation_group ?? entry.id)
+		root := group.find((e) => !e.translation_of)
+		await @repo.stamp(entry.id, root.updated_at) if root && root.id !== entry.id
+		return
+
+	// Translation coverage for lists: group id → locales present.
+	async coverage(entries: Entry[])
+		rows := await @repo.groups [...new Set(entries.map((e) => e.translation_group ?? e.id))]
+		out := {} as Record<string, string[]>
+		for r of rows
+			key := String(r.translation_group)
+			out[key] = [...(out[key] ?? []), r.locale]
+		out
+
+	localeCounts(typeId: string)
+		@repo.localeCounts @mustType(typeId).id
+
+	async uniqueSlug(typeId: string, locale: string, base: string, excludeId: number | null): Promise<string>
 		candidate .= base
 		n .= 2
-		while await @repo.slugTaken(typeId, candidate, excludeId)
+		while await @repo.slugTaken(typeId, locale, candidate, excludeId)
 			candidate = `${base}-${n}`
 			n++
 		candidate
@@ -204,11 +295,7 @@ export class ContentService
 		rev := await @repo.revision id, revId
 		unless rev
 			return { ok: false, issues: [{ message: 'Revision not found' }] }
-		raw := { ...rev.data } as Record<string, any>
-		for f of @fields(@mustType typeId)
-			value := raw[f.name]
-			if f.type === 'blocks' || f.type === 'repeater' || f.type === 'json'
-				raw[f.name] = JSON.stringify(value ?? (f.type === 'json' ? null : []))
+		raw := @rawFrom @mustType(typeId), rev.data
 		raw.slug = rev.slug
 		@save typeId, id, raw, user
 
@@ -216,7 +303,7 @@ export class ContentService
 
 	// Markdown → cached HTML at save time, with media and article references
 	// looked up first (the renderer itself is synchronous).
-	async renderData(ct: ContentType, data: Record<string, any>)
+	async renderData(ct: ContentType, data: Record<string, any>, locale = 'en')
 		fields := @fields ct
 		sources := markdownSources fields, data, @blockLookup
 		mediaRefs := new Set<number>()
@@ -227,10 +314,11 @@ export class ContentService
 				mediaRefs.add m
 			for slug of refs.articles
 				slugRefs.add slug
-		ctx := { media: await @lookupMedia([...mediaRefs]), articles: {} as Record<string, any> }
+		strings := @i18n() ? await @i18n().strings(locale) : {}
+		ctx := { media: await @lookupMedia([...mediaRefs]), articles: {} as Record<string, any>, strings }
 		articleType := @registry.get 'article'
 		if articleType && slugRefs.size
-			for e of await @repo.bySlugs('article', [...slugRefs])
+			for e of await @repo.bySlugs('article', [...slugRefs], locale)
 				ctx.articles[e.slug] = { title: e.title, url: @urlFor(articleType, e), summary: e.data.summary ?? '' }
 		renderFields fields, data, @blockLookup, (md: string) => renderMarkdown(md, ctx)
 
@@ -250,7 +338,7 @@ export class ContentService
 			continue unless entry
 			ct := @registry.get entry.type
 			continue unless ct
-			await @repo.setRendered id, await @renderData(ct, entry.data)
+			await @repo.setRendered id, await @renderData(ct, entry.data, entry.locale)
 			n++
 		n
 
@@ -281,45 +369,79 @@ export class ContentService
 				ids.add m
 		[...ids]
 
-	urlFor(ct: ContentType, entry: { slug: string }): string
-		`${ct.basePath || ''}/${entry.slug}`
+	// Path of an entry inside its locale: type section (in the entry's
+	// language) + slug.
+	pathIn(ct: ContentType, entry: { slug: string, locale?: string }): string
+		locale := entry.locale ?? @defaultLanguage()
+		seg := @i18n() ? @i18n().typeSegment(locale, ct.id, ct.basePath) : String(ct.basePath || '').replace(/^\//, '')
+		(seg ? `/${seg}` : '') + `/${entry.slug}`
+
+	// Every localisation base where a language is shown.
+	placesOf(locale: string)
+		@i18n()?.placesOf(locale) ?? [{ origin: '', base: '', hreflang: [locale], market: null }]
+
+	// Site path of an entry (locale base + path), in the current request's
+	// localisation when it offers the entry's language.
+	urlFor(ct: ContentType, entry: { slug: string, locale?: string }): string
+		locale := entry.locale ?? @defaultLanguage()
+		base := @i18n()?.link(locale).base ?? ''
+		base + @pathIn(ct, entry)
+
+	absoluteUrlFor(ct: ContentType, entry: { slug: string, locale?: string }): string
+		locale := entry.locale ?? @defaultLanguage()
+		l := @i18n()?.link(locale)
+		(l?.origin ?? '') + (l?.base ?? '') + @pathIn(ct, entry)
+
+	// Section path of a listable type in a language (/artikel).
+	sectionPath(ct: ContentType, locale: string): string
+		seg := @i18n() ? @i18n().typeSegment(locale, ct.id, ct.basePath) : String(ct.basePath || '').replace(/^\//, '')
+		seg ? `/${seg}` : ''
 
 	// --- public routing ----------------------------------------------------
 
 	locked(entry: Entry, viewer: Viewer)
 		entry.visibility === 'members' && !viewer.member && !viewer.preview
 
-	// `/articles` → list (listable types), `/articles/<slug>` → entry,
-	// `/<slug>` → page. Drafts and scheduled entries resolve only in preview;
-	// members-only entries resolve for everyone but come back `locked` with
-	// their body removed unless the viewer is a member.
-	async resolve(path: string, viewer: Viewer | boolean = {})
+	available(entry: Entry, market: string | null)
+		!market || !entry.markets?.length || entry.markets.includes(market)
+
+	// `rest` (the path inside the locale base) → a list, an entry, or null.
+	// Languages: the request's, then — when its localisation allows
+	// content fallback — its fallback chain.
+	async resolve(path: string, viewer: Viewer | boolean = {}, where: any = null)
 		vw := typeof viewer === 'boolean' ? { preview: viewer } : viewer
+		loc := where ?? @current()
 		segments := path.split('/').filter(Boolean)
+		chain := loc.contentFallback ? (loc.chain ?? [loc.language]) : [loc.language]
 		for ct of @registry.all()
-			base := String(ct.basePath || '').replace(/^\//, '')
+			base := @sectionPath(ct, loc.language).replace(/^\//, '')
 			if base
 				continue unless segments[0] === base
 				if segments.length === 1
 					if ct.listable
-						entries := await @repo.list ct.id, { status: 'live', limit: 100, order: 'published' }
+						entries := await @repo.list ct.id, { status: 'live', limit: 100, order: 'published', locale: loc.language, market: loc.market ?? undefined }
 						return { kind: 'list', ct, entries }
 					continue
-				entry := await @repo.bySlug ct.id, segments.slice(1).join('/'), !vw.preview
-				if entry
-					return await @entryResult ct, entry, vw
 			else
 				continue if segments.length === 0
-				entry := await @repo.bySlug ct.id, segments.join('/'), !vw.preview
-				if entry
-					return await @entryResult ct, entry, vw
+			for lang, i of chain
+				entry := await @repo.bySlug ct.id, (base ? segments.slice(1).join('/') : segments.join('/')), !vw.preview, lang
+				if entry && @available(entry, loc.market)
+					return await @entryResult ct, entry, vw, (i > 0 ? lang : null)
 		null
 
-	async entryResult(ct: ContentType, entry: Entry, viewer: Viewer)
+	// Published translations of an entry, for hreflang and the language
+	// switcher: [{ locale, entry }] (members-only and unavailable ones out).
+	async alternatesOf(ct: ContentType, entry: Entry)
+		group := await @repo.group(entry.translation_group ?? entry.id)
+		now := Date.now()
+		group.filter((e) => e.status === 'published' && (!e.published_at || e.published_at <= now)).map (e) => ({ locale: e.locale, slug: e.slug, markets: e.markets, visibility: e.visibility, path: @pathIn(ct, e), updated_at: e.updated_at })
+
+	async entryResult(ct: ContentType, entry: Entry, viewer: Viewer, fallbackFrom: string | null = null)
 		locked := @locked entry, viewer
 		shown := locked ? { ...entry, rendered: {}, data: @teaser(ct, entry) } : entry
 		presented := locked ? { media: await @lookupMedia(mediaIds(@fields(ct), shown.data, @blockLookup)), blocks: [] } : await @present(ct, entry, viewer)
-		{ kind: 'entry', ct, entry: shown, html: @htmlOf(shown), locked, ...presented, url: @urlFor(ct, entry) }
+		{ kind: 'entry', ct, entry: shown, html: @htmlOf(shown), locked, ...presented, url: @urlFor(ct, entry), alternates: await @alternatesOf(ct, entry), fallbackFrom }
 
 	// Locked entries keep only what is safe to show: title, summary-ish
 	// fields, cover image and SEO fields.
@@ -337,29 +459,37 @@ export class ContentService
 			out[k] = value.html if value && typeof value === 'object' && !Array.isArray(value) && 'html' in value
 		out
 
-	// Public list query for any type: live entries, members-only ones only
-	// for members.
-	async query(typeId: string, opts: ListOpts & { member?: boolean } = {})
+	// Public list query: live entries in a language (default: the
+	// request's), available in a localisation, members-only ones only for
+	// members.
+	async query(typeId: string, opts: ListOpts & { member?: boolean, anyLocale?: boolean } = {})
 		ct := @mustType typeId
-		o := { ...opts, status: 'live' }
-		o.visibility = 'public' unless opts.member
+		loc := @current()
+		{ member, anyLocale, ...rest } := opts
+		o := { ...rest, status: 'live' } as ListOpts
+		o.visibility = 'public' unless member
+		o.locale = opts.locale ?? (anyLocale ? undefined : loc.language)
+		o.market = opts.market ?? (anyLocale ? undefined : (loc.market ?? undefined))
 		entries := await @repo.list ct.id, { order: 'published', ...o }
 		total := await @repo.count ct.id, o
 		{ ct, entries, total }
 
-	// Public navigation: pages flagged showInNav (ordered by navOrder, then
-	// title) and listable types by base path.
-	async nav(): Promise<{ label: string, href: string }[]>
+	// Public navigation in the request's language: pages flagged showInNav
+	// (ordered by navOrder, then title) and listable types by section path.
+	async nav(): Promise<{ label: string, href: string, typeId?: string }[]>
+		loc := @current()
+		base := @i18n()?.link(loc.language).base ?? ''
 		pages := [] as any[]
-		types := [] as { label: string, href: string }[]
+		types := [] as { label: string, href: string, typeId?: string }[]
 		for ct of @registry.all()
-			if ct.basePath
-				types.push { label: ct.labelPlural, href: ct.basePath } if ct.listable
+			section := @sectionPath ct, loc.language
+			if section
+				types.push { label: ct.labelPlural, href: base + section, typeId: ct.id } if ct.listable
 			else
-				for e of await @repo.list(ct.id, { status: 'live', limit: 100, order: 'title' })
+				for e of await @repo.list(ct.id, { status: 'live', limit: 100, order: 'title', locale: loc.language, market: loc.market ?? undefined })
 					pages.push e if e.data.showInNav
 		pages.sort (a, b) => (Number(a.data.navOrder ?? 0) - Number(b.data.navOrder ?? 0)) || a.title.localeCompare(b.title)
-		[...pages.map((e) => ({ label: e.data.navLabel || e.title, href: `/${e.slug}` })), ...types]
+		[...pages.map((e) => ({ label: e.data.navLabel || e.title, href: `${base}/${e.slug}` })), ...types]
 
 	// Admin navigation as a tree: sections → items → children. Content
 	// types become items with "All …" / "New …" children; any feature adds

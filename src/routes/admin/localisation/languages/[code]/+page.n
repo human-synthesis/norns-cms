@@ -1,0 +1,48 @@
+.space-y-6
+	PageHead(title!="{data.l.native || data.l.name}" subtitle!="{data.l.code}" back="/admin/localisation/languages" backLabel="Languages")
+		+snippet('actions')
+			Btn(href="/admin/localisation/texts?lang={encodeURIComponent(data.l.code)}" variant="secondary" icon="lucide:type") Interface texts
+	+if('data.added')
+		Banner(variant="success" icon="lucide:check") Added. Now list it in a localisation to publish content in it.
+	+if('data.saved')
+		Banner(variant="success" icon="lucide:check") Saved.
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	Card
+		form.space-y-5(method="POST" action="?/save")
+			.settings-grid
+				Field(label="English name" name="name")
+					Input(name="name" value!="{data.l.name}")
+				Field(label="Native name" name="native" help="Shown in the language switcher")
+					Input(name="native" value!="{data.l.native}")
+				Field(label="Fallback language" name="fallback" help="Used for interface texts, and for content where a localisation allows it")
+					Select(name="fallback" value!="{data.l.fallback}")
+						option(value="") None (English for interface texts)
+						+each('data.others as o (o.code)')
+							option(value!="{o.code}") {o.native || o.name} ({o.code})
+				Field(label="Text direction" name="dir")
+					Select(name="dir" value!="{data.l.dir}")
+						option(value="ltr") Left to right
+						option(value="rtl") Right to left
+			div
+				h2.font-semibold URL words
+				p.text-sm.mb-3(class="text-fg-muted") Translated sections of the URL. Empty keeps the English word.
+				.settings-grid
+					Field(label="Articles section" name="path_article")
+						Input(name="path_article" value!="{data.l.paths.article ?? ''}" placeholder="articles")
+					Field(label="Authors" name="path_authors")
+						Input(name="path_authors" value!="{data.l.paths.authors ?? ''}" placeholder="authors")
+					Field(label="Category" name="path_category")
+						Input(name="path_category" value!="{data.l.paths.category ?? ''}" placeholder="category")
+					Field(label="Tag" name="path_tag")
+						Input(name="path_tag" value!="{data.l.paths.tag ?? ''}" placeholder="tag")
+			Btn(type="submit" variant="primary" icon="lucide:save") Save
+	+if('data.l.entries === 0')
+		form(method="POST" action="?/remove")
+			Btn(type="submit" variant="danger" icon="lucide:trash-2") Delete language
+	+else
+		p.text-sm(class="text-fg-muted") {data.l.entries} entries are written in this language.
+
+<script>
+	{ data, form } := $props()
+</script>

@@ -10,10 +10,10 @@ section.block-cookies
 					table.cookie-table
 						thead
 							tr
-								th Cookie
-								th Service
-								th Lasts
-								th Purpose
+								th {t('cookies.cookie')}
+								th {t('cookies.service')}
+								th {t('cookies.lasts')}
+								th {t('cookies.purpose')}
 						tbody
 							+each('g.cookies as ck, i (i)')
 								tr
@@ -23,11 +23,12 @@ section.block-cookies
 									td {ck.duration}
 									td {ck.purpose}
 			+else
-				p.text-sm(class="text-fg-muted") No cookies in this category.
+				p.text-sm(class="text-fg-muted") {t('cookies.none')}
 	+if('props.showButton')
-		Btn(variant="secondary" icon="lucide:cookie" onclick!="{openSettings}") Cookie settings
+		Btn(variant="secondary" icon="lucide:cookie" onclick!="{openSettings}") {t('footer.cookieSettings')}
 
 <script>
+	import { t } from '../../i18n/ui/t.js'
 	{ props = {}, data = null } := $props()
 	openSettings := => window.dispatchEvent(new CustomEvent('cms:open-consent'))
 </script>

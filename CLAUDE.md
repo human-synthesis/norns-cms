@@ -7,17 +7,21 @@ A content management system that is an ordinary Norns app: SvelteKit + Svelte 5 
 ```
 src/
   hooks.server.c        boots the runtime; handles in order: securityHandle (nonce + CSP), sessionHandle
-                        (guards /admin for staff and /account for members, every method), seoHandle
-                        (redirects, /<path>.md twins, 404 log), consentHandle (consent state, script injection)
+                        (guards /admin for staff and /account for members, every method), localeHandle
+                        (host + path → localisation + language, language redirects, <html lang dir>),
+                        seoHandle (redirects, crawl outputs per locale/host, 404 log), consentHandle
   routes/
-    (site)/             public site: home (a chosen page or latest articles), [...slug] (any entry),
-                        articles/ (+ category/tag archives), authors/[slug], account/ (members area)
+    (site)/[...path]    the whole public site, one locale-aware dispatcher: home, article list, category /
+                        tag archives, author pages, entries, /cookies — matched against the language's
+                        URL words inside the locale base; (site)/account/ is the members area
     admin/              staff area; content/[type] (generic list) and [id] (generic editor, revisions),
                         media, taxonomy/[taxonomy], users, roles, audit, profile, settings/[group], seo,
                         consent (stats, scripts, log), mail, maintenance; api/ (preview, media JSON)
     login/ reset/ invite/ verify/    sign-in, two-factor step, one-time links
     api/v1/[...path]   management API (bearer API keys); api/consent, api/content (public read), api/cron
-    sitemap.xml  sitemap-[type].xml  robots.txt  llms.txt  llms-full.txt  feed.xml  media/[...key]
+    media/[...key]      media files. Crawl outputs (/robots.txt, /sitemap.xml per host; {base}/feed.xml,
+                        {base}/llms.txt, {base}/llms-full.txt, {base}/sitemap-<type>.xml, *.md twins)
+                        are served by seoHandle, not routes, because they exist per locale
   lib/norns/<feature>/  server/module.c (DI + registrations), repo.c / service.c (private),
                         server/public.c (the ONLY cross-feature import), shared/ (pure), ui/ (.n)
   lib/components/       auto-imported app components (Stat, EmptyState, PageHead)
@@ -40,6 +44,7 @@ Features:
 | `mail` | Resend over HTTP when `RESEND_API_KEY` is set; otherwise logged to `mail_log` (dev "inbox") |
 | `seo` | SEO field group and settings, head tags, JSON-LD, sitemaps, robots (AI crawler toggles), llms.txt, Markdown twins, feeds, redirects, 404 log, editor checks, location block |
 | `consent` | banner settings, regional rules, GPC, script presets, consent records, injection + loader, cookie table block |
+| `i18n` | languages (fallback, direction, URL words), localisations (sub-folder / sub-domain / domain hosting, languages, countries, content fallback), the URL builder and resolver (`shared/urls.js`), `localeHandle`, interface texts (`shared/catalog.js` + overrides), machine translation with Claude (`server/translator.js`) |
 | `api` | API keys (hashed, capability-limited, acting for their creator), the endpoint registry, router (`/api/v1`), OpenAPI document, admin key management and docs |
 
 **Extension points** (all called from a feature's `module.c`, all bindings on the root container so order never matters): `registerType`, `registerFieldGroup`, `registerBlock` (a block's `resolve(props, { c, viewer, entry })` runs per request; add its component to `pages/ui/BlockRenderer.n`), `registerHook` (`beforeSave` may return replacement data; `afterSave`, `status`, `slug`, `delete`), `registerOptions`, `registerAdminNav` (from `content/server/public`; see *Admin menu* below); `registerCapabilities` (from `auth/server/public`); `registerSettings` (from `settings/server/public`).
@@ -50,9 +55,22 @@ Features:
 
 **Permissions.** Routes check capabilities with `requireCap(user, 'content.publish')`; the admin nav hides what the user lacks. Owners and admins hold `*`; editor, author, viewer and member are built-in rows in `roles`; custom roles pick from the capabilities features declare. Only owners manage owners, the last active owner cannot be removed, nobody changes their own role or status.
 
-**Secrets** (`wrangler secret put`, `.dev.vars` locally — never in `wrangler.toml`): `CMS_SECRET` (encrypts 2FA secrets), `CRON_SECRET` (daily maintenance), `RESEND_API_KEY` (mail). Vars: `CMS_PUBLIC_URL`, `MAIL_FROM`.
+**Secrets** (`wrangler secret put`, `.dev.vars` locally — never in `wrangler.toml`): `CMS_SECRET` (encrypts 2FA secrets), `CRON_SECRET` (daily maintenance), `RESEND_API_KEY` (mail), `ANTHROPIC_API_KEY` (optional: AI translation; `ANTHROPIC_MODEL` overrides the default `claude-opus-5-5`). Vars: `CMS_PUBLIC_URL` (the primary localisation's host), `MAIL_FROM`.
+
+**Sub-domain and domain localisations** need their host attached to the Worker: `bun run domains` lists them, `bun run domains -- --remote --apply` attaches missing ones as Workers custom domains (Cloudflare token required).
 
 Import project code explicitly (`import { cms } from '$lib/norns/content/server/public'`); inside `src/lib/norns/**` use relative paths (`../../content/server/public`) so `bun test` can resolve them. Only framework helpers and norns-ui components (plus `src/lib/components`) are auto-imported.
+
+## Localisation (every feature must respect it)
+
+Content is stored **per language** (`entries.locale`); translations share a `translation_group`. A request's locale (localisation + language, its `base` and `origin`) is on `event.locals.locale` and, for code without the event, through `cms(c).currentLocale()` / the i18n service, which read it from the request scope.
+
+- **URLs:** never build public URLs by hand. Use `cms(c).urlFor(ct, entry)` (path in the request's localisation), `cms(c).absoluteUrlFor`, `cms(c).sectionPath(ct, lang)`, `articles(c).termUrl(term, lang)`, `i18n(c).link(lang)` for a language's base, and `i18n(c).placesOf(lang)` for every place a language is shown.
+- **Queries:** public lists go through `cms(c).query(...)`, which filters by the request's language and localisation; pass `anyLocale: true` only for deliberate cross-language lists.
+- **Texts:** every string the public theme, members' pages or member emails show is a catalogue key in `i18n/shared/catalog.js`, **with values in all six built-in languages** (en, de, fr, es, it, ro); components use `t('key', vars)` and `fmtDate()` from `i18n/ui/t.js`, server code `tFor(c, lang)`. Admin screens stay English.
+- **Settings:** a field read on the public site that people write in their language gets `translatable: true`; read it with `settings(c).localized(group)`, never `get()` on public pages.
+- **Layouts that depend on the locale must read `url.pathname` in their load**, or SvelteKit will not rerun them on client-side navigation into another language.
+- **Crawl outputs are edge-cached for 10 minutes** (`Cache-Control: public` + adapter-cloudflare's cache), so a just-published page shows up in feeds and sitemaps after that.
 
 ## Every feature ships its API
 

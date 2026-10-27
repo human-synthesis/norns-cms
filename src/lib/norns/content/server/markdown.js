@@ -125,15 +125,23 @@ const PROVIDERS = {
 	}
 };
 
-/** A consent-aware embed placeholder; the site's client script swaps in the iframe. */
-export function embedHtml(kind, attrs) {
+const fillText = (text, vars) => String(text).replace(/\{(\w+)\}/g, (m, k) => (vars[k] == null ? m : vars[k]));
+
+/**
+ * A consent-aware embed placeholder; the site's client script swaps in the
+ * iframe. `strings` are the interface texts of the entry's language.
+ */
+export function embedHtml(kind, attrs, strings = {}) {
 	const p = PROVIDERS[kind]?.(attrs);
 	if (!p) return '';
-	const title = attrs.title || `${p.label} content`;
+	const host = p.label;
+	const title = attrs.title || fillText(strings['embed.content'] ?? '{host} content', { host });
+	const notice = fillText(strings['embed.notice'] ?? '{title} is hosted by {host}, which may set cookies.', { title: escapeHtml(title), host: escapeHtml(host) });
+	const load = fillText(strings['embed.load'] ?? 'Load {host} content', { host: escapeHtml(host) });
 	return (
 		`<div class="embed" data-embed-src="${escapeHtml(p.src)}" data-embed-title="${escapeHtml(title)}" data-consent="marketing">` +
-		`<div class="embed-placeholder"><p>${escapeHtml(title)} is hosted by ${escapeHtml(p.label)}, which may set cookies.</p>` +
-		`<button type="button" class="btn btn-secondary btn-sm" data-embed-load>Load ${escapeHtml(p.label)} content</button></div></div>`
+		`<div class="embed-placeholder"><p>${notice}</p>` +
+		`<button type="button" class="btn btn-secondary btn-sm" data-embed-load>${load}</button></div></div>`
 	);
 }
 
@@ -155,6 +163,7 @@ const figure = (m, alt, caption) => {
  * @returns {{ html: string, toc: { depth: number, text: string, id: string }[], words: number }}
  */
 export function renderMarkdown(md, ctx = {}) {
+	ctx.strings ??= {};
 	const media = ctx.media ?? {};
 	const articles = ctx.articles ?? {};
 	const toc = [];
@@ -200,7 +209,7 @@ export function renderMarkdown(md, ctx = {}) {
 						const summary = a.summary ? `<span class="md-article-summary">${escapeHtml(a.summary)}</span>` : '';
 						return `<a class="md-article-card" href="${escapeHtml(a.url)}"><strong>${escapeHtml(a.title)}</strong>${summary}</a>\n`;
 					}
-					return embedHtml(t.name, t.attrs) + '\n';
+					return embedHtml(t.name, t.attrs, ctx.strings) + '\n';
 				}
 			},
 			{

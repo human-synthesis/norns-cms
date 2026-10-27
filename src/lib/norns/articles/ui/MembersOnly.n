@@ -4,14 +4,15 @@
 	Card
 		.space-y-3.text-center
 			Icon(name="lucide:lock" size="size-6")
-			p.font-semibold This is for members.
-			p.text-sm(class="text-fg-muted") Sign in to keep reading.
+			p.font-semibold {t('members.title')}
+			p.text-sm(class="text-fg-muted") {t('members.text')}
 			.flex.justify-center.gap-2
-				Btn(href!="{'/account/login?next=' + encodeURIComponent(page.url.pathname)}" variant="primary") Sign in
+				Btn(href!="{'/account/login?next=' + encodeURIComponent(page.url.pathname)}" variant="primary") {t('members.signIn')}
 				+if('page.data.site?.registration === "open"')
-					Btn(href="/account/register" variant="secondary") Create an account
+					Btn(href="/account/register" variant="secondary") {t('members.register')}
 
 <script>
+	import { t } from '../../i18n/ui/t.js'
 	import { page } from '$app/state'
 	{ summary = '' } := $props()
 </script>

@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { getScope } from '@human-synthesis/norns/server'
 import type { SettingsRegistry } from './registry'
 
 // Per-isolate cache of the whole settings table, keyed by the underlying
@@ -48,6 +49,44 @@ export class SettingsService
 		stored := (await @rows())[id] ?? {}
 		{ ...@defaults(group), ...stored }
 
+	translatable(group: any): string[]
+		group.fields.filter((f: any) => f.translatable).map((f: any) => f.name)
+
+	// Values as a language sees them: translatable fields overridden by the
+	// language's translation, following the request's fallback chain
+	// (de-CH → de → base). Without a language, the base values.
+	async localized(id: string, locale: string | null = null): Promise<Record<string, any>>
+		base := await @get id
+		loc := getScope()?.event?.locals?.locale
+		code := locale ?? loc?.language
+		return base unless code
+		chain := locale ? [locale, ...(locale.includes('-') ? [locale.split('-')[0]] : [])] : (loc?.chain ?? [code])
+		translations := (base._i18n ?? {}) as Record<string, any>
+		out := { ...base }
+		for c of [...chain].reverse()
+			for [k, value] of Object.entries(translations[c] ?? {})
+				out[k] = value if value !== '' && value != null
+		out
+
+	// Save the translatable fields of a group for one language. Empty
+	// values fall back to the base value.
+	async saveTranslation(id: string, locale: string, raw: Record<string, any>, userId: number | null)
+		group := @registry.get id
+		unless group
+			throw new Error(`settings: unknown group "${id}"`)
+		current := await @get id
+		translations := { ...(current._i18n ?? {}) } as Record<string, any>
+		own := {} as Record<string, string>
+		for name of @translatable(group)
+			value := String(raw[name] ?? '').trim()
+			own[name] = value if value
+		if Object.keys(own).length
+			translations[locale] = own
+		else
+			delete translations[locale]
+		await @write id, { ...current, _i18n: translations }, userId
+		{ ok: true, values: own }
+
 	async save(id: string, raw: Record<string, any>, userId: number | null)
 		group := @registry.get id
 		unless group
@@ -56,7 +95,10 @@ export class SettingsService
 		result := v.safeParse schema, raw
 		unless result.success
 			return { ok: false, issues: result.issues }
-		await @write id, result.output, userId
+		// Translations are kept when the base values change.
+		stored := (await @rows())[id] ?? {}
+		value := stored._i18n ? { ...result.output, _i18n: stored._i18n } : result.output
+		await @write id, value, userId
 		{ ok: true, values: result.output }
 
 	// Merge a partial update without validation; for values set by code

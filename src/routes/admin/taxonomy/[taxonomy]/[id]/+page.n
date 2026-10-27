@@ -23,6 +23,16 @@
 								option(value!="{t.id}") {t.name}
 					Field(label="Sort order" name="sort")
 						Input(type="number" name="sort" value!="{v.sort ?? 0}")
+				+each('data.languages as l (l.code)')
+					fieldset.term-translation
+						legend {l.name}
+						.settings-grid
+							Field(label="Name" name!="{'tr_' + l.code + '_name'}")
+								Input(name!="{'tr_' + l.code + '_name'}" value!="{data.term.translations?.[l.code]?.name ?? ''}" placeholder!="{data.term.name}")
+							Field(label="URL slug" name!="{'tr_' + l.code + '_slug'}" help!="{l.url}")
+								Input(name!="{'tr_' + l.code + '_slug'}" value!="{data.term.translations?.[l.code]?.slug ?? ''}" placeholder!="{data.term.slug}")
+							Field(label="Description" name!="{'tr_' + l.code + '_description'}" class="settings-wide")
+								Textarea(name!="{'tr_' + l.code + '_description'}" value!="{data.term.translations?.[l.code]?.description ?? ''}" rows="2" placeholder!="{data.term.description}")
 				Btn(type="submit" variant="primary" icon="lucide:save") Save
 	+if('data.others.length')
 		Card

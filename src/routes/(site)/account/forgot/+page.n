@@ -1,14 +1,18 @@
+svelte:head
+	title {t('forgot.title')} · {page.data.site.title}
 .account-narrow
-	h1.text-3xl.font-bold.tracking-tight Reset your password
+	h1.text-3xl.font-bold.tracking-tight {t('forgot.title')}
 	+if('form?.sent')
-		Banner(variant="success" icon="lucide:mail") If an account uses that address, the link is on its way. It works for one hour.
+		Banner(variant="success" icon="lucide:mail") {t('forgot.sent')}
 	Card
 		form.space-y-4(method="POST" action="?/request")
-			Field(label="Email" name="email" required)
+			Field(label!="{t('login.email')}" name="email" required)
 				Input(type="email" name="email" autocomplete="username" required)
-			Btn(type="submit" variant="primary" class="w-full") Send the link
-	a.text-sm(href="/account/login") Back to sign in
+			Btn(type="submit" variant="primary" class="w-full") {t('forgot.submit')}
+	a.text-sm(href="/account/login") {t('forgot.back')}
 
 <script>
+	import { page } from '$app/state'
+	import { t } from '$lib/norns/i18n/ui/t.js'
 	{ form } := $props()
 </script>

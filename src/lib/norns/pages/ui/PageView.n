@@ -1,6 +1,8 @@
 article.page-view
 	+if('res.entry.status !== "published" || res.entry.published_at > Date.now()')
-		Banner(variant="warning" icon="lucide:eye") Preview — {res.entry.status === 'published' ? 'scheduled, not live yet' : 'draft'}, only visible to staff.
+		Banner(variant="warning" icon="lucide:eye") {t(res.entry.status === 'published' ? 'preview.scheduled' : (res.entry.status === 'in_review' ? 'preview.review' : 'preview.draft'))}
+	+if('fallbackName')
+		Banner(variant="info" icon="lucide:languages") {t('preview.fallback', { language: fallbackName })}
 	+if('!res.entry.data.hideTitle')
 		header.page-header
 			h1.page-title {res.entry.title}
@@ -14,7 +16,8 @@ article.page-view
 			| {@html res.html.body ?? ''}
 
 <script>
+	import { t } from '../../i18n/ui/t.js'
 	import BlockRenderer from './BlockRenderer.n'
 	import MembersOnly from '../../articles/ui/MembersOnly.n'
-	{ res } := $props()
+	{ res, fallbackName = null } := $props()
 </script>

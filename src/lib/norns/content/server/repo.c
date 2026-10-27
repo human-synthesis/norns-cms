@@ -1,18 +1,23 @@
 export type EntryRow =
 	id: number
 	type: string
+	locale: string
 	slug: string
 	status: string
 	visibility: string
 	title: string
 	data: string
 	rendered: string
+	markets: string
+	translation_group: number | null
+	translation_of: number | null
+	source_updated_at: number | null
 	author_id: number | null
 	published_at: number | null
 	created_at: number
 	updated_at: number
 
-export type Entry = Omit<EntryRow, 'data' | 'rendered'> & { data: Record<string, any>, rendered: Record<string, any> }
+export type Entry = Omit<EntryRow, 'data' | 'rendered' | 'markets'> & { data: Record<string, any>, rendered: Record<string, any>, markets: string[] }
 
 export type ListOpts =
 	status?: string            // draft | in_review | published | scheduled | live
@@ -25,11 +30,13 @@ export type ListOpts =
 	featured?: boolean
 	excludeIds?: number[]
 	ids?: number[]
+	locale?: string            // one language
+	market?: string            // only entries available in this localisation
 	order?: string             // updated | published | title
 
 parse := (row: any): Entry | undefined =>
 	return undefined unless row
-	{ ...row, data: JSON.parse(row.data || '{}'), rendered: JSON.parse(row.rendered || '{}') }
+	{ ...row, data: JSON.parse(row.data || '{}'), rendered: JSON.parse(row.rendered || '{}'), markets: JSON.parse(row.markets || '[]') }
 
 // "live" = what the public may see: published and not scheduled for later.
 LIVE := "status = 'published' AND (published_at IS NULL OR published_at <= ?)"
@@ -75,6 +82,12 @@ export class EntriesRepo
 		if opts.excludeIds?.length
 			where.push `id NOT IN (${opts.excludeIds.map(=> '?').join(',')})`
 			params.push ...opts.excludeIds
+		if opts.locale
+			where.push 'locale = ?'
+			params.push opts.locale
+		if opts.market
+			where.push "(markets = '[]' OR EXISTS (SELECT 1 FROM json_each(entries.markets) WHERE value = ?))"
+			params.push opts.market
 		if opts.ids
 			return { sql: '1 = 0', params: [] } unless opts.ids.length
 			where.push `id IN (${opts.ids.map(=> '?').join(',')})`
@@ -106,28 +119,44 @@ export class EntriesRepo
 	async byId(id: number): Promise<Entry | undefined>
 		parse await @db.get('SELECT * FROM entries WHERE id = ?', [id])
 
-	async bySlug(type: string, slug: string, liveOnly: boolean): Promise<Entry | undefined>
+	async bySlug(type: string, slug: string, liveOnly: boolean, locale: string): Promise<Entry | undefined>
 		if liveOnly
-			parse await @db.get(`SELECT * FROM entries WHERE type = ? AND slug = ? AND ${LIVE}`, [type, slug, Date.now()])
+			parse await @db.get(`SELECT * FROM entries WHERE type = ? AND locale = ? AND slug = ? AND ${LIVE}`, [type, locale, slug, Date.now()])
 		else
-			parse await @db.get('SELECT * FROM entries WHERE type = ? AND slug = ?', [type, slug])
+			parse await @db.get('SELECT * FROM entries WHERE type = ? AND locale = ? AND slug = ?', [type, locale, slug])
 
-	async bySlugs(type: string, slugs: string[]): Promise<Entry[]>
+	async bySlugs(type: string, slugs: string[], locale: string): Promise<Entry[]>
 		return [] unless slugs.length
-		rows := await @db.all `SELECT * FROM entries WHERE type = ? AND slug IN (${slugs.map(=> '?').join(',')}) AND ${LIVE}`, [type, ...slugs, Date.now()]
+		rows := await @db.all `SELECT * FROM entries WHERE type = ? AND locale = ? AND slug IN (${slugs.map(=> '?').join(',')}) AND ${LIVE}`, [type, locale, ...slugs, Date.now()]
 		rows.map((r: any) => parse(r) as Entry)
 
-	async slugTaken(type: string, slug: string, excludeId: number | null): Promise<boolean>
-		row := await @db.get 'SELECT id FROM entries WHERE type = ? AND slug = ? AND id != ?', [type, slug, excludeId ?? -1]
+	async slugTaken(type: string, locale: string, slug: string, excludeId: number | null): Promise<boolean>
+		row := await @db.get 'SELECT id FROM entries WHERE type = ? AND locale = ? AND slug = ? AND id != ?', [type, locale, slug, excludeId ?? -1]
 		!!row
 
-	async insert(input: { type: string, title: string, slug: string, data: Record<string, any>, rendered: Record<string, any>, visibility: string, authorId: number | null }): Promise<number>
-		now := Date.now()
-		result := await @db.run 'INSERT INTO entries (type, slug, status, visibility, title, data, rendered, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [input.type, input.slug, 'draft', input.visibility, input.title, JSON.stringify(input.data), JSON.stringify(input.rendered), input.authorId, now, now]
-		result.lastInsertRowid
+	// Every entry of a translation group (any status), oldest first.
+	async group(groupId: number): Promise<Entry[]>
+		rows := await @db.all 'SELECT * FROM entries WHERE translation_group = ? ORDER BY id', [groupId]
+		rows.map((r: any) => parse(r) as Entry)
 
-	async update(id: number, input: { title: string, slug: string, data: Record<string, any>, rendered: Record<string, any>, visibility: string }): Promise<void>
-		await @db.run 'UPDATE entries SET title = ?, slug = ?, data = ?, rendered = ?, visibility = ?, updated_at = ? WHERE id = ?', [input.title, input.slug, JSON.stringify(input.data), JSON.stringify(input.rendered), input.visibility, Date.now(), id]
+	async groups(groupIds: number[]): Promise<{ translation_group: number, locale: string, status: string, published_at: number | null, id: number }[]>
+		return [] unless groupIds.length
+		await @db.all `SELECT id, translation_group, locale, status, published_at FROM entries WHERE translation_group IN (${groupIds.map(=> '?').join(',')})`, groupIds
+
+	async stamp(id: number, sourceUpdatedAt: number | null): Promise<void>
+		await @db.run 'UPDATE entries SET source_updated_at = ? WHERE id = ?', [sourceUpdatedAt, id]
+		return
+
+	async insert(input: { type: string, locale: string, title: string, slug: string, data: Record<string, any>, rendered: Record<string, any>, visibility: string, markets: string[], authorId: number | null, group?: number | null, translationOf?: number | null, sourceUpdatedAt?: number | null }): Promise<number>
+		now := Date.now()
+		result := await @db.run 'INSERT INTO entries (type, locale, slug, status, visibility, title, data, rendered, markets, translation_group, translation_of, source_updated_at, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [input.type, input.locale, input.slug, 'draft', input.visibility, input.title, JSON.stringify(input.data), JSON.stringify(input.rendered), JSON.stringify(input.markets ?? []), input.group ?? null, input.translationOf ?? null, input.sourceUpdatedAt ?? null, input.authorId, now, now]
+		id := result.lastInsertRowid
+		unless input.group
+			await @db.run 'UPDATE entries SET translation_group = ? WHERE id = ?', [id, id]
+		id
+
+	async update(id: number, input: { title: string, slug: string, data: Record<string, any>, rendered: Record<string, any>, visibility: string, markets: string[] }): Promise<void>
+		await @db.run 'UPDATE entries SET title = ?, slug = ?, data = ?, rendered = ?, visibility = ?, markets = ?, updated_at = ? WHERE id = ?', [input.title, input.slug, JSON.stringify(input.data), JSON.stringify(input.rendered), input.visibility, JSON.stringify(input.markets ?? []), Date.now(), id]
 		return
 
 	async setRendered(id: number, rendered: Record<string, any>): Promise<void>
@@ -170,3 +199,6 @@ export class EntriesRepo
 
 	async allIds(): Promise<{ id: number, type: string }[]>
 		await @db.all 'SELECT id, type FROM entries', []
+
+	async localeCounts(type: string): Promise<{ locale: string, n: number }[]>
+		await @db.all 'SELECT locale, COUNT(*) AS n FROM entries WHERE type = ? GROUP BY locale', [type]

@@ -34,7 +34,7 @@ export endpoints := (c: Container) =>
 	out := [] as any[]
 	for [token] of root.bindings
 		out.push root.resolve(token) if token.startsWith('api.ep:')
-	ORDER := ['Account', 'Content', 'Media', 'Taxonomies', 'Users', 'Roles', 'Settings', 'SEO', 'Consent', 'Audit', 'Mail', 'Maintenance']
+	ORDER := ['Account', 'Content', 'Media', 'Taxonomies', 'Localisation', 'Users', 'Roles', 'Settings', 'SEO', 'Consent', 'Audit', 'Mail', 'Maintenance']
 	rank := (t: string) =>
 		i := ORDER.indexOf(t)
 		i === -1 ? 99 : i

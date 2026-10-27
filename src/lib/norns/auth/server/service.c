@@ -7,6 +7,8 @@ import { newSecret, verifyTotp, otpauthUri, sealSecret, openSecret, sha256, reco
 import { capMatches } from '../shared/can'
 import { settings, envVar, siteOrigin } from '../../settings/server/public'
 import { mail } from '../../mail/server/public'
+import { tFor } from '../../i18n/server/public'
+import { getScope } from '@human-synthesis/norns/server'
 
 DAY := 24 * 60 * 60 * 1000
 LOGIN_WINDOW := 15 * 60 * 1000
@@ -348,12 +350,14 @@ export class AuthService
 		row := await @repo.byEmail addr
 		if row && row.status === 'active'
 			raw := await @issueToken row.id, 'reset', 60 * 60 * 1000
-			site := await settings(@c).get 'site'
+			locale := row.kind === 'client' ? (row.locale || 'en') : 'en'
+			site := await settings(@c).localized 'site', locale
+			t := await tFor @c, locale
 			await mail(@c).send {
 				to: addr
-				subject: `Reset your ${site.title} password`
+				subject: t('email.reset.subject', { site: site.title })
 				template: 'reset'
-				text: `Someone asked to reset the password for ${addr}.\n\nChoose a new password here (the link works for one hour):\n${siteOrigin()}/reset/${raw}\n\nIf it was not you, ignore this email; your password stays the same.`
+				text: t('email.reset.text', { email: addr, link: `${siteOrigin()}/reset/${raw}` })
 			}
 			await @audit row.id, addr, 'user.reset_requested', addr, {}
 		{ ok: true }
@@ -383,11 +387,15 @@ export class AuthService
 		problem := passwordProblem input.password, addr
 		return { ok: false, error: problem, field: 'password' } if problem
 		existing := await @repo.byEmail addr
+		locale := String(input.locale || getScope()?.event?.locals?.locale?.language || 'en')
 		if existing
 			// Same answer as success; tell the owner of the address instead.
-			await mail(@c).send { to: addr, subject: `Your ${site.title} account`, template: 'register_exists', text: `Someone tried to create an account with ${addr}, which already has one.\n\nSign in at ${siteOrigin()}/account/login or reset your password at ${siteOrigin()}/account/forgot.` }
+			t := await tFor @c, locale
+			localSite := await settings(@c).localized 'site', locale
+			await mail(@c).send { to: addr, subject: t('email.exists.subject', { site: localSite.title }), template: 'register_exists', text: t('email.exists.text', { email: addr, login: `${siteOrigin()}/account/login`, forgot: `${siteOrigin()}/account/forgot` }) }
 			return { ok: true }
 		id := await @createUser addr, input.name ?? '', input.password, 'member', { kind: 'client', verified: false }
+		await @repo.update id, { locale }
 		await @sendVerification id
 		await @audit id, addr, 'user.register', addr, {}
 		{ ok: true }
@@ -396,8 +404,10 @@ export class AuthService
 		user := await @getUser userId
 		return unless user && !user.email_verified_at
 		raw := await @issueToken userId, 'verify', 2 * DAY
-		site := await settings(@c).get 'site'
-		await mail(@c).send { to: user.email, subject: `Confirm your email for ${site.title}`, template: 'verify', text: `Confirm your email address to finish creating your account:\n${siteOrigin()}/verify/${raw}\n\nThe link works for 48 hours.` }
+		locale := (user as any).locale || 'en'
+		site := await settings(@c).localized 'site', locale
+		t := await tFor @c, locale
+		await mail(@c).send { to: user.email, subject: t('email.verify.subject', { site: site.title }), template: 'verify', text: t('email.verify.text', { link: `${siteOrigin()}/verify/${raw}` }) }
 		return
 
 	async resendVerification(email: string, ip = '')
