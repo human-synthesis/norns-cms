@@ -1,6 +1,14 @@
 import { envVar } from '../../settings/server/public'
 
+// Every message says what it is for; that picks its sender address on the
+// mail domain: signup@ (invites, verification, "you already have an
+// account"), signin@ (password reset), notifications@ (team notices, form
+// submissions) and contact@ (contact form submissions).
+export type MailPurpose = 'signup' | 'signin' | 'notifications' | 'contact'
+export PURPOSES: MailPurpose[] := ['signup', 'signin', 'notifications', 'contact']
+
 export type Message =
+	purpose: MailPurpose
 	to: string
 	subject: string
 	text: string
@@ -10,9 +18,11 @@ export type Message =
 	fromName?: string
 
 export type Sender =
-	fromEmail: string
+	domain: string
 	fromName: string
 	replyTo: string
+
+export fromAddress := (purpose: MailPurpose, domain: string) => `${purpose}@${domain}`
 
 escape := (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
@@ -25,10 +35,15 @@ export toHtml := (text: string) =>
 
 API := => (envVar('AIOSIS_API_URL') ?? 'https://emails.aiosis.com/api/v1').replace(/\/+$/, '')
 
+// Without a key, mail is only logged in dev, in tests, or when MAIL_LOG_ONLY=true.
+// Anywhere else the key is required: messages are refused and logged as failed.
+logOnly := => !!import.meta.env?.DEV || envVar('NODE_ENV') === 'test' || envVar('MAIL_LOG_ONLY') === 'true'
+
 // Outgoing mail over Aiosis Emails' HTTP API (Workers cannot speak SMTP):
-// POST /messages with a key holding the `messages:send` scope. Without
-// AIOSIS_API_KEY the message is only written to mail_log (body included)
-// and the console, which is how dev and tests "receive" mail.
+// POST /messages with a key holding the `messages:send` scope. The CMS
+// requires AIOSIS_API_KEY; only in dev and tests may it be missing, and then
+// the message is written to mail_log (body included) and the console, which
+// is how dev and tests "receive" mail.
 //
 // Aiosis delivers only to recipient addresses verified on its account (a
 // first message to any other address is refused with a 400), so it suits
@@ -39,8 +54,11 @@ export class MailService
 	sender: () => Promise<Sender>
 	constructor(@db: any, @sender: () => Promise<Sender>)
 
+	// 'aiosis' sends; 'log' only records (dev, tests); 'missing' means the
+	// required AIOSIS_API_KEY is not set and nothing can be sent.
 	provider(): string
-		envVar('AIOSIS_API_KEY') ? 'aiosis' : 'log'
+		return 'aiosis' if envVar('AIOSIS_API_KEY')
+		logOnly() ? 'log' : 'missing'
 
 	async send(msg: Message): Promise<{ ok: boolean, provider: string, error?: string, id?: string }>
 		provider := @provider()
@@ -49,8 +67,13 @@ export class MailService
 			console.log `[mail] to=${msg.to} subject=${JSON.stringify(msg.subject)}\n${msg.text}`
 			await @record msg, provider, 'logged', msg.text, ''
 			return { ok: true, provider }
+		if provider === 'missing'
+			error := 'AIOSIS_API_KEY is not set'
+			console.error `[mail] not sent to ${msg.to}: ${error}`
+			await @record msg, provider, 'failed', '', error
+			return { ok: false, provider, error }
 		from := await @sender()
-		payload := { to: msg.to, subject: msg.subject, text: msg.text, html, fromEmail: from.fromEmail, fromName: msg.fromName || from.fromName } as Record<string, any>
+		payload := { to: msg.to, subject: msg.subject, text: msg.text, html, fromEmail: fromAddress(msg.purpose, from.domain), fromName: msg.fromName || from.fromName } as Record<string, any>
 		replyTo := msg.replyTo || from.replyTo
 		payload.replyTo = replyTo if replyTo
 		try

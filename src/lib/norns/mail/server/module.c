@@ -1,16 +1,17 @@
 import type { Container } from '@human-synthesis/norns/server'
 import { MailService } from './service'
 import { registerAdminNav } from '../../content/server/public'
-import { registerSettings, settings, envVar } from '../../settings/server/public'
+import { registerSettings, settings, envVar, siteOrigin } from '../../settings/server/public'
 import { registerMailApi } from './api'
 import { mailSettings } from '../shared/settings'
 
-// Sender from Settings → Email (MAIL_FROM_* env vars as fallbacks).
+// Mail domain from Settings → Email, else MAIL_DOMAIN, else the site's own
+// host without www. Sender name falls back to MAIL_FROM_NAME, then the site title.
 senderFor := (c: Container) => async =>
 	cfg := await settings(c).get 'mail'
 	site := await settings(c).get 'site'
 	{
-		fromEmail: cfg.fromEmail || envVar('MAIL_FROM_EMAIL') || 'no-reply@humansynthesis.ai'
+		domain: String(cfg.domain || envVar('MAIL_DOMAIN') || new URL(siteOrigin()).hostname.replace(/^www\./, '')).trim().replace(/^@/, '').toLowerCase()
 		fromName: cfg.fromName || envVar('MAIL_FROM_NAME') || site.title
 		replyTo: cfg.replyTo || ''
 	}

@@ -158,21 +158,21 @@ describe('Aiosis Emails', () => {
 		delete process.env.AIOSIS_API_KEY;
 	});
 
-	test('sends POST /api/v1/messages with the sender from Settings → Email', async () => {
+	test('sends POST /api/v1/messages from the purpose address on the mail domain', async () => {
 		const c = await setup();
-		await settings(c).patch('mail', { fromEmail: 'hello@humansynthesis.ai', fromName: 'Human Synthesis', replyTo: '' }, null);
+		await settings(c).patch('mail', { domain: 'humansynthesis.ai', fromName: 'Human Synthesis', replyTo: '' }, null);
 		process.env.AIOSIS_API_KEY = 'sk_live_test';
 		let seen;
 		globalThis.fetch = async (url, init) => {
 			seen = { url: String(url), init };
 			return new Response(JSON.stringify({ id: 'msg_1', status: 'queued' }), { status: 200, headers: { 'content-type': 'application/json' } });
 		};
-		const r = await mail(c).send({ to: 'team@example.com', subject: 'Hi', text: 'Body', replyTo: 'ada@example.com' });
+		const r = await mail(c).send({ purpose: 'contact', to: 'team@example.com', subject: 'Hi', text: 'Body', replyTo: 'ada@example.com' });
 		expect(r).toMatchObject({ ok: true, provider: 'aiosis', id: 'msg_1' });
 		expect(seen.url).toBe('https://emails.aiosis.com/api/v1/messages');
 		expect(seen.init.headers.Authorization).toBe('Bearer sk_live_test');
 		const body = JSON.parse(seen.init.body);
-		expect(body).toMatchObject({ to: 'team@example.com', subject: 'Hi', text: 'Body', fromEmail: 'hello@humansynthesis.ai', fromName: 'Human Synthesis', replyTo: 'ada@example.com' });
+		expect(body).toMatchObject({ to: 'team@example.com', subject: 'Hi', text: 'Body', fromEmail: 'contact@humansynthesis.ai', fromName: 'Human Synthesis', replyTo: 'ada@example.com' });
 		expect(Object.keys(body).sort()).toEqual(['fromEmail', 'fromName', 'html', 'replyTo', 'subject', 'text', 'to']);
 	});
 
@@ -180,7 +180,7 @@ describe('Aiosis Emails', () => {
 		const c = await setup();
 		process.env.AIOSIS_API_KEY = 'sk_live_test';
 		globalThis.fetch = async () => new Response(JSON.stringify({ message: 'Destination address is not verified' }), { status: 400 });
-		const r = await mail(c).send({ to: 'stranger@example.com', subject: 'Hi', text: 'Body' });
+		const r = await mail(c).send({ purpose: 'notifications', to: 'stranger@example.com', subject: 'Hi', text: 'Body' });
 		expect(r).toMatchObject({ ok: false, error: 'Destination address is not verified' });
 		const logged = await mail(c).lastTo('stranger@example.com');
 		expect(logged.status).toBe('failed');

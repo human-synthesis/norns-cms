@@ -198,6 +198,7 @@ export class ArticlesService
 			role := await auth(@c).role u.role
 			continue unless role && (role.capabilities.includes('*') || role.capabilities.includes('content.*') || role.capabilities.includes('content.publish'))
 			await mail(@c).send {
+				purpose: 'notifications'
 				to: u.email
 				subject: `Review requested: ${entry.title}`
 				template: 'review'

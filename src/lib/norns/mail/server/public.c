@@ -1,7 +1,7 @@
 import type { Container } from '@human-synthesis/norns/server'
-import type { MailService, Message } from './service'
+import type { MailService, Message, MailPurpose } from './service'
 
-export type { Message }
+export type { Message, MailPurpose }
 
 svc := (c: Container) => c.resolve('mail.service') as MailService
 

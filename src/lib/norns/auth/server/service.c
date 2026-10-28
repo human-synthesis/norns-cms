@@ -327,6 +327,7 @@ export class AuthService
 		link := `${siteOrigin()}/invite/${raw}`
 		site := await settings(@c).get 'site'
 		sent := await mail(@c).send {
+			purpose: 'signup'
 			to: addr
 			subject: `You're invited to ${site.title}`
 			template: 'invite'
@@ -363,6 +364,7 @@ export class AuthService
 			site := await settings(@c).localized 'site', locale
 			t := await tFor @c, locale
 			await mail(@c).send {
+				purpose: 'signin'
 				to: addr
 				subject: t('email.reset.subject', { site: site.title })
 				template: 'reset'
@@ -401,7 +403,7 @@ export class AuthService
 			// Same answer as success; tell the owner of the address instead.
 			t := await tFor @c, locale
 			localSite := await settings(@c).localized 'site', locale
-			await mail(@c).send { to: addr, subject: t('email.exists.subject', { site: localSite.title }), template: 'register_exists', text: t('email.exists.text', { email: addr, login: `${siteOrigin()}/account/login`, forgot: `${siteOrigin()}/account/forgot` }) }
+			await mail(@c).send { purpose: 'signup', to: addr, subject: t('email.exists.subject', { site: localSite.title }), template: 'register_exists', text: t('email.exists.text', { email: addr, login: `${siteOrigin()}/account/login`, forgot: `${siteOrigin()}/account/forgot` }) }
 			return { ok: true }
 		id := await @createUser addr, input.name ?? '', input.password, 'member', { kind: 'client', verified: false }
 		await @repo.update id, { locale }
@@ -416,7 +418,7 @@ export class AuthService
 		locale := (user as any).locale || 'en'
 		site := await settings(@c).localized 'site', locale
 		t := await tFor @c, locale
-		await mail(@c).send { to: user.email, subject: t('email.verify.subject', { site: site.title }), template: 'verify', text: t('email.verify.text', { link: `${siteOrigin()}/verify/${raw}` }) }
+		await mail(@c).send { purpose: 'signup', to: user.email, subject: t('email.verify.subject', { site: site.title }), template: 'verify', text: t('email.verify.text', { link: `${siteOrigin()}/verify/${raw}` }) }
 		return
 
 	async resendVerification(email: string, ip = '')

@@ -166,8 +166,9 @@ export class FormsService
 		subject := fill(form.settings.notifySubject || `New submission: ${form.name}`) + ` — ${site.title}`
 		body := [`${form.name} (${lang})`, '', describeSubmission(form.fields, data), '', `Open it: ${siteOrigin()}/admin/forms/submissions/${id}`].join('\n')
 		errorsSeen := [] as string[]
+		purpose := form.slug === 'contact' ? 'contact' : 'notifications'
 		for to of recipients
-			r := await mail(@c).send { to, subject, text: body, template: `form:${form.slug}`, replyTo: email || undefined }
+			r := await mail(@c).send { purpose, to, subject, text: body, template: `form:${form.slug}`, replyTo: email || undefined }
 			errorsSeen.push(`${to}: ${r.error}`) unless r.ok
 		await @repo.setNotified id, (errorsSeen.length ? -1 : 1), errorsSeen.join('; ').slice(0, 500)
 		return

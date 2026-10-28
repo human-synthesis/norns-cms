@@ -41,9 +41,11 @@
 			h2.font-semibold.mb-1 Notifications
 			p.text-sm.mb-3(class="text-fg-muted")
 				+if('data.provider === "aiosis"')
-					| Sent through Aiosis Emails. It delivers only to addresses verified on the Aiosis account.
+					| Sent through Aiosis Emails from {data.f.slug === 'contact' ? 'contact@' : 'notifications@'} on the mail domain. It delivers only to addresses verified on the Aiosis account.
+				+elseif('data.provider === "missing"')
+					| Not sent: the AIOSIS_API_KEY secret is not set. Notifications fail until it is.
 				+else
-					| No mail provider yet (AIOSIS_API_KEY): notifications appear in Logs → Mail log.
+					| Dev mode without AIOSIS_API_KEY: notifications appear in Logs → Mail log.
 			.settings-grid
 				label.check-item.settings-wide
 					input(type="hidden" name="notify" value="false")
