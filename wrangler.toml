@@ -33,6 +33,9 @@ enabled = true
 #   CRON_SECRET     authenticates the daily maintenance cron (worker/index.js → /api/cron)
 #   AIOSIS_API_KEY  sends mail through Aiosis Emails (scope messages:send); without it mail is only logged
 #   ANTHROPIC_API_KEY  optional: AI translation
+#   TURNSTILE_SITE_KEY / TURNSTILE_SECRET_KEY  Cloudflare Turnstile widget "norns-cms";
+#                   these win over the keys in System → Form protection (the on/off
+#                   switch stays there). TURNSTILE_ENABLED=false turns Turnstile off everywhere.
 [vars]
 CMS_PUBLIC_URL = "https://norns-cms.humansynthesis.ai"
 
