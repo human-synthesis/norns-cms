@@ -1,11 +1,13 @@
 import { envVar } from '../../settings/server/public'
 
-// Every message says what it is for; that picks its sender address on the
-// mail domain: signup@ (invites, verification, "you already have an
-// account"), signin@ (password reset), notifications@ (team notices, form
-// submissions) and contact@ (contact form submissions).
+// Every message says what it is for; that picks its sender: signup@
+// (invites, verification, "you already have an account"), signin@ (password
+// reset), notification@ (team notices, form submissions) and contact@
+// (contact form submissions), each on the mail domain unless Settings →
+// Email names a full address for it.
 export type MailPurpose = 'signup' | 'signin' | 'notifications' | 'contact'
 export PURPOSES: MailPurpose[] := ['signup', 'signin', 'notifications', 'contact']
+LOCAL_PART: Record<MailPurpose, string> := { signup: 'signup', signin: 'signin', notifications: 'notification', contact: 'contact' }
 
 export type Message =
 	purpose: MailPurpose
@@ -19,10 +21,11 @@ export type Message =
 
 export type Sender =
 	domain: string
+	addresses: Partial<Record<MailPurpose, string>>
 	fromName: string
 	replyTo: string
 
-export fromAddress := (purpose: MailPurpose, domain: string) => `${purpose}@${domain}`
+export fromAddress := (purpose: MailPurpose, from: Sender) => from.addresses[purpose] || `${LOCAL_PART[purpose]}@${from.domain}`
 
 escape := (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
@@ -73,7 +76,7 @@ export class MailService
 			await @record msg, provider, 'failed', '', error
 			return { ok: false, provider, error }
 		from := await @sender()
-		payload := { to: msg.to, subject: msg.subject, text: msg.text, html, fromEmail: fromAddress(msg.purpose, from.domain), fromName: msg.fromName || from.fromName } as Record<string, any>
+		payload := { to: msg.to, subject: msg.subject, text: msg.text, html, fromEmail: fromAddress(msg.purpose, from), fromName: msg.fromName || from.fromName } as Record<string, any>
 		replyTo := msg.replyTo || from.replyTo
 		payload.replyTo = replyTo if replyTo
 		try

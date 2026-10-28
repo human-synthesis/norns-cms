@@ -41,7 +41,7 @@
 			h2.font-semibold.mb-1 Notifications
 			p.text-sm.mb-3(class="text-fg-muted")
 				+if('data.provider === "aiosis"')
-					| Sent through Aiosis Emails from {data.f.slug === 'contact' ? 'contact@' : 'notifications@'} on the mail domain. It delivers only to addresses verified on the Aiosis account.
+					| Sent through Aiosis Emails from the {data.f.slug === 'contact' ? 'contact' : 'notification'} sender in Settings → Email. It delivers only to addresses verified on the Aiosis account.
 				+elseif('data.provider === "missing"')
 					| Not sent: the AIOSIS_API_KEY secret is not set. Notifications fail until it is.
 				+else

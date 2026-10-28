@@ -84,7 +84,7 @@ migrations/                 per-feature SQL, mirrored into migrations/d1/ for wr
 
 `CLAUDE.md` describes each feature, the extension points and the conventions.
 
-Production secrets (`wrangler secret put`): `CMS_SECRET` (2FA encryption), `CRON_SECRET` (maintenance cron), `AIOSIS_API_KEY` (required: mail through Aiosis Emails from `signup@`, `signin@`, `notifications@` and `contact@` on `MAIL_DOMAIN`; without it mail is refused outside dev and tests). The R2 bucket `norns-cms-media` must exist before deploying (`bunx wrangler r2 bucket create norns-cms-media`).
+Production secrets (`wrangler secret put`): `CMS_SECRET` (2FA encryption), `CRON_SECRET` (maintenance cron), `AIOSIS_API_KEY` (required: mail through Aiosis Emails from `signup@`, `signin@`, `notification@` and `contact@` on `MAIL_DOMAIN`; without it mail is refused outside dev and tests). The R2 bucket `norns-cms-media` must exist before deploying (`bunx wrangler r2 bucket create norns-cms-media`).
 
 ## License
 

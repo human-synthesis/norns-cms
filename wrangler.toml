@@ -32,7 +32,7 @@ enabled = true
 #   CMS_SECRET      encrypts two-factor secrets at rest (required for 2FA in production)
 #   CRON_SECRET     authenticates the daily maintenance cron (worker/index.js → /api/cron)
 #   AIOSIS_API_KEY  required: sends mail through Aiosis Emails (scope messages:send) from
-#                   signup@, signin@, notifications@ and contact@ on MAIL_DOMAIN; without it
+#                   signup@, signin@, notification@ and contact@ on MAIL_DOMAIN; without it
 #                   mail is refused (only `bun run dev` and tests fall back to the mail log)
 #   ANTHROPIC_API_KEY  optional: AI translation
 #   TURNSTILE_SITE_KEY / TURNSTILE_SECRET_KEY  Cloudflare Turnstile widget "norns-cms";
@@ -41,7 +41,7 @@ enabled = true
 [vars]
 CMS_PUBLIC_URL = "https://norns-cms.humansynthesis.ai"
 # Sender domain set up in Aiosis Emails (Settings → Email → Mail domain wins).
-MAIL_DOMAIN = "humansynthesis.ai"
+MAIL_DOMAIN = "aiosis.com"
 
 # Daily housekeeping: expired sessions and links, retention purges.
 [triggers]

@@ -1,5 +1,5 @@
 .space-y-6
-	PageHead(title="Mail log" subtitle!="{data.provider === 'aiosis' ? 'Sending through Aiosis Emails from signup@, signin@, notifications@ and contact@ on the mail domain (Settings → Email). It delivers only to addresses verified on the Aiosis account.' : data.provider === 'missing' ? 'Mail cannot be sent.' : 'Dev mode without AIOSIS_API_KEY: messages are logged here instead of sent.'}")
+	PageHead(title="Mail log" subtitle!="{data.provider === 'aiosis' ? 'Sending through Aiosis Emails from signup@, signin@, notification@ and contact@ (Settings → Email). It delivers only to addresses verified on the Aiosis account.' : data.provider === 'missing' ? 'Mail cannot be sent.' : 'Dev mode without AIOSIS_API_KEY: messages are logged here instead of sent.'}")
 	+if('data.provider === "missing"')
 		Banner(variant="danger" icon="lucide:mail-x") The CMS requires an Aiosis Emails key. Set the AIOSIS_API_KEY secret (a key with the messages:send scope); until then sign-up, sign-in, notification and contact mail is refused and logged as failed.
 	+if('data.log.length === 0')

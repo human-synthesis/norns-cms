@@ -33,9 +33,19 @@ describe('Aiosis Emails', () => {
 			const r = await mail(c).send({ purpose, to: 'a@example.com', subject: purpose, text: 'Hi' });
 			expect(r).toMatchObject({ ok: true, provider: 'aiosis' });
 		}
-		expect(sent.map((s) => s.body.fromEmail)).toEqual(['signup@example.org', 'signin@example.org', 'notifications@example.org', 'contact@example.org']);
+		expect(sent.map((s) => s.body.fromEmail)).toEqual(['signup@example.org', 'signin@example.org', 'notification@example.org', 'contact@example.org']);
 		expect(sent[0].url).toBe('https://emails.aiosis.com/api/v1/messages');
 		expect(sent[0].headers.Authorization).toBe('Bearer sk_test_x');
+	});
+
+	test('a full address set per purpose wins over the domain', async () => {
+		const c = await bootApp();
+		await settings(c).patch('mail', { domain: 'example.org', contactFrom: 'hello@example.com' }, null);
+		process.env.AIOSIS_API_KEY = 'sk_test_x';
+		const sent = capture();
+		await mail(c).send({ purpose: 'contact', to: 'a@example.com', subject: 'x', text: 'y' });
+		await mail(c).send({ purpose: 'signup', to: 'a@example.com', subject: 'x', text: 'y' });
+		expect(sent.map((s) => s.body.fromEmail)).toEqual(['hello@example.com', 'signup@example.org']);
 	});
 
 	test('MAIL_DOMAIN is the fallback domain', async () => {
@@ -54,7 +64,7 @@ describe('Aiosis Emails', () => {
 		const sent = capture();
 		await forms(c).submit('contact', { _t: String(Date.now() - 5000), _hp: '', name: 'Ada', email: 'ada@example.com', message: 'Hello', consent: 'on' }, { lang: 'en', page: '/contact', ip: '10.9.0.1' });
 		await forms(c).submit('newsletter', { _t: String(Date.now() - 5000), _hp: '', email: 'n@example.com', consent: 'on' }, { lang: 'en', page: '/', ip: '10.9.0.2' });
-		expect(sent.map((s) => s.body.fromEmail)).toEqual(['contact@example.org', 'notifications@example.org']);
+		expect(sent.map((s) => s.body.fromEmail)).toEqual(['contact@example.org', 'notification@example.org']);
 		expect(sent[0].body.replyTo).toBe('ada@example.com');
 	});
 
