@@ -1,0 +1,52 @@
+Card(class!="{status.mustEnrol ? 'ring-2 ring-warning' : ''}")
+	.space-y-4
+		h2.font-semibold {tr('twofactor.title')}
+		+if('codes')
+			.space-y-3
+				h3.text-sm.font-semibold {tr('twofactor.codes')}
+				p.text-sm {tr('twofactor.codesHelp')}
+				ul.recovery-codes
+					+each('codes as code (code)')
+						li
+							code {code}
+				CopyButton(value!="{codes.join('\\n')}" size="sm") {tr('twofactor.copyCodes')}
+		+elseif('status.enabled')
+			p.text-sm {tr('twofactor.on')}
+			p.text-xs(class="text-fg-subtle") {tr('twofactor.codesLeft', { count: status.recoveryCodesLeft })}
+			+if('status.policy !== "required"')
+				Form(action="?/twoFactorDisable" form!="{form}" class="flex flex-wrap items-end gap-3")
+					Field(label!="{tr('twofactor.password')}" name="disablePassword")
+						Input(type="password" name="password" autocomplete="current-password")
+					Btn(type="submit" variant="danger" icon="lucide:shield-off") {tr('twofactor.turnOff')}
+		+elseif('setup')
+			p.text-sm {tr('twofactor.scan')}
+			.twofactor-setup
+				.twofactor-qr(role="img" aria-label!="{tr('twofactor.scan')}")
+					| {@html setup.qr}
+				.space-y-1.min-w-0
+					.text-xs.font-semibold(class="text-fg-subtle") {tr('twofactor.key')}
+					.flex.items-center.gap-2
+						code.text-sm.tracking-widest.break-all {setup.secret}
+						CopyButton(value!="{setup.secret}" size="sm")
+					a.text-xs(href!="{setup.uri}") {tr('twofactor.openApp')}
+			Form(action="?/twoFactorConfirm" form!="{form}" class="flex flex-wrap items-end gap-3")
+				Field(label!="{tr('twofactor.code')}" name="code")
+					Input(name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456")
+				Btn(type="submit" variant="primary" icon="lucide:shield-check") {tr('twofactor.turnOn')}
+		+else
+			p.text-sm {status.mustEnrol ? tr('twofactor.required') : tr('twofactor.off')}
+			form(method="POST" action="?/twoFactorBegin")
+				Btn(type="submit" variant="primary" icon="lucide:shield-plus") {tr('twofactor.start')}
+
+<script>
+	import { translate } from '../../i18n/shared/t.js'
+	import { en } from '../../i18n/shared/catalog.js'
+
+	// Two-factor setup and status for one's own account, in the admin profile
+	// (English) and the members' account page (pass t from i18n/ui/t.js).
+	// The page provides the actions twoFactorBegin / twoFactorConfirm /
+	// twoFactorDisable (twoFactorActions in twofactor/server/public).
+	{ status, setup = null, codes = null, form = null, t = null } := $props()
+
+	tr := (key: string, vars?: any) => t ? t(key, vars) : translate(en, key, vars)
+</script>

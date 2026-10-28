@@ -1,6 +1,6 @@
 import type { Container } from '@human-synthesis/norns/server'
 import { error, redirect, fail } from '@sveltejs/kit'
-import type { AuthService, SessionUser } from './service'
+import type { AuthService, SessionUser, SecondFactor } from './service'
 import type { User } from './repo'
 import { can, isStaff } from '../shared/can'
 
@@ -43,10 +43,8 @@ export auth := (c: Container) => {
 	deleteOwnAccount: (user: any, password: string) => svc(c).deleteOwnAccount(user, password)
 	deleteUser: (id: number, actor: any) => svc(c).deleteUser(id, actor)
 	exportData: (userId: number) => svc(c).exportData(userId)
-	beginTotp: (user: any) => svc(c).beginTotp(user)
-	confirmTotp: (user: any, code: string) => svc(c).confirmTotp(user, code)
-	disableTotp: (user: any, password: string) => svc(c).disableTotp(user, password)
-	resetTotp: (id: number, actor: any) => svc(c).resetTotp(id, actor)
+	checkPassword: (userId: number, password: string) => svc(c).checkPassword(userId, password)
+	guard: (actor: any, id: number) => svc(c).canChange(actor, id)
 	roles: (kind?: string) => svc(c).roles(kind)
 	role: (id: string) => svc(c).role(id)
 	saveRole: (input: any, actor: any) => svc(c).saveRole(input, actor)
@@ -69,6 +67,12 @@ export audit := (c: Container) => {
 export registerCapabilities := (app: Container, caps: { id: string, label: string, group?: string }[]) =>
 	for cap of caps
 		app.single `auth.cap:${cap.id}`, => cap
+
+// The second sign-in factor (one per app; the twofactor feature registers
+// it). auth asks it whether a user has one, to check a code, and whether the
+// user must still set one up (SessionUser.needs2fa).
+export registerSecondFactor := (app: Container, factor: SecondFactor) =>
+	app.single 'auth.second-factor', => factor
 
 // For routes: throw 403 unless the user holds the capability.
 export requireCap := (user: any, cap: string) =>
@@ -105,7 +109,10 @@ ACCOUNT_PUBLIC := ['/account/login', '/account/register', '/account/forgot']
 //                 GETs go to /login. Staff who must enrol in 2FA are held on
 //                 /admin/profile until they do.
 //   /account/**   signed-in clients (sign-in, register, forgot are public).
-//                 Staff are sent to their admin profile.
+//                 Staff are sent to their admin profile. Members who must
+//                 still set up 2FA have only account.access (see
+//                 userForSession), so app routes guarded by a capability
+//                 refuse them until they enrol on /account.
 //
 // The guard lives here and not only in layouts because SvelteKit runs form
 // actions BEFORE layout load functions: a layout guard alone leaves every
@@ -153,11 +160,13 @@ export finishLogin := (event: any, r: any, next: any, email = '', t: ((key: stri
 		event.cookies.delete MFA_COOKIE, { path: '/' }
 		home := r.user.kind === 'staff' ? '/admin' : '/account'
 		dest .= safeNext next, home
-		dest = home if r.user.kind !== 'staff' && dest.startsWith('/admin')
+		dest = home if r.user.kind !== 'staff' && (dest.startsWith('/admin') || r.user.needs2fa)
 		throw redirect 303, dest
 	if r.mfa
 		event.cookies.set MFA_COOKIE, r.mfa, { path: '/', httpOnly: true, sameSite: 'lax', secure: event.url.protocol === 'https:', maxAge: 300 }
-		throw redirect 303, `/login/2fa?next=${encodeURIComponent(safeNext(next, '/admin'))}`
+		// Members get the step in their language, inside the site.
+		step := r.kind === 'staff' ? '/login/2fa' : '/account/login/2fa'
+		throw redirect 303, `${step}?next=${encodeURIComponent(safeNext(next, r.kind === 'staff' ? '/admin' : '/account'))}`
 	fail 400, {
 		errors: [{ path: [{ key: 'password' }], message: t ? t(`login.${['rate', 'unverified'].includes(r.error) ? r.error : 'invalid'}`) : (LOGIN_ERRORS[r.error] ?? LOGIN_ERRORS.invalid) }]
 		values: { email }

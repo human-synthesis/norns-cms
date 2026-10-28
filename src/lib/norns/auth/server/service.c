@@ -1,9 +1,8 @@
 import { randomBytes } from 'node:crypto'
 import type { Container } from '@human-synthesis/norns/server'
 import type { UsersRepo, User, UserRow, UserQuery } from './repo'
-import { hashPassword, verifyPassword } from './password.js'
+import { hashPassword, verifyPassword, sha256 } from './password.js'
 import { passwordProblem } from './policy.js'
-import { newSecret, verifyTotp, otpauthUri, sealSecret, openSecret, sha256, recoveryCodes } from './totp.js'
 import { capMatches } from '../shared/can'
 import { settings, envVar, siteOrigin } from '../../settings/server/public'
 import { mail } from '../../mail/server/public'
@@ -23,13 +22,21 @@ dummy := =>
 
 export type SessionUser = User & { capabilities: string[], sessionId: string, needs2fa: boolean }
 
-export type LoginResult = { ok: boolean, session?: { id: string, maxAge: number }, user?: SessionUser, error?: string, mfa?: string }
+export type LoginResult = { ok: boolean, session?: { id: string, maxAge: number }, user?: SessionUser, error?: string, mfa?: string, kind?: string }
+
+// The second sign-in factor, registered by the twofactor feature
+// (registerSecondFactor). Without one, sign-in is password only.
+export type SecondFactor =
+	enabled: (c: Container, userId: number) => Promise<boolean>
+	verify: (c: Container, user: any, code: string) => Promise<boolean>
+	mustEnrol: (c: Container, user: any) => Promise<boolean>
 
 slugifyName := (s: string) =>
 	s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 
 publicUser := (row: any): User =>
-	{ password_hash, totp_secret, recovery_codes, ...rest } := row
+	// totp_* / recovery_codes: legacy columns (two-factor lives in its own feature now).
+	{ password_hash, totp_secret, totp_enabled, recovery_codes, ...rest } := row
 	rest as User
 
 export class AuthService
@@ -42,6 +49,12 @@ export class AuthService
 
 	async security()
 		await settings(@c).get 'security'
+
+	secondFactor(): SecondFactor | null
+		try
+			@c.resolve('auth.second-factor') as SecondFactor
+		catch
+			null
 
 	// --- capabilities --------------------------------------------------------
 
@@ -83,9 +96,13 @@ export class AuthService
 		if Date.now() - (row.last_seen_at ?? 0) > 60 * 60 * 1000
 			await @repo.touchSession sessionId, Date.now() + (await @sessionDays(row.kind)) * DAY
 		{ session_id, expires_at, last_seen_at, ...user } := row
-		caps := await @capabilitiesFor user.role
-		sec := await @security()
-		needs2fa := !!sec.require2fa && user.kind === 'staff' && ['owner', 'admin'].includes(user.role) && !user.totp_enabled
+		caps .= await @capabilitiesFor user.role
+		mfa := @secondFactor()
+		needs2fa := !!mfa && await mfa.mustEnrol(@c, user)
+		// A member who must still set up two-factor keeps only their account
+		// page: no members-only content, no app capabilities. Staff are held
+		// on their profile by sessionHandle instead.
+		caps = caps.filter((cap) => cap === 'account.access') if needs2fa && user.kind !== 'staff'
 		{ ...user, capabilities: caps, sessionId: session_id, needs2fa } as SessionUser
 
 	async logout(sessionId: string): Promise<void>
@@ -132,10 +149,11 @@ export class AuthService
 		await @repo.clearHits emailKey
 		if row.kind === 'client' && !row.email_verified_at
 			return { ok: false, error: 'unverified' }
-		if row.totp_enabled
+		mfa := @secondFactor()
+		if mfa && await mfa.enabled(@c, row.id)
 			raw := randomBytes(24).toString('hex')
 			await @repo.createToken sha256(raw), row.id, 'mfa', Date.now() + 5 * 60 * 1000
-			return { ok: false, mfa: raw }
+			return { ok: false, mfa: raw, kind: row.kind }
 		session := await @startSession row, meta.userAgent ?? ''
 		await @audit row.id, row.email, 'login', row.email, {}
 		user := (await @userForSession session.id) as SessionUser
@@ -150,20 +168,11 @@ export class AuthService
 		return { ok: false, error: 'invalid' } unless tok
 		row := await @repo.byId tok.user_id
 		return { ok: false, error: 'invalid' } unless row && row.status === 'active'
-		ok .= false
-		secret := openSecret row.totp_secret, @appSecret()
-		if secret && verifyTotp(secret, code)
-			ok = true
-		else
-			hashed := sha256 String(code).trim().toLowerCase()
-			codes := JSON.parse(row.recovery_codes || '[]') as string[]
-			if codes.includes hashed
-				ok = true
-				await @repo.update row.id, { recovery_codes: JSON.stringify(codes.filter((h) => h !== hashed)) }
-				await @audit row.id, row.email, 'login.recovery_code', row.email, { remaining: codes.length - 1 }
+		mfa := @secondFactor()
+		ok := !!mfa && await mfa.verify(@c, publicUser(row), code)
 		unless ok
 			await @audit row.id, row.email, 'login.failed', row.email, { reason: '2fa' }
-			return { ok: false, mfa: mfaToken }
+			return { ok: false, mfa: mfaToken, kind: row.kind }
 		await @repo.useToken tok.id
 		session := await @startSession row, meta.userAgent ?? ''
 		await @audit row.id, row.email, 'login', row.email, { mfa: true }
@@ -456,39 +465,15 @@ export class AuthService
 			activity: await @repo.auditList({ actorId: userId, limit: 1000 })
 		}
 
-	// --- two-factor --------------------------------------------------------
+	// Other features (twofactor) checking a password or the owner rules.
+	async checkPassword(userId: number, password: string): Promise<boolean>
+		row := await @repo.byId userId
+		!!row && verifyPassword(password, row.password_hash)
 
-	async beginTotp(user: any)
-		secret := newSecret()
-		await @repo.update user.id, { totp_secret: sealSecret(secret, @appSecret()), totp_enabled: 0 }
-		site := await settings(@c).get 'site'
-		{ secret, uri: otpauthUri(secret, user.email, site.title || 'Norns CMS') }
-
-	async confirmTotp(user: any, code: string)
-		row := await @repo.byId user.id
-		secret := openSecret row?.totp_secret ?? null, @appSecret()
-		return { ok: false, error: 'Start the setup again' } unless secret
-		return { ok: false, error: 'That code is not right; check the time on your device' } unless verifyTotp(secret, code)
-		codes := recoveryCodes()
-		await @repo.update user.id, { totp_enabled: 1, recovery_codes: JSON.stringify(codes.map((c) => sha256(c))) }
-		await @audit user.id, user.email, 'user.2fa_enabled', user.email, {}
-		{ ok: true, codes }
-
-	async disableTotp(user: any, password: string)
-		row := await @repo.byId user.id
-		return { ok: false, error: 'Password is wrong', field: 'password' } unless row && verifyPassword(password, row.password_hash)
-		await @repo.update user.id, { totp_enabled: 0, totp_secret: null, recovery_codes: '[]' }
-		await @audit user.id, user.email, 'user.2fa_disabled', user.email, {}
-		{ ok: true }
-
-	async resetTotp(id: number, actor: any)
+	async canChange(actor: any, id: number): Promise<string | null>
 		target := await @getUser id
-		return { ok: false, error: 'User not found' } unless target
-		problem := await @guard actor, target, {}
-		return { ok: false, error: problem } if problem
-		await @repo.update id, { totp_enabled: 0, totp_secret: null, recovery_codes: '[]' }
-		await @audit actor?.id ?? null, actor?.email ?? '', 'user.2fa_reset', target.email, {}
-		{ ok: true }
+		return 'User not found' unless target
+		await @guard actor, target, {}
 
 	// --- roles -------------------------------------------------------------
 

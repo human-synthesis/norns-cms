@@ -1,6 +1,6 @@
 // Password hashing with node:crypto scrypt (no bcrypt/argon2 — see CLAUDE.md).
 // Stored form: `scrypt$<salt hex>$<hash hex>`.
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
 const KEYLEN = 64;
 const OPTS = { N: 16384, r: 8, p: 1 };
@@ -24,3 +24,6 @@ export function verifyPassword(password, stored) {
 	const expected = Buffer.from(hash, 'hex');
 	return candidate.length === expected.length && timingSafeEqual(candidate, expected);
 }
+
+/** Hex SHA-256, for tokens and rate-limit keys (never for passwords). */
+export const sha256 = (s) => createHash('sha256').update(String(s)).digest('hex');

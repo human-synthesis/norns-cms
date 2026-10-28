@@ -25,11 +25,10 @@ export securitySettings := {
 	label: 'Security'
 	icon: 'lucide:shield'
 	order: 90
-	description: 'Sessions, two-factor sign-in, audit retention and the Content-Security-Policy.'
+	description: 'Sessions, audit retention and the Content-Security-Policy. Two-factor sign-in has its own settings.'
 	fields: [
 		{ name: 'staffSessionDays', label: 'Staff session length (days)', type: 'number', default: 7, required: true }
 		{ name: 'memberSessionDays', label: 'Member session length (days)', type: 'number', default: 30, required: true }
-		{ name: 'require2fa', label: 'Two-factor sign-in', type: 'boolean', default: false, help: 'Require two-factor sign-in for owners and administrators' }
 		{ name: 'csp', label: 'Content-Security-Policy', type: 'select', default: 'enforce', required: true, options: [
 			{ value: 'enforce', label: 'Enforce' }
 			{ value: 'report-only', label: 'Report only' }

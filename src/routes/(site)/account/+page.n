@@ -7,6 +7,8 @@ svelte:head
 			Btn(href="/account/privacy" variant="secondary" icon="lucide:shield") {t('account.privacy')}
 			form(method="POST" action="?/logout")
 				Btn(type="submit" variant="ghost" icon="lucide:log-out") {t('account.signOut')}
+	+if('data.twoFactor?.mustEnrol')
+		Banner(variant="warning" icon="lucide:shield-alert") {t('twofactor.required')}
 	+if('form?.saved')
 		Banner(variant="success" icon="lucide:check") {form.saved}
 	.grid.gap-6(class="md:grid-cols-2")
@@ -30,9 +32,12 @@ svelte:head
 					Field(label!="{t('account.newAgain')}" name="confirm")
 						Input(type="password" name="confirm" autocomplete="new-password")
 					Btn(type="submit" variant="primary") {t('account.change')}
+	+if('data.twoFactor')
+		TwoFactorCard(status!="{data.twoFactor}" setup!="{form?.setup ?? data.setup}" codes!="{form?.codes}" form!="{form}" t!="{t}")
 
 <script>
 	import { page } from '$app/state'
 	import { t } from '$lib/norns/i18n/ui/t.js'
+	import TwoFactorCard from '$lib/norns/twofactor/ui/TwoFactorCard.n'
 	{ data, form } := $props()
 </script>

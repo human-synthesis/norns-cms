@@ -2,15 +2,20 @@ import { page } from '@human-synthesis/norns/server'
 import { fail, redirect } from '@sveltejs/kit'
 import { auth, COOKIE } from '$lib/norns/auth/server/public'
 import { tFor } from '$lib/norns/i18n/server/public'
+import { twoFactor, twoFactorActions } from '$lib/norns/twofactor/server/public'
 
 err := (field: string, message: string, extra: any = {}) => fail(400, { errors: [{ path: [{ key: field }], message }], ...extra })
 
 // The member's own account. sessionHandle guarantees a signed-in client here.
 export load := page.load
 	handler: async ({ container, user }) =>
-		{ u: await auth(container).getUser(user.id), seo: { robots: 'noindex, nofollow' } }
+		status := await twoFactor(container).status user
+		// Shown when the members' policy offers it, or the member already has it.
+		shown := status.policy !== 'off' || status.enabled
+		{ u: await auth(container).getUser(user.id), twoFactor: shown ? status : null, setup: shown ? await twoFactor(container).pending(user) : null, seo: { robots: 'noindex, nofollow' } }
 
-export actions := page.actions
+export actions := page.actions {
+	...twoFactorActions((event: any, container: any) => tFor(container, event.locals.locale.language))
 	profile:
 		run: async ({ container, event, user }) =>
 			fd := await event.request.formData()
@@ -34,3 +39,4 @@ export actions := page.actions
 			await auth(container).logout(sid) if sid
 			event.cookies.delete COOKIE, { path: '/' }
 			throw redirect 303, '/'
+}

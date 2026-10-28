@@ -1,5 +1,6 @@
 import { page } from '@human-synthesis/norns/server'
 import { auth, requireCap, can } from '$lib/norns/auth/server/public'
+import { twoFactor } from '$lib/norns/twofactor/server/public'
 
 export load := page.load
 	handler: async ({ container, url, user }) =>
@@ -12,6 +13,7 @@ export load := page.load
 		{
 			kind, q, role, status
 			users
+			twoFactorIds: await twoFactor(container).enabledIds(users.map((u) => u.id))
 			roles: await auth(container).roles(kind)
 			counts: { staff: await auth(container).countUsers({ kind: 'staff' }), client: await auth(container).countUsers({ kind: 'client' }) }
 			canManage: can(user, 'users.manage')

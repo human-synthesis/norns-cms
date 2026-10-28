@@ -1,4 +1,4 @@
-// TOTP (RFC 6238, SHA-1, 6 digits, 30 s) for staff two-factor sign-in, plus
+// TOTP (RFC 6238, SHA-1, 6 digits, 30 s) for two-factor sign-in, plus
 // at-rest encryption of the shared secret with AES-256-GCM keyed from the
 // CMS_SECRET env var. Without CMS_SECRET the secret is stored as
 // `plain:<base32>` (dev); set the secret in production.

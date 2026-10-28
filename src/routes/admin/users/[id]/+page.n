@@ -2,7 +2,7 @@
 	PageHead(title!="{data.u.name || data.u.email}" subtitle!="{data.u.email}" back="/admin/users?kind={data.u.kind}" backLabel="Users")
 		+snippet('actions')
 			Badge(variant!="{data.u.status === 'active' ? 'success' : (data.u.status === 'suspended' ? 'danger' : 'warning')}") {data.u.status}
-			+if('data.u.totp_enabled')
+			+if('data.twoFactor.enabled')
 				Badge(variant="info") 2FA
 	+if('data.created')
 		Banner(variant="success" icon="lucide:check") User created.
@@ -59,7 +59,7 @@
 						+else
 							form(method="POST" action="?/reset")
 								Btn(type="submit" variant="secondary" icon="lucide:key-round" class="w-full") Send password reset link
-						+if('data.u.totp_enabled')
+						+if('data.twoFactor.enabled')
 							form(method="POST" action="?/reset2fa")
 								Btn(type="submit" variant="secondary" icon="lucide:shield-off" class="w-full") Remove two-factor
 						form(method="POST" action="?/revoke")

@@ -90,14 +90,6 @@ export registerAuthApi := (app: Container) =>
 			{ revoked: true }
 	}
 	registerEndpoint app, {
-		method: 'POST', path: '/users/:id/2fa/reset', capability: 'users.manage', tag: 'Users'
-		summary: 'Remove the user\'s two-factor sign-in'
-		handler: async ({ c, params, user }) =>
-			r := await auth(c).resetTotp Number(params.id), user
-			throw fail(r) unless r.ok
-			{ reset: true }
-	}
-	registerEndpoint app, {
 		method: 'GET', path: '/roles', capability: 'users.view', tag: 'Roles'
 		summary: 'Roles with their capabilities'
 		query: [{ name: 'kind', description: 'staff | client' }]

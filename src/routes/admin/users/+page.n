@@ -40,7 +40,7 @@
 		name: u.name || '—'
 		email: u.email
 		role: roleLabel(u.role)
-		status: u.status + (u.totp_enabled ? ' · 2FA' : '') + (u.kind === 'client' && !u.email_verified_at ? ' · unverified' : '')
+		status: u.status + (data.twoFactorIds.includes(u.id) ? ' · 2FA' : '') + (u.kind === 'client' && !u.email_verified_at ? ' · unverified' : '')
 		seen: u.last_login_at ? new Date(u.last_login_at).toLocaleString() : 'never'
 	}))
 	open := (row) => goto('/admin/users/' + row.id)

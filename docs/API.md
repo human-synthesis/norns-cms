@@ -103,6 +103,10 @@ Use the returned `id` in image fields, or in Markdown as `![alt](media:ID)`.
 
 `GET /settings` lists the groups the key may change, with their fields. `PATCH /settings/<group>` merges the values you send and validates the result.
 
+## Two-factor sign-in
+
+`GET /users/{id}/2fa` tells whether a user has it on, how many recovery codes are left and what the policy asks of them; `POST /users/{id}/2fa/reset` removes it (a lost phone). Turning it on needs the person's authenticator app, so setup happens only in the admin profile and the members' account page. The staff and member policies are the `twofactor` settings group (`PATCH /settings/twofactor` with `staff: off | admins | staff`, `members: off | optional | required`). User objects no longer carry `totp_enabled`.
+
 ## For developers of this CMS
 
 Every feature registers its endpoints from its own `server/api.c` with `registerEndpoint` (see `src/lib/norns/api/server/router.js`). The router, this reference and the OpenAPI document all read that registry, so a new endpoint documents itself. Anything new in the admin must get an endpoint too (see `CLAUDE.md`).

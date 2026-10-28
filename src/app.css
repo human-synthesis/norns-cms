@@ -185,6 +185,9 @@
 	.session-list li { @apply py-2 flex items-center justify-between gap-4; }
 	.recovery-codes { @apply grid grid-cols-2 gap-2 list-none p-0 sm:grid-cols-4; }
 	.recovery-codes code { @apply text-sm; }
+	.twofactor-setup { @apply flex flex-wrap items-start gap-5; }
+	.twofactor-qr { @apply w-44 shrink-0 rounded-lg bg-white p-1; }
+	.twofactor-qr svg { @apply block h-auto w-full; }
 	.settings-grid { @apply grid gap-5 md:grid-cols-2; }
 	.settings-wide { @apply md:col-span-2; }
 	.link-card { @apply flex flex-col gap-1 rounded-xl border border-border bg-bg p-4 no-underline text-fg; }

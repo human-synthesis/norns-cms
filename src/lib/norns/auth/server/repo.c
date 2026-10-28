@@ -10,12 +10,11 @@ export type User =
 	avatar_media_id: number | null
 	email_verified_at: number | null
 	last_login_at: number | null
-	totp_enabled: number
 	created_at: number
 
-export type UserRow = User & { password_hash: string, totp_secret: string | null, recovery_codes: string }
+export type UserRow = User & { password_hash: string }
 
-USER_COLS := 'id, email, name, role, kind, status, slug, bio, avatar_media_id, email_verified_at, last_login_at, totp_enabled, created_at, password_changed_at, locale'
+USER_COLS := 'id, email, name, role, kind, status, slug, bio, avatar_media_id, email_verified_at, last_login_at, created_at, password_changed_at, locale'
 
 export type UserQuery =
 	kind?: string
@@ -87,7 +86,7 @@ export class UsersRepo
 		result.lastInsertRowid
 
 	async update(id: number, fields: Record<string, any>): Promise<void>
-		allowed := ['email', 'name', 'role', 'kind', 'status', 'slug', 'bio', 'avatar_media_id', 'email_verified_at', 'last_login_at', 'totp_secret', 'totp_enabled', 'recovery_codes', 'deleted_at', 'locale']
+		allowed := ['email', 'name', 'role', 'kind', 'status', 'slug', 'bio', 'avatar_media_id', 'email_verified_at', 'last_login_at', 'deleted_at', 'locale']
 		keys := Object.keys(fields).filter((k) => allowed.includes(k))
 		return unless keys.length
 		await @db.run `UPDATE users SET ${keys.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`, [...keys.map((k) => fields[k]), id]

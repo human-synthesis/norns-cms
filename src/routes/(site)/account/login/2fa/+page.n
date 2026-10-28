@@ -1,0 +1,20 @@
+svelte:head
+	title {t('twofactor.title')} · {page.data.site.title}
+.account-narrow
+	h1.text-3xl.font-bold.tracking-tight {t('twofactor.title')}
+	p.text-sm(class="text-fg-muted") {t('twofactor.stepIntro')}
+	Card
+		Form(action="?/verify" form!="{form}")
+			.space-y-4
+				input(type="hidden" name="next" value!="{data.next}")
+				Field(label!="{t('twofactor.code')}" name="code" required)
+					Input(name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" required)
+				Btn(type="submit" variant="primary" class="w-full") {t('twofactor.verify')}
+	.text-sm
+		a(href="/account/login") {t('twofactor.startOver')}
+
+<script>
+	import { page } from '$app/state'
+	import { t } from '$lib/norns/i18n/ui/t.js'
+	{ data, form } := $props()
+</script>

@@ -2,6 +2,7 @@ import { page } from '@human-synthesis/norns/server'
 import { error, fail, redirect } from '@sveltejs/kit'
 import { auth, requireCap, can, audit } from '$lib/norns/auth/server/public'
 import { cms } from '$lib/norns/content/server/public'
+import { twoFactor } from '$lib/norns/twofactor/server/public'
 
 userOr404 := async (container: any, id: string) =>
 	u := await auth(container).getUser Number(id)
@@ -16,6 +17,7 @@ export load := page.load
 		staff := u.kind === 'staff' ? await auth(container).listUsers({ kind: 'staff', status: 'active', limit: 500 }) : []
 		{
 			u
+			twoFactor: await twoFactor(container).status(u)
 			roles: await auth(container).roles(u.kind)
 			sessions: await auth(container).sessions(u.id)
 			activity: await audit(container).list({ actorId: u.id, limit: 15 })
@@ -68,9 +70,9 @@ export actions := page.actions
 	reset2fa:
 		run: async ({ container, event, user }) =>
 			requireCap user, 'users.manage'
-			r := await auth(container).resetTotp Number(event.params.id), user
+			r := await twoFactor(container).reset Number(event.params.id), user
 			return fail(400, { error: r.error }) unless r.ok
-			{ saved: 'Two-factor sign-in was removed; they can set it up again from their profile.' }
+			{ saved: 'Two-factor sign-in was removed; they set it up again from their profile or account page.' }
 	remove:
 		run: async ({ container, event, user }) =>
 			requireCap user, 'users.manage'

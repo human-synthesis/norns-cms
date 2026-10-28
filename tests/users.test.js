@@ -3,7 +3,6 @@ import { bootApp } from './helpers.js';
 import { auth, can } from '../src/lib/norns/auth/server/public.c';
 import { mail } from '../src/lib/norns/mail/server/public.c';
 import { settings } from '../src/lib/norns/settings/server/public.c';
-import { totp } from '../src/lib/norns/auth/server/totp.js';
 
 const PW = 'correct horse battery';
 const linkFrom = async (c, email, kind) => {
@@ -128,34 +127,6 @@ describe('invites, resets, registration', () => {
 		expect((await auth(c).deleteOwnAccount(u, PW)).ok).toBe(true);
 		expect(await auth(c).userByEmail('gone@example.com')).toBeUndefined();
 		expect((await auth(c).getUser(id)).status).toBe('deleted');
-	});
-});
-
-describe('two-factor', () => {
-	test('enrol, then sign-in needs a code; recovery codes work once', async () => {
-		const c = await bootApp();
-		await auth(c).createUser('t@example.com', 'T', PW, 'owner');
-		const u = await signIn(c, 't@example.com');
-		const { secret } = await auth(c).beginTotp(u);
-		expect((await auth(c).confirmTotp(u, '000000')).ok).toBe(false);
-		const done = await auth(c).confirmTotp(u, totp(secret));
-		expect(done.codes).toHaveLength(8);
-		const step = await auth(c).login('t@example.com', PW, { ip: '4.4.4.4' });
-		expect(step.ok).toBe(false);
-		expect(step.mfa).toBeTruthy();
-		expect((await auth(c).loginMfa(step.mfa, '123456')).ok).toBe(false);
-		expect((await auth(c).loginMfa(step.mfa, totp(secret))).ok).toBe(true);
-		const again = await auth(c).login('t@example.com', PW, { ip: '4.4.4.4' });
-		expect((await auth(c).loginMfa(again.mfa, done.codes[0])).ok).toBe(true);
-		const third = await auth(c).login('t@example.com', PW, { ip: '4.4.4.4' });
-		expect((await auth(c).loginMfa(third.mfa, done.codes[0])).ok).toBe(false);
-	});
-
-	test('require2fa flags owners and admins without it', async () => {
-		const c = await bootApp();
-		await auth(c).createUser('o@example.com', 'O', PW, 'owner');
-		await settings(c).patch('security', { require2fa: true }, null);
-		expect((await signIn(c, 'o@example.com')).needs2fa).toBe(true);
 	});
 });
 

@@ -17,7 +17,8 @@ src/
     admin/              staff area; content/[type] (generic list) and [id] (generic editor, revisions),
                         media, taxonomy/[taxonomy], users, roles, audit, profile, settings/[group], seo,
                         consent (stats, scripts, log), mail, maintenance; api/ (preview, media JSON)
-    login/ reset/ invite/ verify/    sign-in, two-factor step, one-time links
+    login/ reset/ invite/ verify/    staff sign-in and two-factor step, one-time links ((site)/account/login/2fa is the
+                        members' step, in their language)
     forms/[slug]        public form submissions (POST; not localised by URL — the form posts its _locale)
     api/v1/[...path]   management API (bearer API keys); api/consent, api/content (public read), api/cron
     media/[...key]      media files. Crawl outputs (/robots.txt, /sitemap.xml per host; {base}/feed.xml,
@@ -36,7 +37,7 @@ Features:
 
 | Feature | Owns |
 |---|---|
-| `auth` | the `db` token; staff and client users, roles (rows) with capabilities (declared in code), sessions, invites / verification / reset / 2FA tokens, rate limits, audit log, `sessionHandle` |
+| `auth` | the `db` token; staff and client users, roles (rows) with capabilities (declared in code), sessions, invites / verification / reset / sign-in-step tokens, rate limits, audit log, `sessionHandle`; asks the registered second factor (`registerSecondFactor`) during sign-in |
 | `settings` | settings groups (`registerSettings`), env access (`envVar`, `binding`, `siteOrigin`), `securityHandle`, `runMaintenance` |
 | `content` | the engine: type registry, field types, field groups, blocks, hooks, option providers, admin nav; entries, revisions, rich Markdown renderer with cached HTML, public routing, members-only locking |
 | `pages` | the page type (Markdown or blocks layout) and the general blocks (hero, text, columns, CTA, image, gallery, FAQ, embed) |
@@ -47,9 +48,10 @@ Features:
 | `seo` | SEO field group and settings, head tags, JSON-LD, sitemaps, robots (AI crawler toggles), llms.txt, Markdown twins, feeds, redirects, 404 log, editor checks, location block |
 | `consent` | banner settings, regional rules, GPC, script presets, consent records, injection + loader, cookie table block |
 | `i18n` | languages (fallback, direction, URL words), localisations (sub-folder / sub-domain / domain hosting, languages, countries, content fallback), the URL builder and resolver (`shared/urls.js`), `localeHandle`, interface texts (`shared/catalog.js` + overrides), machine translation with Claude (`server/translator.js`) |
+| `twofactor` | two-factor sign-in (TOTP + hashed recovery codes, secrets sealed with `CMS_SECRET`) in its own `two_factor` table; setup with a server-drawn QR code (`uqr`); **separate policies** for CMS staff (optional / owners and admins / all staff) and members (off / optional / required) in Settings → Two-factor sign-in. Registers itself as auth's second factor; `ui/TwoFactorCard.n` + `twoFactorActions` serve the admin profile (English) and the members' account page (translated). A member who must enrol keeps only `account.access` until they do, so members-only content and app routes guarded by a capability refuse them |
 | `api` | API keys (hashed, capability-limited, acting for their creator), the endpoint registry, router (`/api/v1`), OpenAPI document, admin key management and docs |
 
-**Extension points** (all called from a feature's `module.c`, all bindings on the root container so order never matters): `registerType`, `registerFieldGroup`, `registerBlock` (a block's `resolve(props, { c, viewer, entry })` runs per request; add its component to `pages/ui/BlockRenderer.n`), `registerHook` (`beforeSave` may return replacement data; `afterSave`, `status`, `slug`, `delete`), `registerOptions`, `registerAdminNav` (from `content/server/public`; see *Admin menu* below); `registerCapabilities` (from `auth/server/public`); `registerSettings` (from `settings/server/public`).
+**Extension points** (all called from a feature's `module.c`, all bindings on the root container so order never matters): `registerType`, `registerFieldGroup`, `registerBlock` (a block's `resolve(props, { c, viewer, entry })` runs per request; add its component to `pages/ui/BlockRenderer.n`), `registerHook` (`beforeSave` may return replacement data; `afterSave`, `status`, `slug`, `delete`), `registerOptions`, `registerAdminNav` (from `content/server/public`; see *Admin menu* below); `registerCapabilities`, `registerSecondFactor` (from `auth/server/public`); `registerSettings` (from `settings/server/public`).
 
 **Admin menu.** The sidebar is a tree built by `cms.adminNav(user)`: sections **Content**, **People**, **Marketing**, **System** → items → submenus. Register a top-level item with `{ id, label, icon, section, order, capability, href? }` and its submenu entries with `{ id, parent: '<item id>', label, href, order, capability? }`. A parent without `href` is a toggle; it disappears when the user can see none of its children. Content types get "All …", "Waiting for review" and "New …" automatically (id `type-<type id>`, so a feature can hang entries under a type, like categories and tags under `type-article`). Put new screens under an existing group where one fits instead of adding a top-level item.
 
@@ -128,6 +130,7 @@ Civet is great for app code but has rough edges on advanced syntax. **When somet
 | `if (a)[k]` / `if (a).b()` / `x = y if (a)[k]` | name it first: `m := a`, then `if m[k]` | a parenthesised `if` condition ends at its `)`, so `[k]` / `.b` become the body (and a postfix `if (…)` turns the left side into a call) |
 | a class method or facade key named `type` | `getType` | `type` starts a TypeScript alias declaration in Civet |
 | a script-level function or variable named `state` (or `derived`, `effect`) in a `.n` file | another name (`keyState`) | collides with the compiled runes: SSR fails with `Cannot access 'state2' before initialization` |
+| a spread line `...extra(x)` first in a braceless object argument (`page.actions` + indented keys) | wrap the object in braces: `page.actions {` … `}` | Civet makes the spread a separate positional argument, so the action map is lost (`… is not iterable` at build) |
 
 ### Pug / `.n` pitfalls — do not write these
 

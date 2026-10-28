@@ -19,7 +19,7 @@ scriptCache := new WeakMap<any, { at: number, rows: any[] }>()
 export NECESSARY_COOKIES := [
 	{ name: 'cms_consent', duration: 'per settings (max 13 months)', purpose: 'Remembers your cookie choice' }
 	{ name: 'cms_session', duration: 'session length', purpose: 'Keeps you signed in (only when you sign in)' }
-	{ name: 'cms_mfa', duration: '5 minutes', purpose: 'Two-factor sign-in step (staff only)' }
+	{ name: 'cms_mfa', duration: '5 minutes', purpose: 'Two-factor sign-in step' }
 ]
 
 export class ConsentService
