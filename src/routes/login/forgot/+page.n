@@ -9,10 +9,12 @@
 			form.space-y-4(method="POST" action="?/request")
 				Field(label="Email" name="email" required)
 					Input(type="email" name="email" autocomplete="username" required)
+				FormGuard(id="auth.staff-forgot" form!="{form}")
 				Btn(type="submit" variant="primary" class="w-full") Send the link
 			.text-sm.text-center
 				a(href="/login") Back to sign in
 
 <script>
+	import FormGuard from '$lib/norns/protection/ui/FormGuard.n'
 	{ form } := $props()
 </script>

@@ -1,4 +1,4 @@
-FormView(form!="{data?.form}" renderedAt!="{data?.renderedAt}" title!="{props.title}" text!="{props.text}")
+FormView(form!="{data?.form}" title!="{props.title}" text!="{props.text}")
 
 <script>
 	import FormView from './FormView.n'

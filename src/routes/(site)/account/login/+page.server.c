@@ -3,6 +3,7 @@ import { redirect } from '@sveltejs/kit'
 import { auth, finishLogin, clientIp, isStaff } from '$lib/norns/auth/server/public'
 import { loginSchema } from '$lib/norns/auth/shared/schema'
 import { tFor } from '$lib/norns/i18n/server/public'
+import { protect } from '$lib/norns/protection/server/public'
 
 export load := page.load
 	handler: ({ user, url }) =>
@@ -10,7 +11,7 @@ export load := page.load
 			throw redirect 303, (isStaff(user) ? '/admin' : '/account')
 		{ next: url.searchParams.get('next') ?? '/account', verified: url.searchParams.has('verified'), reset: url.searchParams.has('reset'), seo: { robots: 'noindex, follow' } }
 
-export actions := page.actions
+pageActions := page.actions
 	login:
 		input: loginSchema
 		run: async ({ input, container, event }) =>
@@ -21,3 +22,6 @@ export actions := page.actions
 			email := String((await event.request.formData()).get('email') ?? '')
 			await auth(container).resendVerification email, clientIp(event)
 			{ resent: true }
+
+// Honeypot, signed render time and Turnstile (Admin → Form protection).
+export actions := protect pageActions, { login: 'auth.member-login', resend: 'auth.member-resend' }

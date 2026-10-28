@@ -63,11 +63,11 @@ describe('submitting', () => {
 		expect(m.body).toContain('Message: Hello there');
 	});
 
-	test('spam: honeypot, too fast, too many links — stored as spam, nobody notified', async () => {
+	test('spam: a protection verdict or too many links — stored as spam, nobody notified', async () => {
 		const c = await setup();
 		const base = { name: 'X', email: 'x@example.com', message: 'Hi', consent: 'on' };
-		const a = await forms(c).submit('contact', { ...base, _t: String(Date.now() - 5000), _hp: 'bot' }, ctx());
-		const b = await forms(c).submit('contact', { ...base, _t: String(Date.now()) }, ctx());
+		const a = await forms(c).submit('contact', base, ctx({ spam: true }));
+		const b = await forms(c).submit('contact', { ...base, email: 'y@example.com' }, ctx({ spam: true }));
 		const d = await forms(c).submit('contact', { ...human(), ...base, message: 'http://a http://b http://c http://d' }, ctx());
 		for (const r of [a, b, d]) {
 			expect(r.ok).toBe(true);
@@ -126,7 +126,6 @@ describe('editing and inbox', () => {
 		const block = cms(c).blocks().find((b) => b.id === 'form');
 		const data = await block.resolve({ form: 'newsletter' }, { c, entry: { locale: 'de' } });
 		expect(data.form.submitLabel).toBe('Abonnieren');
-		expect(data.renderedAt).toBeGreaterThan(0);
 	});
 });
 

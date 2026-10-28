@@ -8,10 +8,12 @@ svelte:head
 		form.space-y-4(method="POST" action="?/request")
 			Field(label!="{t('login.email')}" name="email" required)
 				Input(type="email" name="email" autocomplete="username" required)
+			FormGuard(id="auth.member-forgot" form!="{form}")
 			Btn(type="submit" variant="primary" class="w-full") {t('forgot.submit')}
 	a.text-sm(href="/account/login") {t('forgot.back')}
 
 <script>
+	import FormGuard from '$lib/norns/protection/ui/FormGuard.n'
 	import { page } from '$app/state'
 	import { t } from '$lib/norns/i18n/ui/t.js'
 	{ form } := $props()

@@ -6,6 +6,7 @@ import { registerCapabilities } from '../../auth/server/public'
 import { registerSettings } from '../../settings/server/public'
 import { formsSettings, formBlock } from '../shared/settings'
 import { registerFormsApi } from './api'
+import { registerFormSource } from '../../protection/server/public'
 
 svc := (c: Container) => c.resolve('forms.service') as FormsService
 
@@ -25,6 +26,9 @@ export default (app: Container) =>
 	// A form on a page, in the page's language.
 	registerBlock app, {
 		...formBlock
-		resolve: async (props: any, { c, entry }: any) => ({ form: props.form ? await svc(c).localized(String(props.form), entry?.locale ?? 'en') : null, renderedAt: Date.now() })
+		resolve: async (props: any, { c, entry }: any) => ({ form: props.form ? await svc(c).localized(String(props.form), entry?.locale ?? 'en') : null })
 	}
 	registerFormsApi app
+	// Each form made in Forms is protected as forms:<slug>.
+	registerFormSource app, 'forms', async (c: Container) =>
+		(await svc(c).list()).map (f: any) => ({ id: `forms:${f.slug}`, label: f.name, group: 'Forms', path: `/forms/${f.slug}`, minMs: 2500 })

@@ -16,10 +16,12 @@ svelte:head
 					Input(type="email" name="email" value!="{form?.values?.email ?? ''}" autocomplete="username" required)
 				Field(label!="{t('login.password')}" name="password" required)
 					Input(type="password" name="password" autocomplete="current-password" required)
+				FormGuard(id="auth.member-login" form!="{form}")
 				Btn(type="submit" variant="primary" class="w-full") {t('login.submit')}
 		+if('form?.unverified')
 			form.pt-3(method="POST" action="?/resend")
 				input(type="hidden" name="email" value!="{form.values?.email ?? ''}")
+				FormGuard(id="auth.member-resend" form!="{form}")
 				Btn(type="submit" variant="ghost" size="sm") {t('login.resend')}
 	.text-sm.flex.justify-between
 		a(href="/account/forgot") {t('login.forgot')}
@@ -27,6 +29,7 @@ svelte:head
 			a(href="/account/register") {t('login.register')}
 
 <script>
+	import FormGuard from '$lib/norns/protection/ui/FormGuard.n'
 	import { page } from '$app/state'
 	import { t } from '$lib/norns/i18n/ui/t.js'
 	{ data, form } := $props()

@@ -1,0 +1,82 @@
+.space-y-6
+	PageHead(title="Form protection" subtitle="Every public form gets a hidden honeypot and a signed render time; with Cloudflare Turnstile keys, also a human check.")
+	+if('form?.saved')
+		Banner(variant="success" icon="lucide:check") {form.saved}
+	+if('data.config.killed')
+		Banner(variant="warning" icon="lucide:shield-alert") Turnstile is switched off by the TURNSTILE_ENABLED=false environment variable.
+	Card
+		.space-y-4
+			.flex.items-center.justify-between.gap-3
+				h2.font-semibold Cloudflare Turnstile
+				Badge(variant!="{data.config.active ? 'success' : 'default'}") {data.config.active ? 'Active' : 'Off'}
+			p.text-sm(class="text-fg-muted")
+				| Create a widget in the Cloudflare dashboard (Turnstile → Add widget) for every host this site is served on, then paste its keys here. The secret key is checked with Cloudflare and stored encrypted; it is never shown again.
+			Form(action="?/keys" form!="{form?.keysForm ? form : null}")
+				.settings-grid
+					Field(label="Site key" name="siteKey" help!="{data.config.fromEnv.siteKey ? 'Set by TURNSTILE_SITE_KEY; that wins over this field.' : 'Public; it goes into the page.'}")
+						Input(name="siteKey" value!="{data.config.fromEnv.siteKey ? '' : data.config.siteKey}" placeholder="0x4AAAAAAA…" autocomplete="off")
+					Field(label="Secret key" name="secretKey" help!="{data.config.fromEnv.secret ? 'Set by TURNSTILE_SECRET_KEY.' : (data.config.secretSet ? 'Saved (' + data.config.secretHint + '). Leave empty to keep it.' : 'Not set.')}")
+						Input(type="password" name="secretKey" placeholder!="{data.config.secretSet ? '••••••••' : '0x4AAAAAAA…'}" autocomplete="new-password")
+					Field(label="Widget" name="appearance")
+						Select(name="appearance" value!="{data.config.appearance}")
+							option(value="always") Always visible
+							option(value="interaction-only") Only when Cloudflare needs an interaction
+					Field(label="Turnstile on public forms" name="enabled")
+						.flex.items-center.gap-2
+							Switch(name="enabled" checked!="{data.config.enabled}")
+							span.text-sm(class="text-fg-muted") Forms set to Default or On use it
+				+if('data.config.secretSet && !data.config.fromEnv.secret')
+					label.flex.items-center.gap-2.text-sm.mt-3
+						input(type="checkbox" name="clearSecret")
+						| Remove the saved secret key
+				+if('data.config.verifiedAt')
+					p.text-xs.mt-3(class="text-fg-subtle") Secret key checked with Cloudflare {new Date(data.config.verifiedAt).toLocaleString()}.
+				.mt-4
+					Btn(type="submit" variant="primary" icon="lucide:save") Save keys
+	Card
+		.space-y-4
+			div
+				h2.font-semibold Forms
+				p.text-sm(class="text-fg-muted") Every form the site shows to visitors, registered by the feature that owns it. Counts are the last 30 days.
+			form(method="POST" action="?/forms")
+				.table-wrap
+					table.audit-table
+						thead
+							tr
+								th Form
+								th Turnstile
+								th Honeypot
+								th Passed
+								th Blocked
+						tbody
+							+each('data.forms as f (f.id)')
+								tr
+									td
+										.font-medium {f.label}
+										.text-xs(class="text-fg-subtle") {f.group ?? ''}{f.path ? ' · ' + f.path : ''}
+									td
+										Select(name!="{'turnstile:' + f.id}" value!="{f.turnstileMode}" class="w-40" aria-label!="{'Turnstile for ' + f.label}")
+											option(value="default") {'Default (' + (f.turnstile === false ? 'off' : 'on') + ')'}
+											option(value="on") On
+											option(value="off") Off
+										+if('f.turnstileMode !== "off" && (f.turnstileMode === "on" || f.turnstile !== false) && !data.config.active')
+											.text-xs(class="text-fg-subtle") waits for keys
+									td
+										input(type="checkbox" name!="{'honeypot:' + f.id}" checked!="{f.honeypotOn}" aria-label!="{'Honeypot for ' + f.label}")
+									td.tabular-nums {(f.counts.passed ?? 0) + (f.counts.unverified ?? 0)}
+									td
+										+if('blocked(f) === 0')
+											span(class="text-fg-subtle") 0
+										+else
+											span.tabular-nums(title!="{detail(f)}") {blocked(f)}
+											.text-xs(class="text-fg-subtle") {detail(f)}
+				.mt-4
+					Btn(type="submit" variant="primary" icon="lucide:save") Save forms
+
+<script>
+	import { OUTCOMES, BLOCKED } from '$lib/norns/protection/shared/guard.js'
+	{ data, form } := $props()
+
+	blocked := (f) => BLOCKED.reduce(((n, k) => n + (f.counts[k] ?? 0)), 0)
+	detail := (f) => BLOCKED.filter((k) => f.counts[k]).map((k) => `${OUTCOMES[k]}: ${f.counts[k]}`).join(' · ')
+</script>

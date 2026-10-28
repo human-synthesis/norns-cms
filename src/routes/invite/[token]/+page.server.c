@@ -2,6 +2,7 @@ import { page } from '@human-synthesis/norns/server'
 import { fail, redirect } from '@sveltejs/kit'
 import { auth, setSessionCookie } from '$lib/norns/auth/server/public'
 import { settings } from '$lib/norns/settings/server/public'
+import { protect } from '$lib/norns/protection/server/public'
 
 export load := page.load
 	handler: async ({ container, params }) =>
@@ -9,7 +10,7 @@ export load := page.load
 		site := await settings(container).get 'site'
 		{ valid: !!found, email: found?.user.email ?? '', name: found?.user.name ?? '', siteTitle: site.title }
 
-export actions := page.actions
+pageActions := page.actions
 	accept:
 		run: async ({ container, event }) =>
 			fd := await event.request.formData()
@@ -22,3 +23,6 @@ export actions := page.actions
 			session := await auth(container).startSession r.user, event.request.headers.get('user-agent') ?? ''
 			setSessionCookie event, session
 			throw redirect 303, (r.user.kind === 'staff' ? '/admin/profile' : '/account')
+
+// Honeypot, signed render time and Turnstile (Admin → Form protection).
+export actions := protect pageActions, { accept: 'auth.invite' }

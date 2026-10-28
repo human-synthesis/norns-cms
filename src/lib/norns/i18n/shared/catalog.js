@@ -179,7 +179,11 @@ export const en = {
 	'twofactor.verify': 'Verify',
 	'twofactor.retry': 'That code is not right. Try the next one, or a recovery code.',
 	'twofactor.startOver': 'Start over',
-	'twofactor.codesLeft': '{count} recovery codes left.'
+	'twofactor.codesLeft': '{count} recovery codes left.',
+	'guard.hp': 'Leave this empty',
+	'guard.failed': 'We could not confirm that a person sent this. Please try again.',
+	'guard.expired': 'This page was open for too long. Reload it and try again.',
+	'guard.turnstile': 'Please complete the security check, then send again.'
 };
 
 export const de = {
@@ -260,7 +264,11 @@ export const de = {
 	'twofactor.verify': 'Bestätigen',
 	'twofactor.retry': 'Dieser Code stimmt nicht. Versuchen Sie den nächsten oder einen Wiederherstellungscode.',
 	'twofactor.startOver': 'Neu beginnen',
-	'twofactor.codesLeft': 'Noch {count} Wiederherstellungscodes.'
+	'twofactor.codesLeft': 'Noch {count} Wiederherstellungscodes.',
+	'guard.hp': 'Dieses Feld leer lassen',
+	'guard.failed': 'Wir konnten nicht bestätigen, dass ein Mensch dies gesendet hat. Bitte versuchen Sie es erneut.',
+	'guard.expired': 'Diese Seite war zu lange geöffnet. Laden Sie sie neu und versuchen Sie es erneut.',
+	'guard.turnstile': 'Bitte schließen Sie die Sicherheitsprüfung ab und senden Sie erneut.'
 };
 
 export const fr = {
@@ -341,7 +349,11 @@ export const fr = {
 	'twofactor.verify': 'Vérifier',
 	'twofactor.retry': 'Ce code est incorrect. Essayez le suivant, ou un code de récupération.',
 	'twofactor.startOver': 'Recommencer',
-	'twofactor.codesLeft': 'Il reste {count} codes de récupération.'
+	'twofactor.codesLeft': 'Il reste {count} codes de récupération.',
+	'guard.hp': 'Laissez ce champ vide',
+	'guard.failed': 'Nous n’avons pas pu confirmer qu’une personne a envoyé ceci. Veuillez réessayer.',
+	'guard.expired': 'Cette page est restée ouverte trop longtemps. Rechargez-la et réessayez.',
+	'guard.turnstile': 'Veuillez terminer la vérification de sécurité, puis renvoyer.'
 };
 
 export const es = {
@@ -422,7 +434,11 @@ export const es = {
 	'twofactor.verify': 'Verificar',
 	'twofactor.retry': 'Ese código no es correcto. Prueba con el siguiente o con un código de recuperación.',
 	'twofactor.startOver': 'Empezar de nuevo',
-	'twofactor.codesLeft': 'Quedan {count} códigos de recuperación.'
+	'twofactor.codesLeft': 'Quedan {count} códigos de recuperación.',
+	'guard.hp': 'Deja este campo vacío',
+	'guard.failed': 'No pudimos confirmar que lo envió una persona. Inténtalo de nuevo.',
+	'guard.expired': 'Esta página estuvo abierta demasiado tiempo. Recárgala e inténtalo de nuevo.',
+	'guard.turnstile': 'Completa la verificación de seguridad y vuelve a enviar.'
 };
 
 export const it = {
@@ -503,7 +519,11 @@ export const it = {
 	'twofactor.verify': 'Verifica',
 	'twofactor.retry': 'Il codice non è corretto. Prova il successivo o un codice di recupero.',
 	'twofactor.startOver': 'Ricomincia',
-	'twofactor.codesLeft': 'Restano {count} codici di recupero.'
+	'twofactor.codesLeft': 'Restano {count} codici di recupero.',
+	'guard.hp': 'Lascia vuoto questo campo',
+	'guard.failed': 'Non siamo riusciti a confermare che l’invio provenga da una persona. Riprova.',
+	'guard.expired': 'Questa pagina è rimasta aperta troppo a lungo. Ricaricala e riprova.',
+	'guard.turnstile': 'Completa il controllo di sicurezza, poi invia di nuovo.'
 };
 
 export const ro = {
@@ -584,7 +604,11 @@ export const ro = {
 	'twofactor.verify': 'Verifică',
 	'twofactor.retry': 'Codul nu este corect. Încearcă următorul cod sau un cod de recuperare.',
 	'twofactor.startOver': 'Ia-o de la capăt',
-	'twofactor.codesLeft': 'Mai ai {count} coduri de recuperare.'
+	'twofactor.codesLeft': 'Mai ai {count} coduri de recuperare.',
+	'guard.hp': 'Lasă acest câmp gol',
+	'guard.failed': 'Nu am putut confirma că o persoană a trimis acest formular. Încearcă din nou.',
+	'guard.expired': 'Pagina a fost deschisă prea mult timp. Reîncarc-o și încearcă din nou.',
+	'guard.turnstile': 'Finalizează verificarea de securitate, apoi trimite din nou.'
 };
 
 export const CATALOGS = { en, de, fr, es, it, ro };

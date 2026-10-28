@@ -98,8 +98,8 @@ export class FormsService
 
 	// --- submitting ------------------------------------------------------------
 
-	// raw: posted values (form fields + _hp honeypot, _t render time).
-	// ctx: { lang, page, ip, user, viaApi }. Returns
+	// raw: posted values. ctx: { lang, page, ip, user, viaApi, spam } — spam
+	// is the Form protection verdict (honeypot / too fast). Returns
 	//   { ok: true, message, id, duplicate? } or
 	//   { ok: false, errors: { field: message } } / { ok: false, error }.
 	async submit(slug: string, raw: Record<string, any>, ctx: Record<string, any>)
@@ -110,9 +110,7 @@ export class FormsService
 		local := localizeForm form, i18n(@c).chain(lang)
 		unless ctx.viaApi
 			return { ok: false, status: 429, error: t('form.rate') } unless await auth(@c).rateLimit(`form:${slug}`, ctx.ip || 'unknown', 10, 10 * 60 * 1000)
-		// Spam signals: a filled honeypot or a form sent faster than a person can.
-		elapsed := Date.now() - Number(raw._t || 0)
-		spam .= !ctx.viaApi && (String(raw._hp ?? '').trim() !== '' || !raw._t || elapsed < 2500)
+		spam .= !ctx.viaApi && !!ctx.spam
 		data := {} as Record<string, any>
 		errors := {} as Record<string, string>
 		email .= ''

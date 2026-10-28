@@ -14,8 +14,10 @@
 							Input(type="password" name="password" autocomplete="new-password" required)
 						Field(label="Password again" name="confirm" required)
 							Input(type="password" name="confirm" autocomplete="new-password" required)
+						FormGuard(id="auth.invite" form!="{form}")
 						Btn(type="submit" variant="primary" class="w-full") Create my account
 
 <script>
+	import FormGuard from '$lib/norns/protection/ui/FormGuard.n'
 	{ data, form } := $props()
 </script>

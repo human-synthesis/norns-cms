@@ -1,0 +1,63 @@
++if('message')
+	p.form-guard-error(role="alert") {message}
++if('applies.honeypot')
+	.form-guard-hp(aria-hidden="true")
+		label
+			| {t('guard.hp')}
+			input(type="text" name="_hp" tabindex="-1" autocomplete="off" value="")
+	input(type="hidden" name="_g" value!="{cfg?.token ?? ''}")
++if('applies.turnstile')
+	.form-guard-turnstile(bind:this!="{box}")
+
+<script>
+	import { page } from '$app/state'
+	import { onMount } from 'svelte'
+	import { t } from '../../i18n/ui/t.js'
+	import { actionFor } from '../shared/guard.js'
+
+	// Put inside every public <form>: the managed honeypot, the signed render
+	// time and, when Turnstile is on for this form, its widget. Settings come
+	// from page.data.guard (root layout). `form` is the action result, for
+	// the message when the check failed.
+	{ id, form = null } := $props()
+
+	cfg := $derived page.data?.guard
+	applies := $derived cfg?.forms?.[id] ?? { honeypot: true, turnstile: !!cfg?.active }
+	message := $derived form?.guardForm === id ? form.guard : ''
+
+	box .= $state null
+	widget .= null
+
+	SCRIPT := 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+
+	// One script for the page however many forms carry a widget.
+	loadTurnstile := =>
+		w := window as any
+		return w.__turnstileLoad if w.__turnstileLoad
+		w.__turnstileLoad = new Promise (resolve, reject) =>
+			return resolve(w.turnstile) if w.turnstile
+			s := document.createElement 'script'
+			s.src = SCRIPT
+			s.async = true
+			s.onload = => resolve(w.turnstile)
+			s.onerror = reject
+			document.head.appendChild s
+		w.__turnstileLoad
+
+	onMount =>
+		return unless applies.turnstile && box && cfg?.siteKey
+		formEl := box.closest 'form'
+		resetLater := => setTimeout((=> (window as any).turnstile?.reset(widget)), 1500)
+		loadTurnstile().then (ts) =>
+			widget = ts.render box, {
+				sitekey: cfg.siteKey
+				action: actionFor(id)
+				appearance: cfg.appearance === 'interaction-only' ? 'interaction-only' : 'always'
+				language: page.data?.i18n?.locale ?? 'auto'
+			}
+		// Tokens are single use: a form that answers in place needs a new one.
+		formEl?.addEventListener 'submit', resetLater
+		=>
+			formEl?.removeEventListener 'submit', resetLater
+			(window as any).turnstile?.remove(widget) if widget != null
+</script>

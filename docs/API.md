@@ -107,6 +107,10 @@ Use the returned `id` in image fields, or in Markdown as `![alt](media:ID)`.
 
 `GET /users/{id}/2fa` tells whether a user has it on, how many recovery codes are left and what the policy asks of them; `POST /users/{id}/2fa/reset` removes it (a lost phone). Turning it on needs the person's authenticator app, so setup happens only in the admin profile and the members' account page. The staff and member policies are the `twofactor` settings group (`PATCH /settings/twofactor` with `staff: off | admins | staff`, `members: off | optional | required`). User objects no longer carry `totp_enabled`.
 
+## Form protection
+
+`GET /protection` shows the Turnstile setup (site key, whether a secret is set, never the secret); `PATCH /protection` sets `enabled`, `siteKey`, `secretKey` (write-only; checked with Cloudflare, stored encrypted), `clearSecret` and `appearance`. `GET /protection/forms` lists every registered public form with its switches and 30-day outcome counts; `PATCH /protection/forms/{id}` sets `turnstile` (`default | on | off`) and `honeypot`. Submissions through the API (`POST /forms/{slug}/submissions`) are not subject to these checks: the API key is the proof.
+
 ## For developers of this CMS
 
 Every feature registers its endpoints from its own `server/api.c` with `registerEndpoint` (see `src/lib/norns/api/server/router.js`). The router, this reference and the OpenAPI document all read that registry, so a new endpoint documents itself. Anything new in the admin must get an endpoint too (see `CLAUDE.md`).

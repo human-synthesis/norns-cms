@@ -3,6 +3,7 @@ import type { SettingsService } from './service'
 
 export { envVar, binding, currentEvent, siteOrigin } from './env.js'
 export { securityHandle, buildCsp } from './security.js'
+export { sealValue, openValue, signValue } from './secrets.js'
 export { runMaintenance } from './maintenance'
 
 svc := (c: Container) => c.resolve('settings.service') as SettingsService

@@ -1,6 +1,7 @@
 import { page } from '@human-synthesis/norns/server'
 import { redirect } from '@sveltejs/kit'
 import { auth, finishLogin, clientIp, MFA_COOKIE } from '$lib/norns/auth/server/public'
+import { protect } from '$lib/norns/protection/server/public'
 
 export load := page.load
 	handler: ({ event, url }) =>
@@ -8,7 +9,7 @@ export load := page.load
 			throw redirect 303, '/login'
 		{ next: url.searchParams.get('next') ?? '/admin' }
 
-export actions := page.actions
+pageActions := page.actions
 	verify:
 		run: async ({ container, event }) =>
 			token := event.cookies.get(MFA_COOKIE) ?? ''
@@ -20,3 +21,6 @@ export actions := page.actions
 			if r.mfa
 				return { errors: [{ path: [{ key: 'code' }], message: 'That code is not right. Try the next one, or a recovery code.' }] }
 			finishLogin event, r, fd.get('next')
+
+// Honeypot, signed render time and Turnstile (Admin → Form protection).
+export actions := protect pageActions, { verify: 'twofactor.staff-step' }

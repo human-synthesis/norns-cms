@@ -49,9 +49,10 @@ Features:
 | `consent` | banner settings, regional rules, GPC, script presets, consent records, injection + loader, cookie table block |
 | `i18n` | languages (fallback, direction, URL words), localisations (sub-folder / sub-domain / domain hosting, languages, countries, content fallback), the URL builder and resolver (`shared/urls.js`), `localeHandle`, interface texts (`shared/catalog.js` + overrides), machine translation with Claude (`server/translator.js`) |
 | `twofactor` | two-factor sign-in (TOTP + hashed recovery codes, secrets sealed with `CMS_SECRET`) in its own `two_factor` table; setup with a server-drawn QR code (`uqr`); **separate policies** for CMS staff (optional / owners and admins / all staff) and members (off / optional / required) in Settings → Two-factor sign-in. Registers itself as auth's second factor; `ui/TwoFactorCard.n` + `twoFactorActions` serve the admin profile (English) and the members' account page (translated). A member who must enrol keeps only `account.access` until they do, so members-only content and app routes guarded by a capability refuse them |
+| `protection` | Form protection for **every public form**: the registry (`registerForm` for forms in code, `registerFormSource` for runtime ones like Forms), a managed honeypot (`_hp`) and signed render time (`_g`, per-form `minMs`), Cloudflare Turnstile when keys are set (Admin → Form protection; secret sealed with `CMS_SECRET`; `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` env win, `TURNSTILE_ENABLED=false` switches it off), per-form switches and 30-day outcome counts. `ui/FormGuard.n` goes inside the form, `protect(pageActions, { action: '<form id>' })` wraps the route's actions; the root layout puts its settings on `page.data.guard` |
 | `api` | API keys (hashed, capability-limited, acting for their creator), the endpoint registry, router (`/api/v1`), OpenAPI document, admin key management and docs |
 
-**Extension points** (all called from a feature's `module.c`, all bindings on the root container so order never matters): `registerType`, `registerFieldGroup`, `registerBlock` (a block's `resolve(props, { c, viewer, entry })` runs per request; add its component to `pages/ui/BlockRenderer.n`), `registerHook` (`beforeSave` may return replacement data; `afterSave`, `status`, `slug`, `delete`), `registerOptions`, `registerAdminNav` (from `content/server/public`; see *Admin menu* below); `registerCapabilities`, `registerSecondFactor` (from `auth/server/public`); `registerSettings` (from `settings/server/public`).
+**Extension points** (all called from a feature's `module.c`, all bindings on the root container so order never matters): `registerType`, `registerFieldGroup`, `registerBlock` (a block's `resolve(props, { c, viewer, entry })` runs per request; add its component to `pages/ui/BlockRenderer.n`), `registerHook` (`beforeSave` may return replacement data; `afterSave`, `status`, `slug`, `delete`), `registerOptions`, `registerAdminNav` (from `content/server/public`; see *Admin menu* below); `registerCapabilities`, `registerSecondFactor` (from `auth/server/public`); `registerForm`, `registerFormSource` (from `protection/server/public`); `registerSettings` (from `settings/server/public`).
 
 **Admin menu.** The sidebar is a tree built by `cms.adminNav(user)`: sections **Content**, **People**, **Marketing**, **System** → items → submenus. Register a top-level item with `{ id, label, icon, section, order, capability, href? }` and its submenu entries with `{ id, parent: '<item id>', label, href, order, capability? }`. A parent without `href` is a toggle; it disappears when the user can see none of its children. Content types get "All …", "Waiting for review" and "New …" automatically (id `type-<type id>`, so a feature can hang entries under a type, like categories and tags under `type-article`). Put new screens under an existing group where one fits instead of adding a top-level item.
 
@@ -59,7 +60,7 @@ Features:
 
 **Permissions.** Routes check capabilities with `requireCap(user, 'content.publish')`; the admin nav hides what the user lacks. Owners and admins hold `*`; editor, author, viewer and member are built-in rows in `roles`; custom roles pick from the capabilities features declare. Only owners manage owners, the last active owner cannot be removed, nobody changes their own role or status.
 
-**Secrets** (`wrangler secret put`, `.dev.vars` locally — never in `wrangler.toml`): `CMS_SECRET` (encrypts 2FA secrets), `CRON_SECRET` (daily maintenance), `AIOSIS_API_KEY` (mail through Aiosis Emails), `ANTHROPIC_API_KEY` (optional: AI translation; `ANTHROPIC_MODEL` overrides the default `claude-opus-5-5`). Vars: `CMS_PUBLIC_URL` (the primary localisation's host); `AIOSIS_API_URL` overrides the Aiosis base URL.
+**Secrets** (`wrangler secret put`, `.dev.vars` locally — never in `wrangler.toml`): `CMS_SECRET` (encrypts 2FA secrets and the Turnstile secret key, signs form tokens), `CRON_SECRET` (daily maintenance), `AIOSIS_API_KEY` (mail through Aiosis Emails), `TURNSTILE_SECRET_KEY` (optional: overrides the key saved in Admin → Form protection), `ANTHROPIC_API_KEY` (optional: AI translation; `ANTHROPIC_MODEL` overrides the default `claude-opus-5-5`). Vars: `CMS_PUBLIC_URL` (the primary localisation's host); `AIOSIS_API_URL` overrides the Aiosis base URL.
 
 **Sub-domain and domain localisations** need their host attached to the Worker: `bun run domains` lists them, `bun run domains -- --remote --apply` attaches missing ones as Workers custom domains (Cloudflare token required).
 
@@ -75,6 +76,14 @@ Content is stored **per language** (`entries.locale`); translations share a `tra
 - **Settings:** a field read on the public site that people write in their language gets `translatable: true`; read it with `settings(c).localized(group)`, never `get()` on public pages.
 - **Layouts that depend on the locale must read `url.pathname` in their load**, or SvelteKit will not rerun them on client-side navigation into another language.
 - **Crawl outputs are edge-cached for 10 minutes** (`Cache-Control: public` + adapter-cloudflare's cache), so a just-published page shows up in feeds and sitemaps after that.
+
+## Every public form is protected
+
+A form a visitor can submit without being signed in (sign-in, registration, password reset, contact, newsletter, anything an app adds) must be registered and guarded — `tests/protection.test.js` fails otherwise:
+
+1. Register it from the owning feature's `module.c`: `registerForm(app, { id: '<feature>.<name>', label, group, path, audience?: 'staff', minMs?, turnstile?: false })`. `minMs: 0` for sign-in forms (password managers submit instantly).
+2. Put `FormGuard(id="<id>" form!="{form}")` inside the `<form>`, before the submit button (import from `$lib/norns/protection/ui/FormGuard.n`).
+3. Rename `export actions := page.actions` to `pageActions := page.actions` and export `protect pageActions, { <action>: '<id>' }`. A `+server.c` endpoint calls `protection(c).check(event, id, formData)` itself.
 
 ## Every feature ships its API
 

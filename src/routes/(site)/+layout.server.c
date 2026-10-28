@@ -37,7 +37,6 @@ export load := page.load
 		footerForm := formsCfg.footerForm ? await forms(c).localized(String(formsCfg.footerForm), loc.language) : null
 		{
 			footerForm
-			renderedAt: Date.now()
 			site: { title: site.title, tagline: site.tagline, footerText: site.footerText, registration: site.registration }
 			nav: await cms(c).nav()
 			user: user ? { name: user.name || user.email, staff: isStaff(user) } : null

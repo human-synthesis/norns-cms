@@ -13,8 +13,10 @@
 							Input(type="password" name="password" autocomplete="new-password" required)
 						Field(label="New password again" name="confirm" required)
 							Input(type="password" name="confirm" autocomplete="new-password" required)
+						FormGuard(id="auth.reset" form!="{form}")
 						Btn(type="submit" variant="primary" class="w-full") Save password
 
 <script>
+	import FormGuard from '$lib/norns/protection/ui/FormGuard.n'
 	{ data, form } := $props()
 </script>

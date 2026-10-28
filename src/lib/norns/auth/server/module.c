@@ -6,6 +6,7 @@ import { AuthService } from './service'
 import { registerCapabilities } from './public'
 import { registerAdminNav, registerOptions } from '../../content/server/public'
 import { registerAuthApi } from './api'
+import { registerForm } from '../../protection/server/public'
 
 // auth owns the `db` token for the whole app; nobody else opens a database.
 //
@@ -42,3 +43,15 @@ export default (app: Container) =>
 	registerAdminNav app, { id: 'logs-audit', parent: 'logs', label: 'Audit log', href: '/admin/audit', order: 1, capability: 'audit.view' }
 	registerOptions app, 'users:staff', (c: Container) => (c.resolve('auth.service') as AuthService).staffOptions()
 	registerAuthApi app
+	// Every public form auth renders, for Form protection (honeypot, Turnstile, counts).
+	for def of [
+		{ id: 'auth.staff-login', label: 'Staff sign-in', group: 'Staff', path: '/login', audience: 'staff' }
+		{ id: 'auth.staff-forgot', label: 'Staff password reset request', group: 'Staff', path: '/login/forgot', audience: 'staff' }
+		{ id: 'auth.reset', label: 'Choose a new password', group: 'Staff and members', path: '/reset/…', audience: 'staff' }
+		{ id: 'auth.invite', label: 'Accept an invitation', group: 'Staff and members', path: '/invite/…', audience: 'staff' }
+		{ id: 'auth.member-login', label: 'Member sign-in', group: 'Members', path: '/account/login' }
+		{ id: 'auth.member-resend', label: 'Resend the confirmation email', group: 'Members', path: '/account/login' }
+		{ id: 'auth.member-register', label: 'Member registration', group: 'Members', path: '/account/register', minMs: 1500 }
+		{ id: 'auth.member-forgot', label: 'Member password reset request', group: 'Members', path: '/account/forgot' }
+	]
+		registerForm app, { minMs: 0, ...def }

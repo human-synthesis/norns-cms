@@ -12,11 +12,6 @@
 			form(method="POST" action!="{'/forms/' + form.slug}" onsubmit!="{submit}" novalidate!="{enhanced}")
 				input(type="hidden" name="_locale" value!="{lang()}")
 				input(type="hidden" name="_page" value!="{pagePath}")
-				input(type="hidden" name="_t" value!="{String(renderedAt ?? 0)}")
-				.form-hp(aria-hidden="true")
-					label
-						| Leave this empty
-						input(type="text" name="_hp" tabindex="-1" autocomplete="off")
 				+if('serverError')
 					p.form-error(role="alert") {serverError}
 				.form-fields
@@ -48,17 +43,19 @@
 								p.form-help {f.help}
 							+if('errors[f.name]')
 								p.form-error(id!="{id(f, 'err')}") {errors[f.name]}
+				FormGuard(id!="{'forms:' + form.slug}")
 				Btn(type="submit" variant="primary" disabled!="{sending}") {sending ? t('form.sending') : (form.submitLabel || t('form.send'))}
 
 <script>
 	import { page } from '$app/state'
 	import { onMount } from 'svelte'
 	import { t, lang } from '../../i18n/ui/t.js'
+	import FormGuard from '../../protection/ui/FormGuard.n'
 
 	// A form from Forms, already in the page's language. Plain POST to
 	// /forms/<slug> without JavaScript (the server redirects back with
 	// ?form=<slug>&sent=1 or &error=…); with JavaScript it answers in place.
-	{ form, renderedAt = 0, title = '', text = '', compact = false } := $props()
+	{ form, title = '', text = '', compact = false } := $props()
 
 	errors .= $state({})
 	serverError .= $state('')

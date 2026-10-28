@@ -9,10 +9,12 @@
 					input(type="hidden" name="next" value!="{data.next}")
 					Field(label="Code" name="code" required)
 						Input(name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" required)
+					FormGuard(id="twofactor.staff-step" form!="{form}")
 					Btn(type="submit" variant="primary" class="w-full") Verify
 			.text-sm.text-center
 				a(href="/login") Start over
 
 <script>
+	import FormGuard from '$lib/norns/protection/ui/FormGuard.n'
 	{ data, form } := $props()
 </script>

@@ -457,7 +457,9 @@
 	.form-help { @apply text-xs text-fg-subtle; }
 	.form-error { @apply text-sm; color: var(--color-danger-fg); }
 	.form-done { @apply flex items-center gap-2 rounded-xl p-4; background: var(--color-success-bg); color: var(--color-success-fg); }
-	.form-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+	.form-guard-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+	.form-guard-error { @apply text-sm rounded-lg px-3 py-2; color: var(--color-danger-fg); background: var(--color-danger-bg, transparent); }
+	.form-guard-turnstile:not(:empty) { @apply my-1; }
 	.field-row { @apply grid gap-3 md:grid-cols-[1fr_1fr_10rem_auto] items-start rounded-xl border border-border bg-bg p-3; }
 	.fields-editor { @apply space-y-3; }
 	.md-col-span-2 { @apply md:col-span-2; }

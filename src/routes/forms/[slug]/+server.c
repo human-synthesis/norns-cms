@@ -2,6 +2,7 @@ import { error, json, redirect } from '@sveltejs/kit'
 import { forms } from '$lib/norns/forms/server/public'
 import { cms } from '$lib/norns/content/server/public'
 import { clientIp } from '$lib/norns/auth/server/public'
+import { protection } from '$lib/norns/protection/server/public'
 
 // Public form submissions. A browser posts the form here (same-origin, so
 // SvelteKit's CSRF check applies). With JavaScript the form asks for JSON
@@ -25,8 +26,14 @@ export POST := async (event: any) =>
 	langs := cms(c).languages()
 	lang := langs.includes(raw._locale) ? raw._locale : (event.locals.locale?.language ?? cms(c).defaultLanguage())
 	page := safePage raw._page
-	r := await forms(c).submit event.params.slug, raw, { lang, page, ip: clientIp(event), user: event.locals.user }
 	wantsJson := (event.request.headers.get('accept') ?? '').includes('application/json')
+	// Form protection: a honeypot or too-fast hit is kept in the Spam tab as
+	// before (the sender sees success); a failed Turnstile or token is an error.
+	v := await protection(c).check event, `forms:${event.params.slug}`, fd
+	r := if v.ok || v.silent
+		await forms(c).submit event.params.slug, raw, { lang, page, ip: clientIp(event), user: event.locals.user, spam: !v.ok }
+	else
+		{ ok: false, status: 400, error: await protection(c).message(v.reason, { locals: { locale: { language: lang } } }, `forms:${event.params.slug}`) }
 	if wantsJson
 		return json(r, { status: r.ok ? 200 : (r.status ?? 400) })
 	slug := encodeURIComponent event.params.slug

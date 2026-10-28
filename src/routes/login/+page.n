@@ -15,10 +15,12 @@
 						Input(type="email" name="email" value!="{form?.values?.email ?? ''}" autocomplete="username" required)
 					Field(label="Password" name="password" required)
 						Input(type="password" name="password" autocomplete="current-password" required)
+					FormGuard(id="auth.staff-login" form!="{form}")
 					Btn(type="submit" variant="primary" class="w-full") Sign in
 			.text-sm.text-center
 				a(href="/login/forgot") Forgot your password?
 
 <script>
+	import FormGuard from '$lib/norns/protection/ui/FormGuard.n'
 	{ data, form } := $props()
 </script>
