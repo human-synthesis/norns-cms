@@ -1,4 +1,4 @@
-import { dev } from '$app/environment'
+import { dev } from '$app/env'
 import { boot } from '@human-synthesis/norns/server'
 import { tronSerializer } from '@human-synthesis/norns-tron/server'
 import { sessionHandle } from '$lib/norns/auth/server/public'

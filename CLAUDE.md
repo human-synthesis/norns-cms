@@ -1,6 +1,6 @@
 # norns-cms — agent guide
 
-A content management system that is an ordinary Norns app: SvelteKit + Svelte 5 with Pug + Civet (`.n` components, `.c` modules), the `@human-synthesis/norns` runtime (feature folders, DI container, `page` / `route` wrappers with valibot validation) and `@human-synthesis/norns-ui`. Started from `norns-app`.
+A content management system that is an ordinary Norns app: SvelteKit 3 + Svelte 5 with Pug + Civet (`.n` components, `.c` modules), the `@human-synthesis/norns` runtime (feature folders, DI container, `page` / `route` wrappers with valibot validation) and `@human-synthesis/norns-ui`. Started from `norns-app`.
 
 ## Layout
 
@@ -113,13 +113,13 @@ bunx norns diag --template <f.n>  # Svelte source the compiler sees after Pug / 
 ```
 
 ```sh
-bun run db:migrate     # local D1 (.wrangler/state), read by `bun run dev` via the adapter's platform proxy
+bun run db:migrate     # local D1 (.wrangler/state), read by `bun run dev` via the adapter's dev emulation
 bun run db:seed        # first admin on the local D1; db:migrate:remote / db:seed:remote for production
 bun run preview        # wrangler dev (workerd) over the production build — the closest thing to production
 bun run deploy         # build + remote migrations + wrangler deploy; needs a logged-in wrangler
 ```
 
-**Storage.** `auth/server/db.js` exposes one async surface (`all`, `get`, `run`, `exec`) over two backends: D1 when the request carries `event.platform.env.DB` (production, and `bun run dev` through adapter-cloudflare's platform proxy), otherwise the SQLite file at `DATABASE_URL` (`bun test`, a Bun/Node server without D1; under Node install `better-sqlite3`). Because `db` is resolved per request, `db`, repos and services are **transient** bindings (`app.bind`), never `single`. Every repo/service/facade call that touches the database returns a promise: always `await`.
+**Storage.** `auth/server/db.js` exposes one async surface (`all`, `get`, `run`, `exec`) over two backends: D1 when `env.DB` from `cloudflare:workers` is present (production, and `bun run dev` through adapter-cloudflare's emulation; read only through `envVar()` / `binding()` in `settings/server/env.js`, since SvelteKit 3 no longer fills `event.platform`), otherwise the SQLite file at `DATABASE_URL` (`bun test`, a Bun/Node server without D1; under Node install `better-sqlite3`). Because `db` is resolved per request, `db`, repos and services are **transient** bindings (`app.bind`), never `single`. Every repo/service/facade call that touches the database returns a promise: always `await`.
 
 Deploys and pushes are user-gated: never push or run `wrangler deploy` without an explicit go-ahead in the current conversation.
 
@@ -183,5 +183,6 @@ Template syntax that works: `+if('cond')` / `+elseif('cond')` / `+else`, `+each(
 - **Don't open the database anywhere but `auth/server/module.c`.** Everyone else calls `c.resolve('db')`; `tests/architecture.test.js` enforces it.
 - **Don't use `single` for anything that resolves `db`.** On Workers the D1 binding is per request; a root singleton would capture the first request's binding.
 - **After adding a migration, run `bun run d1:sync`** and commit `migrations/d1/` too, or production will not get it.
+- **There is no `svelte.config.js` (SvelteKit 3).** Kit options (adapter, preprocess, csrf, paths, ...) go to `sveltekit(nornsConfig({...}))` in `vite.config.js`, flat (no `kit:` block). `$lib` comes from `nornsCivetPlugin()`; `$app/environment` is now `$app/env`; the Cloudflare request country is `event.request.cf`.
 - **In `vite.config.js`, keep `server.allowedHosts: true`** when behind any reverse proxy in dev, and keep `optimizeDeps.exclude: ['@human-synthesis/norns-ui']`: otherwise a dev-time dependency re-optimization hands norns-ui's `.n` files to esbuild ("No loader is configured for .n files").
 - **Container env vars are read at create time.** `podman-compose restart` does NOT pick up `.env` changes — use `up -d --force-recreate <service>`.

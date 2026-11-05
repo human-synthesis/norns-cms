@@ -2,7 +2,7 @@
 // { body, mime, size } | null, delete(key).
 //
 //   r2Storage(bucket)  Cloudflare R2, the `MEDIA` binding (production, and
-//                      `bun run dev` through the platform proxy)
+//                      `bun run dev` through the adapter emulation)
 //   dirStorage(dir)    a local directory (bun test, a Bun server without R2)
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, statSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';

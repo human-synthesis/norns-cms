@@ -36,7 +36,7 @@ export class ConsentService
 	// What applies to this visitor right now.
 	async state(event: any)
 		cfg := await @config()
-		country := String(event.platform?.cf?.country ?? event.request.headers.get('cf-ipcountry') ?? '').toUpperCase()
+		country := String(event.request.cf?.country ?? event.platform?.cf?.country ?? event.request.headers.get('cf-ipcountry') ?? '').toUpperCase()
 		region := regionOf country
 		mode := modeFor region, cfg
 		gpc := event.request.headers.get('sec-gpc') === '1'

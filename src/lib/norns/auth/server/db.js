@@ -3,8 +3,8 @@
 //
 //   sqliteDb(path)  — bun:sqlite under Bun, better-sqlite3 under Node. Local
 //                     dev without a D1 binding, `bun test`, tools/seed.js.
-//   d1Db(binding)   — Cloudflare D1, from event.platform.env.DB (wrangler in
-//                     production, adapter-cloudflare's platform proxy in dev).
+//   d1Db(binding)   — Cloudflare D1, from env.DB of cloudflare:workers (wrangler in
+//                     production, adapter-cloudflare's emulation in dev).
 //
 // Surface: all(sql, params) → rows, get(sql, params) → row | undefined,
 // run(sql, params) → { lastInsertRowid, changes }, exec(sql). Always await.

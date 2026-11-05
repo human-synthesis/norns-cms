@@ -5,11 +5,11 @@
 #   nodejs_compat  → general Node compat layer (node:crypto scrypt, node:module)
 #
 # D1 is bound as `DB`; auth/server/module.c reads it from
-# `event.platform.env.DB` and every repo runs on it. Migrations for wrangler
+# `env.DB` (cloudflare:workers) and every repo runs on it. Migrations for wrangler
 # live in migrations/d1/ (a flat mirror of migrations/<feature>/, kept in
 # sync by `bun run d1:sync`) and are applied with `bun run db:migrate`
 # (local) / `bun run db:migrate:remote` (production). Under `bun run dev`,
-# adapter-cloudflare's platform proxy reads this file and serves a local D1
+# adapter-cloudflare's dev emulation reads this file and serves a local D1
 # from .wrangler/state/.
 
 name = "norns-cms"
@@ -48,7 +48,7 @@ MAIL_DOMAIN = "aiosis.com"
 crons = ["17 3 * * *"]
 
 # Media library (media/server/storage.js). Locally, `bun run dev` gets an
-# emulated bucket under .wrangler/state through the platform proxy.
+# emulated bucket under .wrangler/state through the adapter's dev emulation.
 [[r2_buckets]]
 binding = "MEDIA"
 bucket_name = "norns-cms-media"

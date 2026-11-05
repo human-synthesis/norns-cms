@@ -17,7 +17,7 @@ bun run dev                                          # http://localhost:5173
 
 Sign in at `/login`, then create a page or an article. Pages resolve at `/<slug>`, articles at `/articles/<slug>` with archives per category, tag and author. Staff see drafts and scheduled entries as previews. Pick a home page under Settings → Site.
 
-The app runs on Cloudflare D1 whenever a `DB` binding is present (production through wrangler, `bun run dev` through adapter-cloudflare's platform proxy) and on a local SQLite file otherwise (`bun test`, or a Bun/Node server without D1: `bun run migrate up` + `bun run cms:seed`, path from `DATABASE_URL`, default `data/app.db`). Both go through the same async surface in `src/lib/norns/auth/server/db.js`.
+The app runs on Cloudflare D1 whenever a `DB` binding is present (production through wrangler, `bun run dev` through adapter-cloudflare's `cloudflare:workers` emulation) and on a local SQLite file otherwise (`bun test`, or a Bun/Node server without D1: `bun run migrate up` + `bun run cms:seed`, path from `DATABASE_URL`, default `data/app.db`). Both go through the same async surface in `src/lib/norns/auth/server/db.js`.
 
 ## Deploy
 

@@ -1,12 +1,18 @@
 import { defineConfig } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
+import adapter from '@sveltejs/adapter-cloudflare';
 import tailwindcss from '@tailwindcss/vite';
 import { nornsAutoImport } from '@human-synthesis/norns/auto-import';
+import { nornsConfig } from '@human-synthesis/norns/config';
+import { nornsPreprocess } from '@human-synthesis/norns/preprocess';
 import { nornsCivetPlugin, pugTailwindExtract } from '@human-synthesis/norns/vite';
 import { presetUI } from '@human-synthesis/norns-ui/auto-import';
 
 const ui = presetUI();
 
+// SvelteKit 3 has no svelte.config.js: the Kit options go to the sveltekit()
+// plugin, built by nornsConfig() (.n components, .c modules and hooks, Pug +
+// Civet). nornsCivetPlugin() also provides the $lib alias Kit 3 dropped.
 export default defineConfig({
 	plugins: [
 		nornsCivetPlugin(),
@@ -16,15 +22,32 @@ export default defineConfig({
 		// and writes them to node_modules/.cache/norns/tailwind-pug-classes.html,
 		// which app.css references via `@source`.
 		pugTailwindExtract(),
-		// Vite-plugin half of the auto-importer (the Svelte-preprocessor half is
-		// registered in svelte.config.js). `helpers` is omitted so the defaults
-		// apply; `exportGlobs` is not enabled, so project code (facades,
-		// schemas, services) is always imported explicitly.
+		// Vite-plugin half of the auto-importer (for standalone .c modules).
+		// The Svelte-preprocessor half (for .n / .svelte files) is in the
+		// sveltekit() preprocess list below. `helpers` is omitted so the
+		// defaults apply; `exportGlobs` is not enabled, so project code
+		// (facades, schemas, services) is always imported explicitly.
 		nornsAutoImport({
 			components: ui.components
 		}),
 		tailwindcss(),
-		sveltekit()
+		sveltekit(
+			nornsConfig({
+				preprocess: [
+					...nornsPreprocess(),
+					nornsAutoImport({
+						componentDirs: ['src/lib/components', 'src/routes'],
+						components: ui.components
+					})
+				],
+				// Cloudflare Workers + D1 (see wrangler.toml). In dev the adapter
+				// emulates `cloudflare:workers` from the same config, so `env.DB`
+				// resolves to a local D1 under .wrangler/state/. Without it (bun
+				// test, a plain Bun server) the app falls back to the SQLite file
+				// at DATABASE_URL.
+				adapter: adapter()
+			})
+		)
 	],
 	// In workspace mode @human-synthesis/norns is a symlink into the kit fork,
 	// which has its own @sveltejs/kit under pnpm. Left external, its server
