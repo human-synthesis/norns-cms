@@ -1,7 +1,7 @@
 import type { Container } from '@human-synthesis/norns/server'
 import type { SettingsService } from './service'
 
-export { envVar, binding, currentEvent, siteOrigin } from './env.js'
+export { envVar, binding, backgroundTask, currentEvent, siteOrigin } from './env.js'
 export { securityHandle, buildCsp } from './security.js'
 export { sealValue, openValue, signValue } from './secrets.js'
 export { runMaintenance } from './maintenance'

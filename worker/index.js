@@ -32,7 +32,7 @@ const initialized = server.init({
 });
 
 /** @type {import('@cloudflare/workers-types').ExportedHandler<Cloudflare.Env>} */
-export default {
+const worker_default = {
 	async fetch(req, env) {
 		if (!origin) {
 			origin = new URL(req.url).origin;
@@ -94,3 +94,17 @@ export default {
 		});
 	}
 };
+// --- tools/worker-cron.js: cron triggers → POST /api/cron ---
+worker_default.scheduled = (controller, env2, ctx) => {
+  const base = String(env2.CMS_PUBLIC_URL || "http://localhost").replace(/\/+$/, "");
+  const req = new Request(`${base}/api/cron`, {
+    method: "POST",
+    headers: { "x-cron-key": env2.CRON_SECRET || "", "x-cron": controller.cron || "" }
+  });
+  ctx.waitUntil(
+    worker_default.fetch(req, env2, ctx).then(async (res) => {
+      if (!res.ok) console.error("cron", controller.cron, res.status, (await res.text()).slice(0, 500));
+    })
+  );
+};
+export default worker_default;

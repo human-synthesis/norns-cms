@@ -1,5 +1,6 @@
 import type { Container } from '@human-synthesis/norns/server'
 import type { SeoService } from './service'
+import type { IndexingService } from './indexing'
 import { cms } from '../../content/server/public'
 import { articles } from '../../articles/server/public'
 import { i18n } from '../../i18n/server/public'
@@ -7,6 +8,7 @@ import { i18n } from '../../i18n/server/public'
 export { seoChecks, AI_BOTS } from '../shared/fields'
 
 svc := (c: Container) => c.resolve('seo.service') as SeoService
+ix := (c: Container) => c.resolve('seo.indexing') as IndexingService
 
 export seo := (c: Container) => {
 	siteHead: () => svc(c).siteHead()
@@ -29,11 +31,22 @@ export seo := (c: Container) => {
 	notFound: () => svc(c).notFound()
 	clearNotFound: (path: string | null) => svc(c).clearNotFound(path)
 	count404: () => svc(c).count404()
+	probeSuggestions: () => svc(c).probeSuggestions()
+	blockFromLog: (pattern: string, user?: any, note?: string) => svc(c).blockFromLog(pattern, user, note)
 	report: () => svc(c).report()
 	purge: () => svc(c).purge()
+	indexingStatus: () => ix(c).status()
+	submitAll: () => ix(c).submitAll()
+	submitEntry: (ct: any, entry: any) => ix(c).submitEntry(ct, entry)
+	submitUrls: (urls: string[] | string) => ix(c).submitUrls(urls)
+	indexingRules: () => ix(c).rules()
+	commentApproved: (ct: any, entry: any) => ix(c).commented(ct, entry)
+	saveIndexingRules: (input: any) => ix(c).saveRules(input)
+	submitSitemaps: () => ix(c).submitSitemaps()
+	indexingTick: () => ix(c).tick()
 }
 
-SKIP := /^\/(admin|api|account|login|media|_app|cdn-cgi|reset|invite|verify|forms)(\/|$)/
+SKIP := /^\/(admin|api|account|login|media|_app|cdn-cgi|reset|invite|verify|forms|comments)(\/|$)/
 ASSET := /\.(js|css|map|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|txt|xml|json)$/i
 
 text := (body: string, type: string, extra: Record<string, string> = {}) =>
@@ -42,8 +55,8 @@ text := (body: string, type: string, extra: Record<string, string> = {}) =>
 // Redirects (before routing), the crawl outputs and the 404 log. Crawl
 // outputs exist per locale — {base}/feed.xml, {base}/llms.txt,
 // {base}/llms-full.txt, {base}/sitemap-<type>.xml, {base}/…/x.md — and per
-// host — /robots.txt, /sitemap.xml. Runs after localeHandle (needs
-// locals.locale).
+// host — /robots.txt, /sitemap.xml, /<IndexNow key>.txt. Runs after
+// localeHandle (needs locals.locale).
 export seoHandle := =>
 	async ({ event, resolve }: any) =>
 		path := event.url.pathname
@@ -59,6 +72,9 @@ export seoHandle := =>
 				location := r.to_path + (r.to_path.includes('?') ? '' : event.url.search)
 				return new Response(null, { status: r.status, headers: { location } })
 			return text(await s.robots(), 'text/plain') if path === '/robots.txt'
+			if path.endsWith('.txt')
+				key := await ix(c).keyFile path
+				return text(key, 'text/plain') if key
 			return text(await s.sitemapIndex(), 'application/xml') if path === '/sitemap.xml'
 			rest := event.locals.locale?.rest ?? path
 			sm := /^\/sitemap-([a-z0-9_-]+)\.xml$/.exec(rest)

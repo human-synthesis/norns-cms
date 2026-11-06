@@ -14,7 +14,6 @@ export default (app: Container) =>
 	registerSettings app, securitySettings
 	registerAdminNav app, { id: 'settings', label: 'Settings', icon: 'lucide:settings', section: 'System', order: 90, capability: 'settings.manage' }
 	registerAdminNav app, { id: 'settings-site', parent: 'settings', label: 'Site', href: '/admin/settings/site', order: 1 }
-	registerAdminNav app, { id: 'settings-security', parent: 'settings', label: 'Security', href: '/admin/settings/security', order: 2 }
 	registerAdminNav app, { id: 'settings-all', parent: 'settings', label: 'All settings', href: '/admin/settings', order: 9 }
 	registerAdminNav app, { id: 'maintenance', label: 'Maintenance', icon: 'lucide:wrench', href: '/admin/maintenance', section: 'System', order: 97, capability: 'maintenance.run' }
 	registerSettingsApi app

@@ -1,0 +1,34 @@
+.space-y-6
+	PageHead(title="Security" subtitle="What keeps unwanted traffic and spam out. Blocked paths and the country filter answer before anything else runs.")
+	.grid.gap-4(class="lg:grid-cols-2")
+		a.link-card(href="/admin/security/countries")
+			span.font-medium Country filter
+			+if('data.countries.filter.mode === "off"')
+				span.text-sm Off — every country can visit.
+			+else
+				span.text-sm {data.countries.filter.mode === 'allow' ? 'Only ' : 'All but '}{data.countries.filter.countries.length} countr{data.countries.filter.countries.length === 1 ? 'y' : 'ies'}{data.countries.filter.admin ? ', admin included' : ''} · {data.countries.refused} refused
+			+if('data.countries.top.length')
+				span.text-xs(class="text-fg-muted") Most refused: {data.countries.top.map((s) => s.name + ' ' + s.hits).join(', ')}
+			span.text-xs(class="text-fg-muted") You: {data.countries.you.name}
+		a.link-card(href="/admin/security/paths")
+			span.font-medium Blocked paths
+			span.text-sm {data.paths.on} of {data.paths.total} patterns on · {data.paths.hits} requests refused
+			+if('data.paths.top.length')
+				span.text-xs(class="text-fg-muted") Most hit: {data.paths.top.map((p) => p.pattern + ' ' + p.hits).join(', ')}
+		a.link-card(href="/admin/security/cloudflare")
+			span.font-medium Cloudflare firewall
+			+if('data.cloudflare.ready')
+				span.text-sm {data.cloudflare.lastError ? 'Last sync failed' : (data.cloudflare.lastSyncAt ? data.cloudflare.rules.length + ' rules on ' + data.cloudflare.zoneName : 'Connected, not synced yet')}
+			+else
+				span.text-sm Not connected — add an API token to refuse these requests at Cloudflare's edge.
+		a.link-card(href="/admin/protection")
+			span.font-medium Form protection
+			span.text-sm Honeypot and timing on every public form{data.turnstile ? ', Cloudflare Turnstile on' : '; Turnstile off'}
+		+if('data.csp !== null')
+			a.link-card(href="/admin/settings/security")
+				span.font-medium Headers & CSP
+				span.text-sm Content Security Policy: {data.csp}
+
+<script>
+	{ data } := $props()
+</script>

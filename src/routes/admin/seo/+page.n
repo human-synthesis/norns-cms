@@ -11,6 +11,95 @@
 					Icon(name!="{l.icon}" size="size-4")
 					span.font-medium {l.label}
 					span.text-xs(class="text-fg-muted") {l.hint}
+	section#indexing.space-y-3
+		h2.text-lg.font-semibold Search engine notifications
+		+if('form?.saved')
+			Banner(variant="success" icon="lucide:check") {form.saved}
+		+if('form?.failed')
+			Banner(variant="warning" icon="lucide:alert-triangle") {form.failed}
+		+if('!data.indexing.live')
+			Banner(variant="info" icon="lucide:info") Nothing is sent from {data.indexing.origin}: only public https hosts are announced, never dev or preview hosts.
+		.grid.gap-3(class="lg:grid-cols-2")
+			.link-card
+				span.font-medium IndexNow
+				span.text-xs(class="text-fg-muted") Tells Bing (which feeds ChatGPT search and Copilot), Yandex, Seznam, Naver and Yep about a URL within seconds. Send by hand here or from an entry's editor, and choose below what goes out by itself.
+				span.text-sm
+					+if('data.indexing.indexNow')
+						| On
+						+if('data.indexing.keyUrl')
+							|  · key file
+							a(href!="{data.indexing.keyUrl}" target="_blank" rel="noopener")  {data.indexing.keyUrl.split('/').pop()}
+						+if('data.indexing.queued')
+							|  · {data.indexing.queued} waiting
+					+else
+						| Off
+				form.space-y-2(method="POST" action="?/saveRules")
+					label.check-item
+						Checkbox(name="enabled" checked!="{data.indexing.rules.enabled}")
+						span Use IndexNow
+					table.audit-table
+						thead
+							tr
+								th Send automatically
+								th New
+								th Updated
+								th Removed
+						tbody
+							+each('Object.entries(data.indexing.rules.auto) as [id, rule] (id)')
+								tr
+									td {rule.label}
+									td
+										Checkbox(name="auto.{id}.new" checked!="{rule.new}" aria-label="{rule.label}: new")
+									td
+										Checkbox(name="auto.{id}.updated" checked!="{rule.updated}" aria-label="{rule.label}: updated")
+									td
+										Checkbox(name="auto.{id}.removed" checked!="{rule.removed}" aria-label="{rule.label}: removed")
+					label.check-item
+						Checkbox(name="comments" checked!="{data.indexing.rules.comments}")
+						span Also send a page when a comment on it is approved
+					p.text-xs(class="text-fg-muted") New: first published. Updated: a published entry saved again or moved to a new URL. Removed: unpublished, deleted, or its old URL after a move. Untick everything to only send by hand.
+					Btn(type="submit" variant="secondary" size="sm" icon="lucide:save") Save
+				+if('data.indexing.indexNow')
+					form.space-y-2(method="POST" action="?/submitUrls")
+						Textarea(name="urls" rows="3" placeholder!="{'One URL per line, e.g. ' + data.indexing.origin + '/pricing'}")
+						Btn(type="submit" variant="secondary" size="sm" icon="lucide:send") Send these URLs
+					form(method="POST" action="?/submitAll")
+						Btn(type="submit" variant="ghost" size="sm" icon="lucide:globe") Send every public URL
+			.link-card
+				span.font-medium Google Search Console
+				span.text-xs(class="text-fg-muted") Optional. Google takes no pings and no IndexNow; it reads the sitemap on its own once it is added in Search Console. Connected, the CMS resubmits it after changes (at most every half hour) through the Search Console API, which needs a Google service account.
+				span.text-sm
+					+if('data.indexing.google')
+						| Connected · property {data.indexing.gscProperty || data.indexing.origin + '/'}
+						+if('data.indexing.googleAt')
+							|  · last sent {new Date(data.indexing.googleAt).toLocaleString()}
+						+if('data.indexing.googlePending')
+							|  · changes waiting
+					+else
+						| Not connected: set the
+						code  GOOGLE_SERVICE_ACCOUNT
+						|  secret and add that service account as an owner of the property.
+				+if('data.indexing.google')
+					form(method="POST" action="?/submitGoogle")
+						Btn(type="submit" variant="secondary" size="sm" icon="lucide:upload") Resubmit sitemaps now
+		+if('data.indexing.log.length')
+			.table-wrap
+				table.audit-table
+					thead
+						tr
+							th When
+							th Engine
+							th Target
+							th URLs
+							th Result
+					tbody
+						+each('data.indexing.log as l (l.id)')
+							tr
+								td.whitespace-nowrap {new Date(l.created_at).toLocaleString()}
+								td {l.engine === 'google' ? 'Google' : 'IndexNow'}
+								td.text-xs {l.target}
+								td {l.urls}
+								td(class!="{l.ok ? '' : 'seo-error'}") {l.status ? l.status + ' · ' : ''}{l.message}
 	section.space-y-3
 		h2.text-lg.font-semibold Content with issues
 		+if('data.report.length === 0')
@@ -27,6 +116,8 @@
 	section#not-found.space-y-3
 		.flex.items-center.justify-between
 			h2.text-lg.font-semibold Not found (404)
+			+if('data.canBlock && data.notFound.some((n) => n.probe)')
+				a.text-sm(href="/admin/security/paths") Block scanner paths…
 			+if('data.notFound.length')
 				form(method="POST" action="?/clear404")
 					Btn(type="submit" variant="ghost" size="sm") Clear all
@@ -47,14 +138,21 @@
 							tr
 								td
 									code.text-xs {n.path}
+									+if('n.probe')
+										Badge(variant="warning") probe
 								td {n.hits}
 								td.whitespace-nowrap {new Date(n.last_seen).toLocaleString()}
 								td.text-xs {n.referrer}
 								td.whitespace-nowrap
-									a.text-sm(href="/admin/seo/redirects?from={encodeURIComponent(n.path)}") Redirect…
+									.flex.items-center.gap-2
+										a.text-sm(href="/admin/seo/redirects?from={encodeURIComponent(n.path)}") Redirect…
+										+if('data.canBlock')
+											form(method="POST" action="?/block")
+												input(type="hidden" name="pattern" value!="{n.probe ? n.pattern : n.path}")
+												Btn(type="submit" variant!="{n.probe ? 'secondary' : 'ghost'}" size="sm" icon="lucide:ban") {n.probe ? 'Block ' + n.pattern : 'Block'}
 
 <script>
-	{ data } := $props()
+	{ data, form } := $props()
 	LINKS := [
 		{ href: '/sitemap.xml', label: 'sitemap.xml', hint: 'Every public, indexable URL', icon: 'lucide:map' }
 		{ href: '/robots.txt', label: 'robots.txt', hint: 'Crawler rules, AI bots', icon: 'lucide:bot' }

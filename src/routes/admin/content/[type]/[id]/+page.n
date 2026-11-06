@@ -114,6 +114,9 @@
 						a.text-sm(href="/admin/content/{data.ct.id}/{data.entry.id}/revisions") History ({data.revisions} revisions)
 	+if('data.entry')
 		.flex.items-center.gap-2.border-t.pt-4(class="border-border")
+			+if('data.perms.publish && data.indexNow && data.entry.status === "published" && data.entry.published_at <= Date.now() && data.entry.visibility !== "members"')
+				form(method="POST" action="?/indexnow")
+					Btn(type="submit" variant="secondary" icon="lucide:send") Send to search engines
 			+if('data.perms.publish && data.entry.status === "published"')
 				form(method="POST" action="?/unpublish")
 					Btn(type="submit" variant="secondary" icon="lucide:eye-off") {data.entry.published_at > Date.now() ? 'Cancel schedule' : 'Unpublish'}
@@ -139,7 +142,7 @@
 	autosaved .= $state ''
 	tzOffset .= $state 0
 
-	MESSAGES := { saved: 'Saved.', submitted: 'Saved and submitted for review. Editors have been notified.', published: 'Published.', scheduled: 'Scheduled.', unpublished: 'Unpublished; it is a draft again.', translated: 'Translation created as a draft, copied from the source. Translate the fields, then publish.', aitranslated: 'Translated by AI as a draft. Read it through, fix what needs fixing, then publish.', current: 'Marked as up to date with its source.' } as Record<string, string>
+	MESSAGES := { saved: 'Saved.', submitted: 'Saved and submitted for review. Editors have been notified.', published: 'Published.', scheduled: 'Scheduled.', unpublished: 'Unpublished; it is a draft again.', translated: 'Translation created as a draft, copied from the source. Translate the fields, then publish.', aitranslated: 'Translated by AI as a draft. Read it through, fix what needs fixing, then publish.', current: 'Marked as up to date with its source.', indexed: 'Sent to search engines through IndexNow.' } as Record<string, string>
 	translation := (code) => data.translations.find((x) => x.locale === code)
 	current := $derived data.translations.find((x) => x.id === data.entry?.id)
 	source := $derived data.translations.find((x) => x.isSource)

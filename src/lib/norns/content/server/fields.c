@@ -88,6 +88,19 @@ tags := (f: FieldDef) =>
 		out
 	)
 
+// Several values from a fixed or dynamic (optionsFrom) list of options:
+// checkboxes posting the same name; the editor posts a hidden '' first so
+// unticking all of them still arrives.
+checks := (f: FieldDef) =>
+	allowed := f.optionsFrom ? null : (f.options ?? []).map((o) => String(o.value))
+	v.pipe(
+		v.optional(v.unknown(), f.default ?? []),
+		v.transform((x: any) =>
+			list := (Array.isArray(x) ? x : String(x ?? '').split(',')).map((s: any) => String(s).trim()).filter(Boolean)
+			[...new Set(list)].filter((s) => !allowed || allowed.includes(s))
+		)
+	)
+
 lines := (f: FieldDef) =>
 	v.pipe(
 		v.optional(v.unknown(), f.default ?? ''),
@@ -199,6 +212,7 @@ export fieldSchemas := {
 	select
 	tags
 	lines
+	checks
 	image: id
 	reference: id
 	term: id

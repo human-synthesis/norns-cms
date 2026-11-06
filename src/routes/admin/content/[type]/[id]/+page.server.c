@@ -2,6 +2,7 @@ import { page } from '@human-synthesis/norns/server'
 import { error, fail, redirect } from '@sveltejs/kit'
 import { cms, canEditEntry, formToObject, typeOrRedirect } from '$lib/norns/content/server/public'
 import { requireCap, can, auth, audit } from '$lib/norns/auth/server/public'
+import { seo } from '$lib/norns/seo/server/public'
 import { settings } from '$lib/norns/settings/server/public'
 import { i18n, aiAvailable, aiTranslateData } from '$lib/norns/i18n/server/public'
 
@@ -63,6 +64,7 @@ export load := page.load
 			markets: i18n(container).markets().filter((m) => m.languages.some((l) => l.code === locale)).map((m) => ({ code: m.code, name: m.name }))
 			revisions: entry ? (await cms(container).revisions(entry.id)).length : 0
 			seoContext: { siteTitle: site.title, template: seoCfg.titleTemplate }
+			indexNow: (await seo(container).indexingRules()).enabled
 			perms: {
 				edit: canEditEntry(user, entry)
 				publish: can(user, 'content.publish')
@@ -160,6 +162,19 @@ export actions := page.actions
 				throw error 403, 'You cannot edit this entry'
 			await cms(container).markCurrent entry
 			throw redirect 303, `/admin/content/${ct.id}/${entry.id}?saved=current`
+
+	indexnow:
+		run: async ({ container, event, user }) =>
+			requireCap user, 'content.publish'
+			ct := typeOr404 container, event.params.type
+			entry := await entryOr404 container, ct, event.params.id
+			unless entry
+				throw error 404, 'Entry not found'
+			r := await seo(container).submitEntry ct, entry
+			return fail(400, { error: r.reason }) if r.reason
+			return fail(502, { error: `IndexNow did not accept it (${r.results.map((x) => x.status || 'no answer').join(', ')}); see Admin → SEO & GEO.` }) unless r.results.every((x) => x.ok)
+			await audit(container).log user, 'seo.indexing_submit', `${ct.id}#${entry.id}`, { urls: r.sent }
+			throw redirect 303, `/admin/content/${ct.id}/${entry.id}?saved=indexed`
 
 	unpublish:
 		run: async ({ container, event, user }) =>

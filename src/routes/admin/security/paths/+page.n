@@ -1,0 +1,94 @@
+.space-y-8
+	PageHead(title="Blocked paths" subtitle="Paths that scanners probe for weaknesses. A request for one gets an empty 403 at once: no page, no database work, no 404 log entry.")
+		+snippet('actions')
+			Btn(href="/admin/seo#not-found" variant="secondary" icon="lucide:file-question") 404 log
+	+if('form?.saved')
+		Banner(variant="success" icon="lucide:check") {form.saved}
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+
+	section.space-y-3
+		h2.text-lg.font-semibold Block a path
+		form.flex.flex-wrap.items-end.gap-2(method="POST" action="?/add")
+			Input(name="pattern" value!="{form?.values?.pattern ?? ''}" placeholder="/wp-login.php, /wp-admin* or *.php" class="w-72" required)
+			Input(name="note" value!="{form?.values?.note ?? ''}" placeholder="Note (optional)" class="w-64")
+			Btn(type="submit" variant="primary" icon="lucide:ban") Block
+		p.text-xs(class="text-fg-muted") * matches anything: /wp-admin* covers the folder and everything in it, *.php every PHP address. Case does not matter. Patterns that would block the site itself (the home page, admin, sign-in, media, sitemaps, feeds…) are refused.
+		form.flex.flex-wrap.items-end.gap-2(method="GET")
+			Input(name="check" value!="{data.checkPath}" placeholder="Test a path, e.g. /.env.backup" class="w-72")
+			Btn(type="submit" variant="secondary" size="sm" icon="lucide:search") Test
+		+if('data.check')
+			p.text-sm
+				code {data.check.path}
+				+if('data.check.blocked')
+					|  is blocked by
+					code  {data.check.pattern}
+				+else
+					|  is not blocked{data.check.probe ? ' — it looks like a probe; suggested pattern ' : '. Pattern to block it: '}
+					code {data.check.suggestion}
+
+	section.space-y-3
+		h2.text-lg.font-semibold Suggested from the 404 log
+		+if('data.suggestions.length === 0')
+			p.text-sm(class="text-fg-muted") No probe-like paths in the 404 log right now.
+		+else
+			p.text-sm(class="text-fg-muted") Paths visitors asked for that do not exist and look like scans, grouped under the pattern that would block them. Blocking moves them out of the 404 log.
+			form.space-y-2(method="POST" action="?/fromLog")
+				.table-wrap
+					table.audit-table
+						thead
+							tr
+								th
+								th Pattern
+								th Hits
+								th Paths seen
+						tbody
+							+each('data.suggestions as s (s.pattern)')
+								tr
+									td
+										Checkbox(name="pattern" value!="{s.pattern}" checked aria-label!="{'Block ' + s.pattern}")
+									td
+										code {s.pattern}
+									td {s.hits}
+									td.text-xs {s.paths.slice(0, 4).join(', ')}{s.paths.length > 4 ? ' and ' + (s.paths.length - 4) + ' more' : ''}
+				Btn(type="submit" variant="primary" size="sm" icon="lucide:ban") Block the ticked patterns
+
+	section.space-y-3
+		.flex.items-center.justify-between
+			h2.text-lg.font-semibold The list ({data.paths.length})
+			form(method="POST" action="?/defaults")
+				Btn(type="submit" variant="ghost" size="sm" icon="lucide:list-restart") Add the starting list again
+		.table-wrap
+			table.audit-table
+				thead
+					tr
+						th Pattern
+						th Note
+						th Source
+						th Hits
+						th Last hit
+						th
+				tbody
+					+each('data.paths as p (p.id)')
+						tr(class!="{p.enabled ? '' : 'opacity-50'}")
+							td
+								code {p.pattern}
+							td.text-xs {p.note}
+							td.text-xs {SOURCES[p.source] ?? p.source}
+							td {p.hits}
+							td.text-xs.whitespace-nowrap {p.last_hit_at ? new Date(p.last_hit_at).toLocaleString() : '—'}
+							td.whitespace-nowrap
+								.flex.gap-1
+									form(method="POST" action="?/toggle")
+										input(type="hidden" name="id" value!="{String(p.id)}")
+										input(type="hidden" name="enabled" value!="{p.enabled ? '0' : '1'}")
+										Btn(type="submit" variant="ghost" size="sm") {p.enabled ? 'Pause' : 'Resume'}
+									form(method="POST" action="?/remove")
+										input(type="hidden" name="id" value!="{String(p.id)}")
+										Btn(type="submit" variant="ghost" size="sm" icon="lucide:trash-2") Remove
+		p.text-xs(class="text-fg-muted") Hits are counted per server and written about once a minute. To drop such connections before they reach the site at all, the same patterns can go into a Cloudflare WAF rule.
+
+<script>
+	{ data, form } := $props()
+	SOURCES := { default: 'Starting list', manual: 'Added', '404': 'From 404 log' }
+</script>

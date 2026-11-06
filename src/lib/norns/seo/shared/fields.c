@@ -10,11 +10,15 @@ export AI_BOTS := [
 	{ id: 'Claude-SearchBot', label: 'Anthropic search' }
 	{ id: 'Claude-User', label: 'Claude fetching on behalf of a user' }
 	{ id: 'PerplexityBot', label: 'Perplexity search' }
+	{ id: 'Perplexity-User', label: 'Perplexity fetching on behalf of a user' }
 	{ id: 'Google-Extended', label: 'Google Gemini training (not Search)' }
 	{ id: 'Applebot-Extended', label: 'Apple Intelligence training' }
 	{ id: 'CCBot', label: 'Common Crawl' }
 	{ id: 'Bytespider', label: 'ByteDance' }
 	{ id: 'meta-externalagent', label: 'Meta AI' }
+	{ id: 'Amazonbot', label: 'Amazon (Alexa, Rufus)' }
+	{ id: 'DuckAssistBot', label: 'DuckDuckGo AI answers' }
+	{ id: 'MistralAI-User', label: 'Mistral Le Chat fetching on behalf of a user' }
 ]
 
 export botField := (id: string) => `allow_${id.replace(/[^a-zA-Z0-9]/g, '_')}`
@@ -42,6 +46,7 @@ export seoFieldGroup := {
 		{ name: 'seoNoindex', label: 'Hide from search engines', type: 'boolean', help: 'Adds noindex and leaves the entry out of the sitemap' }
 		{ name: 'seoNofollow', label: 'Do not follow links', type: 'boolean', help: 'Adds nofollow' }
 		{ name: 'seoNoLlms', label: 'Leave out of llms.txt and Markdown twins', type: 'boolean' }
+		{ name: 'seoJsonLd', label: 'Extra structured data', type: 'json', help: 'JSON-LD object or list added to the page graph, for types the CMS does not build itself (Product, Event, Service, Course …). Leave out @context' }
 	]
 }
 
@@ -68,6 +73,7 @@ export seoSettings := {
 		{ name: 'orgSameAs', label: 'Profiles', type: 'lines', help: 'One URL per line (LinkedIn, GitHub, Wikipedia …); used as sameAs' }
 		{ name: 'googleVerification', label: 'Google Search Console token', type: 'text' }
 		{ name: 'bingVerification', label: 'Bing Webmaster token', type: 'text' }
+		{ name: 'gscProperty', label: 'Google Search Console property', type: 'text', placeholder: 'sc-domain:example.com', help: 'Resubmits the sitemap to Google after changes. Needs the GOOGLE_SERVICE_ACCOUNT secret, and that service account added as an owner of the property. Empty: https://<host>/ for each host' }
 		{ name: 'robotsExtra', label: 'Extra robots.txt rules', type: 'code', help: 'Appended as is' }
 		{ name: 'llmsSummary', label: 'llms.txt summary', type: 'textarea', help: 'What the site is about, for AI assistants. Defaults to the tagline', translatable: true }
 		{ name: 'llmsFull', label: 'Publish llms-full.txt', type: 'boolean', default: true, help: 'All public content as one Markdown file' }

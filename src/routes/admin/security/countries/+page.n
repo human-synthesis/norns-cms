@@ -1,0 +1,99 @@
+.space-y-8
+	PageHead(title="Country filter" subtitle="Visitors from countries the site is not open to get an empty 403 at once: no page, no database work.")
+		+snippet('actions')
+			Btn(href="/admin/security" variant="secondary" icon="lucide:shield") Security
+	+if('form?.saved')
+		Banner(variant="success" icon="lucide:check") {form.saved}
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	Banner(variant="info" icon="lucide:map-pin") You are connecting from {data.you.name}{data.you.country ? ' (' + data.you.country + ')' : ''}. Countries come from Cloudflare; VPNs and proxies show the country of their exit.
+
+	form.space-y-6(method="POST" action="?/save")
+		section.space-y-3
+			h2.text-lg.font-semibold Who can visit
+			.space-y-2
+				+each('MODES as m (m.value)')
+					label.check-item
+						input(type="radio" name="mode" value!="{m.value}" bind:group!="{mode}")
+						span
+							span.font-medium {m.label}
+							span.text-xs.block(class="text-fg-muted") {m.help}
+		+if('mode !== "off"')
+			section.space-y-3
+				.flex.flex-wrap.items-center.justify-between.gap-2
+					h2.text-lg.font-semibold {mode === 'allow' ? 'Allowed countries' : 'Blocked countries'} ({selected.length})
+					.flex.flex-wrap.gap-1
+						+each('data.presets as p (p.id)')
+							Btn(type="button" variant="ghost" size="sm" onclick!="{() => addPreset(p)}") + {p.label}
+						Btn(type="button" variant="ghost" size="sm" onclick!="{() => (selected = [])}") Clear
+				+if('selected.length')
+					p.text-sm
+						+each('selected as code (code)')
+							span.chip {nameOf(code)} 
+				Input(placeholder="Filter countries…" value!="{query}" oninput!="{(e) => (query = e.currentTarget.value)}" class="w-72")
+				.country-grid
+					+each('data.options as o (o.value)')
+						label.check-item(hidden!="{!visible(o)}")
+							input(type="checkbox" name="countries" value!="{o.value}" bind:group!="{selected}")
+							span {o.label}
+								span.text-xs(class="text-fg-muted")  {o.value}
+			section.space-y-3
+				h2.text-lg.font-semibold Edge cases
+				.form-field
+					label.form-label(for="unknown") When the country is not known
+					select.select#unknown(name="unknown" value!="{data.filter.unknown}")
+						option(value="allow") Let them in
+						option(value="block") Refuse them
+				label.check-item
+					input(type="checkbox" name="admin" checked!="{data.filter.admin}")
+					span Also filter the admin, sign-in and API (otherwise the team can always get in)
+		Btn(type="submit" variant="primary" icon="lucide:save") Save
+		p.text-xs(class="text-fg-muted") Search engines crawl from their own countries (Google and Bing mostly from the United States): refusing those countries keeps the site out of their results. The Worker's own scheduled jobs are never filtered. To drop such connections before they reach the site at all, the same countries can go into a Cloudflare WAF rule.
+
+	section.space-y-3
+		.flex.items-center.justify-between
+			h2.text-lg.font-semibold Refused requests by country
+			+if('data.stats.length')
+				form(method="POST" action="?/clearStats")
+					Btn(type="submit" variant="ghost" size="sm") Reset counts
+		+if('data.stats.length === 0')
+			p.text-sm(class="text-fg-muted") None yet.
+		+else
+			.table-wrap
+				table.audit-table
+					thead
+						tr
+							th Country
+							th Requests refused
+							th Last
+					tbody
+						+each('data.stats as s (s.country)')
+							tr
+								td {s.name}
+									span.text-xs(class="text-fg-muted")  {s.country}
+								td {s.hits}
+								td.text-xs {s.last_hit_at ? new Date(s.last_hit_at).toLocaleString() : '—'}
+
+<script>
+	{ data, form } := $props()
+	MODES := [
+		{ value: 'off', label: 'Everyone', help: 'No country filter.' }
+		{ value: 'allow', label: 'Only the countries I pick', help: 'Everyone else is refused.' }
+		{ value: 'block', label: 'Everyone except the countries I pick', help: 'Those countries are refused.' }
+	]
+	mode .= $state form?.values?.mode ?? data.filter.mode
+	selected .= $state [...(form?.values?.countries ?? data.filter.countries)]
+	query .= $state ''
+	names := $derived Object.fromEntries(data.options.map((o) => [o.value, o.label]))
+	nameOf := (code) => names[code] ?? code
+	visible := (o) =>
+		q := query.trim().toLowerCase()
+		!q || o.label.toLowerCase().includes(q) || o.value.toLowerCase() === q || selected.includes(o.value)
+	addPreset := (p) =>
+		selected = [...new Set([...selected, ...p.codes])]
+</script>
+
+<style>
+	.country-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.25rem 1rem; max-height: 28rem; overflow-y: auto; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 0.75rem; }
+	.chip { display: inline-block; margin: 0 0.25rem 0.25rem 0; padding: 0 0.5rem; border: 1px solid var(--color-border); border-radius: 999px; font-size: 0.75rem; }
+</style>

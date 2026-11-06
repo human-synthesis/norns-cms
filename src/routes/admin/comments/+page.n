@@ -1,0 +1,88 @@
+.space-y-6
+	PageHead(title="Comments" subtitle="What visitors and members write under pages and articles.")
+		+snippet('actions')
+			Btn(href="/admin/settings/comments" variant="secondary" icon="lucide:settings") Settings
+	+if('!data.enabled')
+		Banner(variant="info" icon="lucide:info") Comments are switched off for the whole site (Settings). Nothing is shown to visitors; existing comments are kept.
+	+elseif('!data.types.length')
+		Banner(variant="info" icon="lucide:info") No content type has comments on by default. Turn them on per type in Settings, or per entry in the editor (Details tab).
+	+if('form?.saved')
+		Banner(variant="success" icon="lucide:check") {form.saved}
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	nav.filter-tabs
+		+each('data.tabs as tb (tb.id)')
+			a.filter-tab(href!="{link({ status: tb.id, page: null })}" class!="{data.status === tb.id ? 'filter-tab-active' : ''}") {tb.label}
+				span.filter-count {tb.count}
+	form.flex.flex-wrap.items-end.gap-2(method="GET")
+		input(type="hidden" name="status" value!="{data.status}")
+		Input(name="q" value!="{data.q}" placeholder="Search text, name and email…" class="w-64")
+		Btn(type="submit" variant="secondary" icon="lucide:filter") Filter
+	+if('data.comments.length === 0')
+		p.text-sm(class="text-fg-muted") Nothing here.
+	+else
+		ul.space-y-3
+			+each('data.comments as cm (cm.id)')
+				li.link-card(id!="{'comment-' + cm.id}")
+					.flex.flex-wrap.items-center.gap-2.text-sm
+						span.font-medium {cm.author_name}
+						+if('cm.staff')
+							Badge Team
+						+if('cm.author_email')
+							a.text-xs(href!="{'mailto:' + cm.author_email}") {cm.author_email}
+						span.text-xs(class="text-fg-muted") {cm.user_id ? 'member' : 'visitor'} · {new Date(cm.created_at).toLocaleString()}{cm.parent_id ? ' · reply' : ''}
+					.text-xs(class="text-fg-muted")
+						| On
+						+if('cm.entry.url')
+							a(href!="{cm.entry.url + '#comment-' + cm.id}" target="_blank" rel="noopener")  {cm.entry.title}
+						+else
+							|  {cm.entry.title}
+					.comment-body
+						| {@html cm.html}
+					.flex.flex-wrap.gap-2
+						+each('actionsFor(cm.status) as a (a.id)')
+							form(method="POST" action!="{'?/' + a.id}")
+								input(type="hidden" name="id" value!="{String(cm.id)}")
+								Btn(type="submit" variant!="{a.variant}" size="sm" icon!="{a.icon}") {a.label}
+					details
+						summary.text-sm.cursor-pointer Answer or edit
+						.grid.gap-3.mt-2(class="md:grid-cols-2")
+							form.space-y-2(method="POST" action="?/reply")
+								input(type="hidden" name="id" value!="{String(cm.id)}")
+								Textarea(name="body" rows="3" placeholder="Your answer, published as the team")
+								Btn(type="submit" variant="secondary" size="sm" icon="lucide:reply") Answer
+							form.space-y-2(method="POST" action="?/edit")
+								input(type="hidden" name="id" value!="{String(cm.id)}")
+								Textarea(name="body" rows="3" value!="{cm.body}")
+								Btn(type="submit" variant="ghost" size="sm" icon="lucide:pencil") Save text
+	+if('data.pages > 1')
+		.flex.gap-2
+			+if('data.page > 1')
+				Btn(href!="{link({ page: data.page - 1 })}" variant="secondary" size="sm") Newer
+			+if('data.page < data.pages')
+				Btn(href!="{link({ page: data.page + 1 })}" variant="secondary" size="sm") Older
+
+<script>
+	import { page } from '$app/state'
+	{ data, form } := $props()
+
+	link := (change) =>
+		u := new URL(page.url)
+		for [k, v] of Object.entries(change)
+			if v == null
+				u.searchParams.delete k
+			else
+				u.searchParams.set k, String(v)
+		u.pathname + u.search
+
+	APPROVE := { id: 'approve', label: 'Approve', variant: 'primary', icon: 'lucide:check' }
+	SPAM := { id: 'spam', label: 'Spam', variant: 'secondary', icon: 'lucide:shield-alert' }
+	TRASH := { id: 'trash', label: 'Trash', variant: 'secondary', icon: 'lucide:trash' }
+	actionsFor := (status) =>
+		if status === 'pending'
+			[APPROVE, SPAM, TRASH]
+		else if status === 'approved'
+			[{ id: 'unapprove', label: 'Unapprove', variant: 'secondary', icon: 'lucide:eye-off' }, SPAM, TRASH]
+		else
+			[{ ...APPROVE, label: 'Approve' }, { id: 'restore', label: 'Back to Waiting', variant: 'secondary', icon: 'lucide:undo-2' }, { id: 'remove', label: 'Delete forever', variant: 'danger', icon: 'lucide:trash-2' }]
+</script>

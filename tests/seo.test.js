@@ -45,6 +45,42 @@ describe('head and structured data', () => {
 		expect(head.markdown).toBeNull();
 	});
 
+	test('extra structured data joins the graph; @context and nodes without @type are dropped', async () => {
+		const c = await bootApp();
+		const extra = JSON.stringify({ '@context': 'https://schema.org', '@graph': [{ '@type': 'Product', name: 'Norns Pro', offers: { '@type': 'Offer', price: '9', priceCurrency: 'EUR' } }, { name: 'no type' }] });
+		await publish(c, 'page', { title: 'Pricing', layout: 'markdown', body: 'Plans', seoJsonLd: extra });
+		const graph = ld(await seo(c).forEntry(await cms(c).resolve('/pricing')));
+		const product = graph.find((g) => g['@type'] === 'Product');
+		expect(product.offers.price).toBe('9');
+		expect(product['@context']).toBeUndefined();
+		expect(graph.find((g) => g.name === 'no type')).toBeUndefined();
+		const page = graph.find((g) => g['@type'] === 'WebPage');
+		expect(page.breadcrumb['@id']).toBe(graph.find((g) => g['@type'] === 'BreadcrumbList')['@id']);
+		const bad = await cms(c).save('page', null, { title: 'Bad', layout: 'markdown', seoJsonLd: '{oops' }, null);
+		expect(bad.ok).toBe(false);
+	});
+
+	test('organisation contact data, local business map and geo meta tags', async () => {
+		const c = await bootApp();
+		const base = await settings(c).get('seo');
+		await settings(c).save('seo', { ...base, orgName: 'Acme', defaultDescription: 'We make things.', bizStreet: 'Main St 1', bizCity: 'Cluj-Napoca', bizCountry: 'ro', bizPhone: '+40 1', bizHours: 'Mo-Fr 09:00-17:00' }, null);
+		let head = await seo(c).siteHead();
+		let org = JSON.parse(head.jsonLd)['@graph'][0];
+		expect(org['@type']).toBe('Organization');
+		expect(org.description).toBe('We make things.');
+		expect(org.address.addressLocality).toBe('Cluj-Napoca');
+		expect(org.telephone).toBe('+40 1');
+		expect(org.openingHours).toBeUndefined(); // hours are for local businesses
+		expect(head.geo).toBeNull();
+		await settings(c).save('seo', { ...(await settings(c).get('seo')), orgType: 'LocalBusiness', bizType: 'Bakery', bizLat: 46.77, bizLng: 23.6 }, null);
+		head = await seo(c).siteHead();
+		org = JSON.parse(head.jsonLd)['@graph'][0];
+		expect(org['@type']).toBe('Bakery');
+		expect(org.geo.latitude).toBe(46.77);
+		expect(org.hasMap).toContain('openstreetmap.org/?mlat=46.77');
+		expect(head.geo).toEqual({ position: '46.77;23.6', icbm: '46.77, 23.6', placename: 'Cluj-Napoca', region: 'RO' });
+	});
+
 	test('JSON-LD cannot break out of its script tag', async () => {
 		const c = await bootApp();
 		await publish(c, 'page', { title: '</script><script>alert(1)</script>', layout: 'markdown' });
@@ -66,7 +102,10 @@ describe('crawl surface', () => {
 		expect(xml).not.toContain('hidden');
 		expect(xml).not.toContain('draft');
 		expect(xml).not.toContain('members');
-		expect(await seo(c).sitemapIndex()).toContain('/sitemap-page.xml');
+		const index = await seo(c).sitemapIndex();
+		expect(index).toContain('/sitemap-article.xml');
+		expect(index).toContain('/sitemap-archives.xml');
+		expect(index).not.toContain('/sitemap-page.xml'); // no pages yet
 	});
 
 	test('robots.txt blocks the AI crawlers switched off', async () => {

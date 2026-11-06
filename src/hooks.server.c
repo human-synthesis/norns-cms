@@ -6,12 +6,14 @@ import { securityHandle, settings } from '$lib/norns/settings/server/public'
 import { seoHandle } from '$lib/norns/seo/server/public'
 import { consentHandle } from '$lib/norns/consent/server/public'
 import { localeHandle } from '$lib/norns/i18n/server/public'
+import { blockHandle } from '$lib/norns/protection/server/public'
 
 // Every feature's module.c is eager-loaded at build time so boot() can
 // register its bindings up front. Add a feature by adding a folder.
 features := import.meta.glob './lib/norns/*/server/module.c', { eager: true }
 
 // Order matters (each wraps the next):
+//   blockHandle     blocked paths (scanner probes) → empty 403, nothing else runs
 //   securityHandle  per-request nonce on every <script>, CSP + headers
 //   sessionHandle   cookie → locals.user; guards /admin (staff) and /account
 //                   (clients) for every method — actions run before layout
@@ -25,6 +27,7 @@ app := await boot {
 	features,
 	serializer: tronSerializer(),
 	extraHandle: [
+		blockHandle()
 		securityHandle({ dev, mode: (event) => settings(event.locals.container).get('security').then((s) => s.csp) })
 		sessionHandle({ protect: ['/admin'] })
 		localeHandle()

@@ -25,6 +25,13 @@
 			label.check-item
 				Checkbox(name!="{field.name}" value!="{String(opt.value)}" checked!="{selected.includes(Number(opt.value))}")
 				span {opt.label}
++elseif('field.type === "checks"')
+	.check-list
+		input(type="hidden" name!="{field.name}" value="")
+		+each('field.options ?? [] as opt (opt.value)')
+			label.check-item
+				Checkbox(name!="{field.name}" value!="{String(opt.value)}" checked!="{(Array.isArray(value) ? value : []).map(String).includes(String(opt.value))}")
+				span {opt.label}
 +elseif('field.type === "number"')
 	Input(type="number" name!="{field.name}" value!="{value ?? ''}" placeholder!="{field.placeholder}")
 +elseif('field.type === "datetime"')

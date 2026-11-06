@@ -20,7 +20,7 @@ export type BlockDef = Record<string, any>
 export FIELD_TYPES := [
 	'text', 'textarea', 'markdown', 'number', 'boolean', 'datetime', 'select', 'tags',
 	'email', 'url', 'lines', 'code', 'image', 'reference', 'references', 'users',
-	'term', 'blocks', 'repeater', 'json'
+	'term', 'blocks', 'repeater', 'json', 'checks'
 ]
 
 export STATUSES := ['draft', 'in_review', 'published']

@@ -138,6 +138,29 @@ describe('requests', () => {
 		expect((await call(c, key, 'PATCH', '/settings/site', { nope: 1 })).status).toBe(400);
 		expect((await call(c, key, 'POST', '/seo/redirects', { from: '/a', to: '/b' })).status).toBe(201);
 		expect((await call(c, key, 'POST', '/seo/redirects', { from: '/b', to: '/a' })).status).toBe(400);
+		const indexing = await call(c, key, 'GET', '/seo/indexing');
+		expect(indexing.body.data).toMatchObject({ indexNow: true, google: false, queued: 0 });
+		expect((await call(c, key, 'POST', '/seo/indexing/submit-all')).body.data.sent).toBe(0); // localhost: never announced
+		expect((await call(c, key, 'POST', '/seo/indexing/google')).status).toBe(400);
+		const blockedPath = await call(c, key, 'POST', '/protection/paths', { pattern: '/solr*', note: 'Solr' });
+		expect(blockedPath.status).toBe(201);
+		expect((await call(c, key, 'POST', '/protection/paths', { pattern: '/admin*' })).status).toBe(400);
+		expect((await call(c, key, 'GET', '/protection/paths/check?path=/solr/admin')).body.data).toMatchObject({ blocked: true, pattern: '/solr*' });
+		expect((await call(c, key, 'PATCH', `/protection/paths/${blockedPath.body.data.id}`, { enabled: false })).body.data.enabled).toBe(0);
+		expect((await call(c, key, 'DELETE', `/protection/paths/${blockedPath.body.data.id}`)).status).toBe(200);
+		expect((await call(c, key, 'POST', '/seo/not-found/block', { pattern: '/jenkins*' })).body.data).toMatchObject({ ok: true, pattern: '/jenkins*', cleared: 0 });
+		expect(Array.isArray((await call(c, key, 'GET', '/seo/not-found/probes')).body.data)).toBe(true);
+		expect((await call(c, key, 'PUT', '/protection/countries', { mode: 'allow', countries: ['RO'], admin: true, unknown: 'block' })).status).toBe(400); // would lock the caller (no country here) out
+		expect((await call(c, key, 'PUT', '/protection/countries', { mode: 'block', countries: ['CN'] })).body.data).toMatchObject({ mode: 'block', countries: ['CN'] });
+		expect((await call(c, key, 'GET', '/protection/countries')).body.data.filter.mode).toBe('block');
+		expect((await call(c, key, 'DELETE', '/protection/countries/stats')).status).toBe(200);
+		expect((await call(c, key, 'GET', '/protection/cloudflare')).body.data).toMatchObject({ ready: false, tokenSaved: false });
+		expect((await call(c, key, 'GET', '/protection/cloudflare/preview')).body.data.rules[0].ref).toBe('norns_cms_paths');
+		expect((await call(c, key, 'POST', '/protection/cloudflare/sync')).status).toBe(502); // no token
+		const rules = await call(c, key, 'PUT', '/seo/indexing/rules', { auto: { page: { updated: false } } });
+		expect(rules.body.data.auto.page).toMatchObject({ new: true, updated: false, removed: true });
+		expect((await call(c, key, 'POST', '/seo/indexing/urls', { urls: ['https://elsewhere.example.org/'] })).body.data.skipped).toHaveLength(1);
+		expect((await call(c, key, 'POST', '/seo/indexing/entries/999')).status).toBe(404);
 		const script = await call(c, key, 'POST', '/consent/scripts', { provider: 'ga4', config: { measurementId: 'G-ABCDE123' } });
 		expect(script.body.data.config.measurementId).toBe('G-ABCDE123');
 		expect((await call(c, key, 'PATCH', `/consent/scripts/${script.body.data.id}`, { enabled: false })).body.data.enabled).toBe(false);
@@ -148,6 +171,29 @@ describe('requests', () => {
 });
 
 describe('documentation', () => {
+	test('comments: the team comments and answers, moderates, edits and deletes', async () => {
+		const { c, owner } = await setup();
+		const { key } = await apiKeys(c).create({ name: 'Mod', capabilities: ['comments.moderate', 'content.create', 'content.publish', 'content.view', 'settings.manage'] }, owner);
+		const made = await call(c, key, 'POST', '/content/article', { data: { title: 'Talk' } });
+		const entryId = made.body.data.id;
+		await call(c, key, 'POST', `/content/article/${entryId}/status`, { status: 'published' });
+		const first = await call(c, key, 'POST', '/comments', { entryId, body: 'Welcome!' });
+		expect(first.status).toBe(201);
+		expect(first.body.data).toMatchObject({ status: 'approved', staff: 1, author_name: 'Olga' });
+		const answer = await call(c, key, 'POST', `/comments/${first.body.data.id}/reply`, { body: 'And thanks.' });
+		expect(answer.body.data.parent_id).toBe(first.body.data.id);
+		expect((await call(c, key, 'POST', '/comments', { entryId: 99999, body: 'x' })).status).toBe(404);
+		const listed = await call(c, key, 'GET', `/comments?status=approved&entry=${entryId}`);
+		expect(listed.body.data.total).toBe(2);
+		expect(listed.body.data.comments[0].entry.title).toBe('Talk');
+		expect((await call(c, key, 'PATCH', `/comments/${first.body.data.id}`, { status: 'spam', body: 'Edited' })).body.data).toMatchObject({ status: 'spam', body: 'Edited' });
+		expect((await call(c, key, 'PATCH', `/comments/${first.body.data.id}`, { status: 'nope' })).status).toBe(400);
+		expect((await call(c, key, 'DELETE', `/comments/${first.body.data.id}`)).body.data.deleted).toBe(first.body.data.id);
+		expect((await call(c, key, 'GET', `/comments/${answer.body.data.id}`)).body.data.parent_id).toBeNull();
+		const settingsPatch = await call(c, key, 'PATCH', '/settings/comments', { types: ['article', 'page'] });
+		expect(settingsPatch.status).toBe(200);
+	});
+
 	test('every endpoint is documented and appears in OpenAPI', async () => {
 		const { c } = await setup();
 		const eps = endpoints(c);

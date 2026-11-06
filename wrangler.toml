@@ -30,11 +30,16 @@ enabled = true
 
 # Optional config. Secrets are set with `wrangler secret put <NAME>`, never here:
 #   CMS_SECRET      encrypts two-factor secrets at rest (required for 2FA in production)
-#   CRON_SECRET     authenticates the daily maintenance cron (worker/index.js → /api/cron)
+#   CRON_SECRET     authenticates the cron triggers (worker/index.js → /api/cron); without
+#                   it neither housekeeping nor search engine notifications run on schedule
 #   AIOSIS_API_KEY  required: sends mail through Aiosis Emails (scope messages:send) from
 #                   signup@, signin@, notification@ and contact@ on MAIL_DOMAIN; without it
 #                   mail is refused (only `bun run dev` and tests fall back to the mail log)
 #   ANTHROPIC_API_KEY  optional: AI translation
+#   CLOUDFLARE_API_TOKEN / CLOUDFLARE_ZONE_ID  optional: WAF rules for blocked paths and the
+#                   country filter (otherwise saved, encrypted, in Security → Cloudflare firewall)
+#   GOOGLE_SERVICE_ACCOUNT  optional: key file (JSON) of a Google service account that is an
+#                   owner of the Search Console property; resubmits sitemaps after changes
 #   TURNSTILE_SITE_KEY / TURNSTILE_SECRET_KEY  Cloudflare Turnstile widget "norns-cms";
 #                   these win over the keys in System → Form protection (the on/off
 #                   switch stays there). TURNSTILE_ENABLED=false turns Turnstile off everywhere.
@@ -43,9 +48,13 @@ CMS_PUBLIC_URL = "https://norns-cms.humansynthesis.ai"
 # Sender domain set up in Aiosis Emails (Settings → Email → Mail domain wins).
 MAIL_DOMAIN = "aiosis.com"
 
-# Daily housekeeping: expired sessions and links, retention purges.
+# Cron triggers → POST /api/cron (scheduled() is added to worker/index.js by
+# tools/worker-cron.js). Daily, "17 3 * * *" (the DAILY constant in
+# src/routes/api/cron/+server.c): housekeeping — expired sessions and links,
+# retention purges. Every one, including the half-hourly: search engine
+# notifications (scheduled entries going live, IndexNow queue, Google sitemap).
 [triggers]
-crons = ["17 3 * * *"]
+crons = ["17 3 * * *", "*/30 * * * *"]
 
 # Media library (media/server/storage.js). Locally, `bun run dev` gets an
 # emulated bucket under .wrangler/state through the adapter's dev emulation.

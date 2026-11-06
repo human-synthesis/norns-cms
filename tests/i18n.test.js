@@ -212,7 +212,11 @@ describe('translated texts around content', () => {
 		await at(c, 'https://site.com/sitemap.xml', async () => {
 			const xml = await seo(c).sitemapIndex();
 			expect(xml).toContain('https://site.com/en/sitemap-article.xml');
-			expect(xml).toContain('https://site.com/ch/sitemap-article.xml');
+			// /ch only shows German through the content fallback (canonical
+			// elsewhere): no article sitemap of its own, but its archives.
+			expect(xml).not.toContain('https://site.com/ch/sitemap-article.xml');
+			expect(xml).toContain('https://site.com/ch/sitemap-archives.xml');
+			expect(xml).toMatch(/sitemap-article\.xml<\/loc><lastmod>\d{4}-/);
 			expect(xml).not.toContain('de.site.com');
 		});
 		await at(c, 'https://de.site.com/sitemap.xml', async () => {

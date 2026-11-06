@@ -11,11 +11,20 @@ import { getScope } from '@human-synthesis/norns/server';
 
 /** @type {Record<string, any> | undefined} */
 let workerEnv;
+/** @type {((p: Promise<any>) => void) | undefined} */
+let workerWaitUntil;
 try {
-	workerEnv = (await import('cloudflare:workers')).env;
+	const workers = await import('cloudflare:workers');
+	workerEnv = workers.env;
+	workerWaitUntil = workers.waitUntil;
 } catch {
 	workerEnv = undefined;
 }
+// adapter-cloudflare's dev emulation makes waitUntil() a no-op, so in dev
+// background work runs inline instead of being dropped.
+// Written out in full: Vite only replaces the literal import.meta.env.DEV.
+// Bun defines import.meta.env too (DEV is undefined there).
+const DEV = import.meta.env.DEV === true;
 
 /** The Workers env (vars, secrets, bindings), or undefined outside Workers. */
 function platformEnv() {
@@ -42,6 +51,19 @@ export function envVar(key) {
 /** A Cloudflare binding (R2 bucket, D1, ...), if any. */
 export function binding(key) {
 	return platformEnv()?.[key];
+}
+
+/**
+ * Run work after the response on Workers (waitUntil from cloudflare:workers;
+ * SvelteKit 3 no longer passes the execution context on event.platform).
+ * Returns null where there is none (dev, Bun, tests): await the work instead.
+ * @returns {((p: Promise<any>) => void) | null}
+ */
+export function backgroundTask() {
+	if (workerWaitUntil && !DEV) return (p) => workerWaitUntil?.(p);
+	const platform = getScope()?.event?.platform;
+	const ctx = platform?.context ?? platform?.ctx;
+	return ctx?.waitUntil ? (p) => ctx.waitUntil(p) : null;
 }
 
 /** The current request event (or undefined outside a request). */

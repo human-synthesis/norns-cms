@@ -12,6 +12,7 @@ export runMaintenance := async (c: Container) =>
 		['seo', 'seo.service']
 		['forms', 'forms.service']
 		['protection', 'protection.service']
+		['comments', 'comments.service']
 	]
 	for [name, token] of tasks
 		try

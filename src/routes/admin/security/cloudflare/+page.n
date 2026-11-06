@@ -1,0 +1,78 @@
+.space-y-8
+	PageHead(title="Cloudflare firewall" subtitle="Have Cloudflare refuse blocked paths and filtered countries at its edge, before requests reach the site.")
+		+snippet('actions')
+			Btn(href="/admin/security" variant="secondary" icon="lucide:shield") Security
+	+if('form?.saved')
+		Banner(variant="success" icon="lucide:check") {form.saved}
+	+if('form?.warning')
+		Banner(variant="warning" icon="lucide:alert-triangle") {form.warning}
+	+if('form?.error')
+		Banner(variant="danger" icon="lucide:alert-triangle") {form.error}
+	+if('s.lastError && !form')
+		Banner(variant="warning" icon="lucide:alert-triangle") Last sync failed: {s.lastError}
+
+	section.space-y-3
+		h2.text-lg.font-semibold Status
+		p.text-sm
+			+if('s.ready')
+				| Connected{s.zoneName ? ' to the zone ' + s.zoneName : ''}{s.tokenFromEnv ? ' (token from the CLOUDFLARE_API_TOKEN secret)' : ''}.
+				+if('s.lastSyncAt')
+					|  Last synced {new Date(s.lastSyncAt).toLocaleString()}: {s.rules.length} rule{s.rules.length === 1 ? '' : 's'}.
+			+else
+				| Not connected. The site still blocks these requests itself; Cloudflare would do it earlier and for free on its network.
+		+if('s.ready')
+			.flex.gap-2
+				form(method="POST" action="?/sync")
+					Btn(type="submit" variant="primary" size="sm" icon="lucide:refresh-cw") Sync now
+				+if('s.rules.length')
+					form(method="POST" action="?/remove")
+						Btn(type="submit" variant="ghost" size="sm" icon="lucide:trash-2") Remove the rules from Cloudflare
+
+	form.space-y-4(method="POST" action="?/save")
+		section.space-y-3
+			h2.text-lg.font-semibold API token
+			p.text-sm(class="text-fg-muted") In Cloudflare: My Profile → API Tokens → Create Token → Custom token, with the permissions Zone → Zone WAF → Edit and Zone → Zone → Read, limited to this site's zone. It is checked with Cloudflare, stored encrypted and never shown again.
+			+if('!s.canSeal && !s.tokenFromEnv')
+				Banner(variant="warning" icon="lucide:lock") The CMS_SECRET secret is not set, so a token cannot be stored safely. Set CMS_SECRET (or put the token in the CLOUDFLARE_API_TOKEN secret).
+			+if('s.tokenFromEnv')
+				p.text-sm The token comes from the CLOUDFLARE_API_TOKEN secret.
+			+else
+				.form-field
+					label.form-label(for="cf-token") {s.tokenSaved ? 'Replace the saved token' : 'Token'}
+					input.input#cf-token(type="password" name="token" autocomplete="off" placeholder!="{s.tokenSaved ? '•••••••• saved' : ''}")
+				+if('s.tokenSaved')
+					label.check-item
+						input(type="checkbox" name="clearToken")
+						span Forget the saved token
+			.form-field
+				label.form-label(for="cf-zone") Zone ID
+				input.input#cf-zone(name="zoneId" value!="{s.zoneId}" disabled!="{s.zoneFromEnv}" placeholder="Found from the site's address when empty")
+				p.form-help Overview page of the domain in Cloudflare, right column.{s.zoneFromEnv ? ' Set by the CLOUDFLARE_ZONE_ID secret.' : ''}
+		section.space-y-2
+			h2.text-lg.font-semibold What Cloudflare refuses
+			label.check-item
+				input(type="checkbox" name="paths" checked!="{s.paths}")
+				span Blocked paths
+			label.check-item
+				input(type="checkbox" name="countries" checked!="{s.countries}")
+				span Country filter
+			label.check-item
+				input(type="checkbox" name="auto" checked!="{s.auto}")
+				span Update Cloudflare whenever the blocked paths or the country filter change
+		Btn(type="submit" variant="primary" icon="lucide:save") Save
+
+	section.space-y-3
+		h2.text-lg.font-semibold Rules as they would be written now
+		p.text-sm(class="text-fg-muted") Each rule only covers this site's hostnames ({data.preview.hosts.join(', ') || 'none found'}); other sites and rules on the zone are left alone. Rules made by the CMS are named “norns-cms: …” in Security → WAF → Custom rules.
+		+if('data.preview.rules.length === 0')
+			p.text-sm Nothing to write: no blocked paths on, and the country filter is off.
+		+else
+			+each('data.preview.rules as r (r.ref)')
+				details
+					summary.text-sm.cursor-pointer {r.description} · {r.expression.length} characters
+					pre.text-xs.whitespace-pre-wrap.break-all.mt-2 {r.expression}
+
+<script>
+	{ data, form } := $props()
+	s := $derived data.status
+</script>

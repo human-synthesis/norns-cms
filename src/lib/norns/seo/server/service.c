@@ -7,6 +7,7 @@ import { AI_BOTS, botField, seoChecks } from '../shared/fields'
 import { xmlEscape, iso, rfc822, ldJson, plain } from './xml.js'
 import { i18n } from '../../i18n/server/public'
 import { getScope } from '@human-synthesis/norns/server'
+import { blocked, pathMatches } from '../../protection/server/public'
 
 // Absolute URL on the current request's host (its localisation's origin).
 abs := (path: string) =>
@@ -55,7 +56,18 @@ export class SeoService
 		org.logo = logo.url if logo && org['@type'] !== 'Person'
 		org.image = logo.url if logo && org['@type'] === 'Person'
 		org.sameAs = seo.orgSameAs if seo.orgSameAs?.length
-		Object.assign(org, @businessFields(seo)) if seo.orgType === 'LocalBusiness'
+		about := seo.defaultDescription || site.tagline
+		org.description = plain(about, 300) if about
+		if seo.orgType === 'LocalBusiness'
+			Object.assign org, @businessFields(seo)
+			org.image = logo.url if logo
+			map := @mapUrl seo
+			org.hasMap = map if map
+		else if seo.orgType !== 'Person' && @hasBusiness(seo)
+			// An organisation with an address: contact data without the
+			// local-business extras (hours, price range, coordinates).
+			{ address, telephone, email } := @businessFields seo
+			Object.assign org, { address, telephone, email }
 		org
 
 	hasBusiness(seo: any)
@@ -74,18 +86,42 @@ export class SeoService
 		out.areaServed = seo.bizArea if seo.bizArea
 		out
 
-	// Location block / settings → display data.
-	async location()
-		{ seo } := await @config()
-		return null unless @hasBusiness(seo)
-		lines := [seo.bizStreet, [seo.bizPostal, seo.bizCity].filter(Boolean).join(' '), seo.bizRegion, seo.bizCountry].filter(Boolean)
-		map := if seo.bizLat && seo.bizLng
+	addressLines(seo: any)
+		[seo.bizStreet, [seo.bizPostal, seo.bizCity].filter(Boolean).join(' '), seo.bizRegion, seo.bizCountry].filter(Boolean)
+
+	mapUrl(seo: any)
+		lines := @addressLines seo
+		if seo.bizLat && seo.bizLng
 			`https://www.openstreetmap.org/?mlat=${seo.bizLat}&mlon=${seo.bizLng}#map=16/${seo.bizLat}/${seo.bizLng}`
 		else if lines.length
 			`https://www.openstreetmap.org/search?query=${encodeURIComponent(lines.join(', '))}`
 		else
 			null
-		{ name: seo.orgName || '', lines, phone: seo.bizPhone, email: seo.bizEmail, hours: seo.bizHours ?? [], area: seo.bizArea, map }
+
+	// Location block / settings → display data.
+	async location()
+		{ seo } := await @config()
+		return null unless @hasBusiness(seo)
+		{ name: seo.orgName || '', lines: @addressLines(seo), phone: seo.bizPhone, email: seo.bizEmail, hours: seo.bizHours ?? [], area: seo.bizArea, map: @mapUrl(seo) }
+
+	// Geographic meta tags (geo.position, ICBM) when coordinates are set.
+	geoMeta(seo: any)
+		return null unless seo.bizLat && seo.bizLng
+		{
+			position: `${seo.bizLat};${seo.bizLng}`
+			icbm: `${seo.bizLat}, ${seo.bizLng}`
+			placename: seo.bizCity || ''
+			region: String(seo.bizCountry ?? '').toUpperCase()
+		}
+
+	// The entry's own JSON-LD (seoJsonLd): an object, a list or a @graph;
+	// nodes without @type are dropped, @context is set by the page.
+	customLd(value: any)
+		list := Array.isArray(value) ? value : (Array.isArray(value?.['@graph']) ? value['@graph'] : (value ? [value] : []))
+		list.filter((n: any) => n && typeof n === 'object' && !Array.isArray(n) && n['@type']).map (n: any) =>
+			copy := { ...n }
+			delete copy['@context']
+			copy
 
 	// Defaults for every public page (site layout): verification tokens,
 	// the site-wide JSON-LD and the feed link.
@@ -103,6 +139,7 @@ export class SeoService
 			twitter: seo.twitter || ''
 			google: seo.googleVerification || ''
 			bing: seo.bingVerification || ''
+			geo: @geoMeta seo
 			feed: abs(`${loc.base}/feed.xml`)
 			jsonLd: ldJson({ '@context': 'https://schema.org', '@graph': [org, website] })
 		}
@@ -129,7 +166,7 @@ export class SeoService
 		if extra.category
 			crumbs.push { name: extra.category.name, url: abs(extra.category.url) }
 		crumbs.push { name: entry.title, url: canonical }
-		graph.push { '@type': 'BreadcrumbList', itemListElement: crumbs.map((cr, i) => ({ '@type': 'ListItem', position: i + 1, name: cr.name, item: cr.url })) }
+		graph.push { '@type': 'BreadcrumbList', '@id': `${canonical}#breadcrumb`, itemListElement: crumbs.map((cr, i) => ({ '@type': 'ListItem', position: i + 1, name: cr.name, item: cr.url })) }
 		main := {
 			'@type': schemaType
 			'@id': `${canonical}#main`
@@ -142,7 +179,9 @@ export class SeoService
 			datePublished: entry.published_at ? iso(entry.published_at) : undefined
 			dateModified: iso(entry.updated_at)
 		} as Record<string, any>
-		main.image = image.url if image
+		if image
+			main.image = { '@type': 'ImageObject', url: image.url, width: image.width || undefined, height: image.height || undefined }
+		main.breadcrumb = { '@id': `${canonical}#breadcrumb` } if schemaType.endsWith('Page')
 		if ['Article', 'BlogPosting', 'NewsArticle', 'HowTo'].includes(schemaType)
 			main.publisher = { '@id': abs('/#organization') }
 			main.mainEntityOfPage = canonical
@@ -151,11 +190,18 @@ export class SeoService
 			main.keywords = d.tags.join(', ') if d.tags?.length
 			main.abstract = (d.keyFacts?.length ? d.keyFacts.join(' ') : d.summary) || undefined
 			if extra.authors?.length
-				main.author = extra.authors.map (a) => ({ '@type': 'Person', name: a.name, url: a.url ? abs(a.url) : undefined })
+				main.author = [] as any[]
+				for a of extra.authors
+					avatar := await @mediaUrl a.avatar
+					main.author.push { '@type': 'Person', name: a.name, url: a.url ? abs(a.url) : undefined, description: a.bio ? plain(a.bio, 300) : undefined, image: avatar?.url }
 			else
 				main.author = { '@id': abs('/#organization') }
 			main.citation = extra.sources.filter((s) => s.url).map((s) => ({ '@type': 'CreativeWork', name: s.title, url: s.url })) if extra.sources?.length
 			main.isAccessibleForFree = entry.visibility !== 'members'
+		// Comments (approved only), passed by the page as extra.comments.
+		if extra.comments?.count
+			main.commentCount = extra.comments.count
+			main.comment = extra.comments.comments.map (cm: any) => ({ '@type': 'Comment', text: plain(cm.text, 500), dateCreated: iso(cm.createdAt), author: (cm.staff ? { '@id': abs('/#organization') } : { '@type': 'Person', name: cm.name }) })
 		graph.push main
 		faqs := (res.blocks ?? []).filter((b: any) => b.type === 'faq')
 		if faqs.length
@@ -168,6 +214,7 @@ export class SeoService
 		hasLocation := (res.blocks ?? []).some((b: any) => b.type === 'location')
 		if hasLocation && @hasBusiness(seo) && seo.orgType !== 'LocalBusiness'
 			graph.push { '@type': seo.bizType || 'LocalBusiness', name: seo.orgName || site.title, url: abs('/'), ...@businessFields(seo) }
+		graph.push ...@customLd(d.seoJsonLd)
 		twin := !d.seoNoLlms && !noindex && entry.visibility === 'public' && !res.fallbackFrom ? abs(`${path === '/' ? '/index' : path}.md`) : null
 		main.workTranslation = alternates.filter((a) => a.locale !== entry.locale && a.hreflang !== 'x-default').map((a) => ({ '@id': `${a.href}#main`, inLanguage: a.locale })) if alternates.length > 1
 		{
@@ -267,12 +314,30 @@ export class SeoService
 				out.push { code, base: place.base, origin: place.origin, market: place.market } if there
 		out
 
+	// Types that get a sitemap: searchable ones.
+	sitemapTypes()
+		cms(@c).types().filter((ct) => ct.seo !== false)
+
+	// Newest live entry of a type in a language / localisation.
+	async newest(typeId: string, language?: string, market?: string)
+		{ entries, total } := await cms(@c).query typeId, { limit: 1, order: 'updated', locale: language, market }
+		total ? Number(entries[0].updated_at) : 0
+
+	sitemapRef(loc: string, lastmod: number)
+		`<sitemap><loc>${xmlEscape(loc)}</loc>${lastmod ? `<lastmod>${iso(lastmod)}</lastmod>` : ''}</sitemap>`
+
+	// Per host: a sitemap per type with content and the archives, per
+	// locale base, each with the newest change as lastmod.
 	async sitemapIndex()
 		parts := [] as string[]
 		for b of @basesOnHost()
-			for ct of cms(@c).types()
-				parts.push `<sitemap><loc>${xmlEscape(abs(`${b.base}/sitemap-${ct.id}.xml`))}</loc></sitemap>`
-			parts.push `<sitemap><loc>${xmlEscape(abs(`${b.base}/sitemap-archives.xml`))}</loc></sitemap>`
+			latest .= 0
+			for ct of @sitemapTypes()
+				newest := await @newest ct.id, b.code, b.market?.code
+				continue unless newest
+				latest = Math.max latest, newest
+				parts.push @sitemapRef(abs(`${b.base}/sitemap-${ct.id}.xml`), newest)
+			parts.push @sitemapRef(abs(`${b.base}/sitemap-archives.xml`), latest)
 		`<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${parts.join('')}</sitemapindex>\n`
 
 	urlset(urls: { loc: string, lastmod?: string, image?: string | null, alternates?: any[] }[])
@@ -283,22 +348,29 @@ export class SeoService
 	async sitemapFor(typeId: string)
 		loc := locale()
 		if typeId === 'archives'
-			urls := [{ loc: abs(`${loc.base}/`), alternates: @languageAlternates('/') }] as any[]
-			for ct of cms(@c).types()
+			home := { loc: abs(`${loc.base}/`), alternates: @languageAlternates('/') } as any
+			urls := [home] as any[]
+			latest .= 0
+			for ct of @sitemapTypes()
+				newest := await @newest ct.id
+				latest = Math.max latest, newest
 				section := cms(@c).sectionPath ct, loc.language
-				urls.push { loc: abs(`${loc.base}${section}`) } if section && ct.listable
+				urls.push { loc: abs(`${loc.base}${section}`), lastmod: newest ? iso(newest) : undefined } if section && ct.listable
+			home.lastmod = iso(latest) if latest
 			for tax of ['category', 'tag']
 				for t of await articles(@c).terms(tax)
 					urls.push { loc: abs(articles(@c).termUrl(t, loc.language)) } if t.count > 0
 			return @urlset urls
 		ct := cms(@c).getType typeId
-		return null unless ct
+		return null unless ct && ct.seo !== false
 		entries := await @indexable typeId
-		covers := await cms(@c).lookupMedia entries.map((e) => Number(e.data.cover)).filter((n) => n > 0)
+		imageOf := (e: any) => Number(e.data.seoImage) || Number(e.data.cover) || 0
+		images := await cms(@c).lookupMedia entries.map(imageOf).filter((n) => n > 0)
 		urls := [] as any[]
 		for e of entries
 			alts := await @alternates ct, e, await cms(@c).alternatesOf(ct, e)
-			urls.push { loc: abs(cms(@c).urlFor(ct, e)), lastmod: iso(e.updated_at), image: covers[e.data.cover] ? abs(covers[e.data.cover].url) : null, alternates: alts }
+			img := images[imageOf(e)]
+			urls.push { loc: abs(cms(@c).urlFor(ct, e)), lastmod: iso(e.updated_at), image: img ? abs(img.url) : null, alternates: alts }
 		@urlset urls
 
 	async robots()
@@ -523,8 +595,25 @@ export class SeoService
 	count404()
 		@repo.count404()
 
-	purge()
-		@repo.purge404 Date.now() - 90 * DAY
+	// 404 paths that look like vulnerability scans, grouped under a
+	// suggested pattern for the blocked paths list.
+	async probeSuggestions()
+		blocked(@c).suggestions await @repo.notFound(1000)
+
+	// Move a pattern from the 404 log to the blocked paths: block it and
+	// clear every logged path it covers.
+	async blockFromLog(pattern: string, user: any = null, note = '')
+		r := await blocked(@c).add { pattern, note: note || 'From the 404 log', source: '404' }, user
+		return r unless r.ok
+		cleared .= 0
+		for row of await @repo.notFound(1000)
+			if pathMatches(r.pattern, row.path)
+				await @repo.clearNotFound row.path
+				cleared++
+		{ ...r, cleared }
+
+	async purge()
+		{ notFound: await @repo.purge404(Date.now() - 90 * DAY), indexingLog: await @repo.purgeIndexingLog(Date.now() - 90 * DAY) }
 
 	// --- report ----------------------------------------------------------------
 

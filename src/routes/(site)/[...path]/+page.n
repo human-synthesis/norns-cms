@@ -86,6 +86,8 @@
 	ArticleView(res!="{data.res}" extra!="{data.extra}" fallbackName!="{data.fallbackName}")
 +else
 	PageView(res!="{data.res}" fallbackName!="{data.fallbackName}")
++if('data.kind === "entry" && data.discussion')
+	Comments(data!="{data.discussion}")
 
 <script>
 	import { page } from '$app/state'
@@ -94,6 +96,7 @@
 	import ArticleCard from '$lib/norns/articles/ui/ArticleCard.n'
 	import Pager from '$lib/norns/articles/ui/Pager.n'
 	import CookieTableBlock from '$lib/norns/consent/ui/CookieTableBlock.n'
+	import Comments from '$lib/norns/comments/ui/Comments.n'
 	import { t } from '$lib/norns/i18n/ui/t.js'
 	{ data } := $props()
 </script>

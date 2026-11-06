@@ -25,7 +25,7 @@ export class SettingsService
 	defaults(group: any): Record<string, any>
 		out := {} as Record<string, any>
 		for f of group.fields
-			out[f.name] = f.default ?? (f.type === 'boolean' ? false : (f.type === 'tags' || f.type === 'lines' ? [] : ''))
+			out[f.name] = f.default ?? (f.type === 'boolean' ? false : (f.type === 'tags' || f.type === 'lines' || f.type === 'checks' ? [] : ''))
 		out
 
 	async rows(): Promise<Record<string, any>>

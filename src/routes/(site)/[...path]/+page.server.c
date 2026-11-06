@@ -7,6 +7,7 @@ import { consent } from '$lib/norns/consent/server/public'
 import { settings } from '$lib/norns/settings/server/public'
 import { i18n, tFor } from '$lib/norns/i18n/server/public'
 import { auth, can, isStaff } from '$lib/norns/auth/server/public'
+import { comments } from '$lib/norns/comments/server/public'
 
 // The whole public site. localeHandle has resolved the localisation and
 // language (locals.locale) and the path inside its base (`rest`); this
@@ -124,9 +125,13 @@ export load := page.load
 				extra.sources = res.locked ? [] : articles(c).sources(res.entry)
 				extra.related = await articles(c).related res.entry
 				extra.avatars = await cms(c).lookupMedia extra.authors.map((p) => p.avatar).filter(Boolean)
+			// Comments: not on locked (members-only) entries a visitor cannot read,
+			// nor on a language fallback (they belong to the original).
+			discussion := (res.locked || res.fallbackFrom) ? null : await comments(c).section(res.ct, res.entry, { user })
+			extra.comments = await comments(c).approved(res.entry.id) if discussion?.count
 			byLocale := Object.fromEntries res.alternates.map((a) => [a.locale, a.path])
 			fallbackName := res.fallbackFrom ? (i18n(c).language(res.fallbackFrom).native || res.fallbackFrom) : null
-			return { kind: 'entry', res, extra, fallbackName, seo: await seo(c).forEntry(res, extra), switcher: switcherFor(c, loc, (code) => byLocale[code] ?? null) }
+			return { kind: 'entry', res, extra, fallbackName, discussion, seo: await seo(c).forEntry(res, extra), switcher: switcherFor(c, loc, (code) => byLocale[code] ?? null) }
 
 		if rest === '/cookies'
 			return { kind: 'cookies', declaration: await consent(c).declaration(), seo: await seo(c).forPage({ title: t('cookies.title'), path: `${loc.base}/cookies` }), switcher: switcherFor(c, loc, => '/cookies') }

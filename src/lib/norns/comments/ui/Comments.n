@@ -1,0 +1,73 @@
+section.comments#comments(aria-labelledby="comments-title")
+	h2#comments-title.comments-title {t('comments.title')}{data.count ? ' (' + data.count + ')' : ''}
+	+if('notice')
+		.form-done(role="status")
+			Icon(name="lucide:check-circle-2" size="size-5")
+			p {notice}
+	+if('data.comments.length === 0')
+		p.comments-empty {t('comments.none')}
+	+else
+		ol.comments-list
+			+each('data.comments as cm (cm.id)')
+				li.comment(id!="{'comment-' + cm.id}" style!="{'--depth: ' + Math.min(cm.depth, 5)}" class!="{cm.pending ? 'comment-pending' : ''}")
+					.comment-head
+						span.comment-author {cm.name}
+						+if('cm.staff')
+							span.comment-badge {t('comments.staff')}
+						time.comment-date(datetime!="{new Date(cm.createdAt).toISOString()}") {fmtDate(cm.createdAt, { year: 'numeric', month: 'short', day: 'numeric' })}
+						+if('cm.pending')
+							span.comment-badge {t('comments.awaiting')}
+					.comment-body
+						| {@html cm.html}
+					+if('cm.canReply')
+						a.comment-reply(href!="{'?reply=' + cm.id + '#respond'}" rel="nofollow") {t('comments.reply')}
+	+if('data.mode === "closed"')
+		p.comments-empty {t('comments.closed')}
+	+elseif('data.signIn')
+		p.comments-signin
+			| {t('comments.signIn')}
+			| 
+			a(href!="{'/account/login?next=' + encodeURIComponent(page.url.pathname + '#respond')}") {t('comments.signInLink')}
+	+elseif('data.canPost')
+		form.comments-form#respond(method="POST" action="/comments")
+			h3.comments-subtitle {replyTo ? t('comments.replyingTo', { name: replyTo.name }) : t('comments.write')}
+			+if('replyTo')
+				a.comment-reply(href!="{page.url.pathname + '#respond'}") {t('comments.cancel')}
+				input(type="hidden" name="parent" value!="{String(replyTo.id)}")
+			input(type="hidden" name="entry" value!="{String(data.entryId)}")
+			input(type="hidden" name="_locale" value!="{lang()}")
+			input(type="hidden" name="_page" value!="{page.url.pathname}")
+			+if('error')
+				p.form-error(role="alert") {error}
+			.form-fields
+				+if('data.guest')
+					.form-field
+						label.form-label(for="comment-name") {t('comments.name')} *
+						input.input#comment-name(name="name" required maxlength="80" autocomplete="name")
+					.form-field
+						label.form-label(for="comment-email") {t('comments.email')} *
+						input.input#comment-email(type="email" name="email" required maxlength="200" autocomplete="email")
+						p.form-help {t('comments.emailNote')}
+				.form-field
+					label.form-label(for="comment-body") {t('comments.body')} *
+					textarea.textarea#comment-body(name="body" rows="5" required minlength="2" maxlength="5000")
+			FormGuard(id="comments.post")
+			Btn(type="submit" variant="primary") {t('comments.submit')}
+
+<script>
+	import { page } from '$app/state'
+	import { t, lang, fmtDate } from '../../i18n/ui/t.js'
+	import FormGuard from '../../protection/ui/FormGuard.n'
+
+	// The comment section under an entry. `data` is comments(c).section():
+	// { entryId, mode, count, comments (reading order, with depth),
+	// canPost, signIn, guest, replies }. Replies and messages travel in
+	// the URL (?reply=, ?commented=, ?commentError=) so it works without
+	// JavaScript.
+	{ data } := $props()
+
+	params := $derived page.url.searchParams
+	replyTo := $derived data.comments.find((cm) => String(cm.id) === params.get('reply') && cm.canReply) ?? null
+	error := $derived params.get('commentError') ?? ''
+	notice := $derived params.get('commented') === 'approved' ? t('comments.posted') : (params.get('commented') === 'pending' ? t('comments.pending') : '')
+</script>
